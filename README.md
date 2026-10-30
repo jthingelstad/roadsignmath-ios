@@ -1,0 +1,17 @@
+# Road Sign Math for iPhone
+
+Road Sign Math is a road trip game. Find a road sign whose numbers make a true
+equation, photograph it, write the math, and post it. Driving + Math = Fun.
+
+This app is the whole game: capture a sign, check the numbers it read, solve
+it, post it, and see everyone's signs on a feed and a map. Sign in with an
+email link. There are no points and no scoreboard.
+
+The website and the server behind it are in
+[roadsignmath.xyz](https://github.com/jthingelstad/roadsignmath.xyz).
+
+Nothing is built yet.
+
+## License
+
+MIT. See [`LICENSE`](LICENSE).
