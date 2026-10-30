@@ -17,7 +17,10 @@ for the app's code that isn't a screen. Its first module, `SignReading`, reads
 the numbers on a photo of a sign with Apple's Vision and turns what it reads
 into numbers a player can use (`82nd St` is 82, `EXIT 7B` reads as 7,
 `6AM-10AM` is 6 and 10). [`docs/SPIKE.md`](docs/SPIKE.md) is how well it does
-on real signs, and how to run that test again.
+on real signs, and how to run that test again. `Equation` is the equation
+checker, the same rules as the server's: it says whether the math is true,
+what each side equals, which numbers it used, and writes the LaTeX the math
+is drawn from. It passes the server's own test vectors.
 
 ```sh
 swift test --package-path RoadSignMathKit

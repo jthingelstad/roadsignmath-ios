@@ -21,6 +21,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # The equation checker's vectors must be the server's, byte for byte.
+      - name: Equation vectors match the server's
+        run: scripts/check-vectors.sh
       - name: RoadSignMathKit tests
         run: swift test --package-path RoadSignMathKit
       # TestFlight builds are optimized, and the optimizer has broken code
