@@ -29,6 +29,8 @@ final class Store {
   private(set) var latest: [Sign] = []
   private(set) var latestLoad: Load = .idle
   private var nextCursor: String?
+  /// Bumped each time the feed is read afresh.
+  private var feedGeneration = 0
   private(set) var loadingMore = false
 
   // Near you.
@@ -86,6 +88,8 @@ final class Store {
       let page = try await client.signs(limit: 20)
       latest = page.signs
       nextCursor = page.nextCursor
+      // A later page still being read belongs to the feed this replaced.
+      feedGeneration += 1
       latestLoad = .loaded
     } catch {
       latestLoad = Self.cancelled(error) ? (latest.isEmpty ? .idle : .loaded) : (latest.isEmpty ? .failed(Self.say(error)) : .loaded)
@@ -95,9 +99,10 @@ final class Store {
 
   func loadMore() async {
     guard let cursor = nextCursor, !loadingMore else { return }
+    let generation = feedGeneration
     loadingMore = true
     defer { loadingMore = false }
-    if let page = try? await client.signs(cursor: cursor, limit: 20) {
+    if let page = try? await client.signs(cursor: cursor, limit: 20), generation == feedGeneration {
       let seen = Set(latest.map(\.id))
       latest += page.signs.filter { !seen.contains($0.id) }
       nextCursor = page.nextCursor
