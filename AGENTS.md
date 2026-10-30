@@ -95,7 +95,7 @@ The website and the server behind it are in
   scheme's `RSM_API` environment variable to read another, such as the live
   site (reads only). Release reads `https://roadsignmath.xyz/api/v1`. Debug
   builds also take launch arguments for screenshots: `-RSMTab map`,
-  `-RSMOpen /signs/<slug>`, `-RSMFocus <sign id>`.
+  `-RSMOpen /signs/<slug>`, `-RSMFocus <sign id>`, `-RSMSearch <words>`.
 - The app only reads from the server so far. Never write to the live API
   (sign-in, posts, reports) to test anything.
 - Every TestFlight upload, internal ones included, is Jamie's call each time.

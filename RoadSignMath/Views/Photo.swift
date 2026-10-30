@@ -57,12 +57,14 @@ struct PhotoView: View {
   var pixels = 1200
   var contentMode: ContentMode = .fill
 
-  @State private var image: UIImage?
+  /// The photo read for a URL. Kept with its URL, so a view reused for
+  /// another photo never shows the last one's.
+  @State private var read: (url: URL, image: UIImage)?
 
   var body: some View {
     Color.photoGround
       .overlay {
-        if let shown = image ?? Photos.shared.kept(url, pixels: pixels) {
+        if let shown = Photos.shared.kept(url, pixels: pixels) ?? (read?.url == url ? read?.image : nil) {
           Image(uiImage: shown)
             .resizable()
             .aspectRatio(contentMode: contentMode)
@@ -72,8 +74,8 @@ struct PhotoView: View {
       .clipped()
       .task(id: url) {
         guard Photos.shared.kept(url, pixels: pixels) == nil else { return }
-        let read = await Photos.shared.image(url, pixels: pixels)
-        withAnimation(.easeOut(duration: 0.25)) { image = read }
+        guard let image = await Photos.shared.image(url, pixels: pixels) else { return }
+        withAnimation(.easeOut(duration: 0.25)) { read = (url, image) }
       }
       .accessibilityElement()
       .accessibilityLabel(alt)

@@ -51,6 +51,10 @@ struct SignMap: UIViewRepresentable {
     var lastFocus: MapFocus?
     private var shown: [String: SignAnnotation] = [:]
     private var framed = false
+    private var reframe: Task<Void, Never>?
+    /// Whether the map shows what `frameAll` framed, at the size it was.
+    private var fitted = false
+    private var fittedSize = CGSize.zero
 
     init(_ parent: SignMap) { self.parent = parent }
 
@@ -61,14 +65,45 @@ struct SignMap: UIViewRepresentable {
       let added = wanted.values.filter { shown[$0.id] == nil }.map(SignAnnotation.init)
       for annotation in added { shown[annotation.id] = annotation }
       map.addAnnotations(added)
+      if framed, !shown.isEmpty, !gone.isEmpty || !added.isEmpty {
+        // A search or a year chose other signs: show them, once typing
+        // pauses and the card below has taken its new height.
+        frameSoon(map)
+      }
       frameWhenReady(map)
     }
 
-    /// Frames every pin once, as soon as there are pins and the map has a size.
+    /// Frames every pin once, as soon as there are pins and the map has a
+    /// size; afterwards, while the map still shows all its pins, keeps them
+    /// in view when the card below changes the map's height.
     func frameWhenReady(_ map: MKMapView) {
-      guard !framed, !shown.isEmpty, map.bounds.width > 0 else { return }
+      if framed {
+        if fitted, map.bounds.size != fittedSize { frameSoon(map) }
+        return
+      }
+      guard !shown.isEmpty, map.bounds.width > 0 else { return }
       framed = true
       frameAll(map, animated: false)
+    }
+
+    /// Frames the pins once typing pauses and the card below has taken its
+    /// new height.
+    private func frameSoon(_ map: MKMapView) {
+      reframe?.cancel()
+      reframe = Task { @MainActor [weak map] in
+        try? await Task.sleep(for: .milliseconds(300))
+        guard !Task.isCancelled, let map else { return }
+        self.frameAll(map, animated: true)
+      }
+    }
+
+    func mapView(_ map: MKMapView, regionWillChangeAnimated animated: Bool) {
+      // A finger on the map: it's the player's view now, not the framing.
+      let touched = map.subviews.first?.gestureRecognizers?.contains { $0.state == .began || $0.state == .changed } ?? false
+      if touched {
+        fitted = false
+        reframe?.cancel()
+      }
     }
 
     func syncSelection(_ map: MKMapView, selected: String?) {
@@ -83,14 +118,24 @@ struct SignMap: UIViewRepresentable {
 
     /// Every pin in view, with room for the search bar and the card.
     func frameAll(_ map: MKMapView, animated: Bool) {
-      let rect = shown.values.reduce(MKMapRect.null) { $0.union(MKMapRect(origin: MKMapPoint($1.coordinate), size: MKMapSize(width: 1, height: 1))) }
+      var rect = shown.values.reduce(MKMapRect.null) { $0.union(MKMapRect(origin: MKMapPoint($1.coordinate), size: MKMapSize(width: 1, height: 1))) }
+      // One sign, or a few in one town, shows the town around it rather
+      // than the street.
+      let least = 30_000 * MKMapPointsPerMeterAtLatitude(rect.origin.coordinate.latitude)
+      if rect.width < least && rect.height < least {
+        rect = rect.insetBy(dx: -(least - rect.width) / 2, dy: -(least - rect.height) / 2)
+      }
       map.setVisibleMapRect(rect, edgePadding: UIEdgeInsets(top: 150, left: 36, bottom: 40, right: 36), animated: animated)
+      fitted = true
+      fittedSize = map.bounds.size
     }
 
     /// Close enough to a pin that it stands on its own, then choose it.
     func fly(_ map: MKMapView, to id: String) {
       guard let annotation = shown[id] else { return }
       let region = MKCoordinateRegion(center: annotation.coordinate, latitudinalMeters: 30_000, longitudinalMeters: 30_000)
+      fitted = false
+      reframe?.cancel()
       map.setRegion(region, animated: true)
       parent.selected = id
       Task { @MainActor in
@@ -108,6 +153,8 @@ struct SignMap: UIViewRepresentable {
           parent.selected = nil
           parent.together = members.map(\.id)
         } else {
+          fitted = false
+          reframe?.cancel()
           map.showAnnotations(members, animated: true)
         }
       } else if let pin = annotation as? SignAnnotation, parent.selected != pin.id {
@@ -142,15 +189,17 @@ final class LaidOutMap: MKMapView {
   }
 }
 
+/// A sign on the map. It has no `title`: MapKit floats a chosen pin's title
+/// over it, and the card below already says it.
 final class SignAnnotation: NSObject, MKAnnotation {
   let id: String
   let coordinate: CLLocationCoordinate2D
-  let title: String?
+  let name: String
 
   init(_ pin: Pin) {
     id = pin.id
     coordinate = CLLocationCoordinate2D(latitude: pin.lat ?? 0, longitude: pin.lng ?? 0)
-    title = pin.title
+    name = pin.title
   }
 }
 
@@ -190,14 +239,14 @@ final class SignPinView: MKAnnotationView {
   override var annotation: (any MKAnnotation)? {
     didSet {
       clusteringIdentifier = "signs"
-      accessibilityLabel = annotation?.title ?? "A sign"
+      accessibilityLabel = (annotation as? SignAnnotation)?.name ?? "A sign"
     }
   }
 
   override func prepareForDisplay() {
     super.prepareForDisplay()
     clusteringIdentifier = "signs"
-    accessibilityLabel = annotation?.title ?? "A sign"
+    accessibilityLabel = (annotation as? SignAnnotation)?.name ?? "A sign"
   }
 
   override func setSelected(_ selected: Bool, animated: Bool) {

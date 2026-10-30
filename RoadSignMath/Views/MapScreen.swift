@@ -41,6 +41,13 @@ struct MapScreen: View {
       if store.mapLoad == .idle { await store.loadMap() }
       if store.latest.isEmpty { await store.loadLatest() }
       takeFocus()
+      #if DEBUG
+        // For screenshots: `-RSMSearch <words>` as a launch argument.
+        if query.isEmpty, let words = UserDefaults.standard.string(forKey: "RSMSearch") { query = words }
+      #endif
+    }
+    .onChange(of: query.isEmpty) { _, empty in
+      if !empty { Task { await store.loadEverySign() } }
     }
     .onChange(of: store.mapFocus) { takeFocus() }
     .onChange(of: store.pins) { takeFocus() }
