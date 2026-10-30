@@ -42,6 +42,10 @@ final class Account {
   var signingIn = false
   var step: Step = .email
   private(set) var pending: Pending?
+  /// Bumped whenever the sign-in in progress is over or replaced (signed
+  /// in, another email, signed out), so a late answer to an email sent
+  /// before then is dropped.
+  private var attempt = 0
   /// A word for the person after something happened on its own: signed
   /// out by the server, account deleted.
   var notice: String?
@@ -96,7 +100,11 @@ final class Account {
   /// working alongside the new one.
   func start(email raw: String, again: Bool = false) async throws {
     let email = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+    let sent = attempt
     let started = try await client.startSignIn(email: email)
+    // Signed in by a code or the link meanwhile, or gone back for another
+    // email: this answer is no longer wanted.
+    guard sent == attempt, !signedIn else { return }
     let expires = Date.now.addingTimeInterval(TimeInterval(started.expiresIn))
     var logins = again && pending?.email == email ? pending?.logins ?? [] : []
     logins.insert(started.loginId, at: 0)
@@ -145,6 +153,7 @@ final class Account {
     do { try tokens.save(done.token) } catch {
       // Still signed in for now; the next launch asks again.
     }
+    attempt += 1
     token = done.token
     remember(done.me)
     setPending(nil)
@@ -165,6 +174,8 @@ final class Account {
 
   /// Back to the email field, forgetting the emails sent.
   func useAnotherEmail() {
+    attempt += 1
+    linkProblem = nil
     setPending(nil)
     step = .email
   }
@@ -210,6 +221,7 @@ final class Account {
   }
 
   private func forget() {
+    attempt += 1
     defaults.removeObject(forKey: key + ":nameLater")
     try? tokens.clear()
     token = nil

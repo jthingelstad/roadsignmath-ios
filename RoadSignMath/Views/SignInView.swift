@@ -242,9 +242,11 @@ private struct CodeStep: View {
           .onChange(of: code) { _, now in
             let digits = String(now.filter { $0.isASCII && $0.isNumber }.prefix(6))
             if digits != now { code = digits; return }
-            if digits.count == 6 { check() } else if !digits.isEmpty { problem = nil }
+            if digits.count == 6 { check() } else if !digits.isEmpty { clearProblems() }
           }
-        if let problem {
+        // A link from the email that didn't work lands here too, when an
+        // email is waiting for its code.
+        if let problem = problem ?? account.linkProblem {
           ProblemLine(text: problem)
         } else if let resent {
           Text(resent).face(.metaBold).foregroundStyle(Color.greenInk)
@@ -294,10 +296,17 @@ private struct CodeStep: View {
       if let scripted = Script.value("RSMCode"), code.isEmpty { code = scripted }
     }
     .sensoryFeedback(.error, trigger: wrong)
+    .sensoryFeedback(.error, trigger: account.linkProblem) { _, now in now != nil }
+  }
+
+  private func clearProblems() {
+    problem = nil
+    account.linkProblem = nil
   }
 
   private func check() {
     guard !checking else { return }
+    clearProblems()
     checking = true
     typing = false
     Task {
@@ -316,7 +325,7 @@ private struct CodeStep: View {
   private func resend() {
     guard let email = account.pending?.email else { return account.useAnotherEmail() }
     resending = true
-    problem = nil
+    clearProblems()
     Task {
       do {
         try await account.start(email: email, again: true)
