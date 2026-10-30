@@ -15,6 +15,20 @@ The website and the server behind it are in
     (`NumberExtractor`: letters dropped, `7B` read as 7, times split in two,
     fractions) and `SignReader`, which reads a photo in passes and merges them.
     It builds for macOS too, so it runs headless on a Mac.
+  - `Equation`: the equation checker, a port of the server's
+    `src/domain/equation.ts` (tokenizer, parser, checker, `numbersNotOnSign`
+    and `tex`). It must agree with the server exactly: the same canonical
+    text, the same value text (JavaScript's number printing, ported in
+    `JSNumber`), the same error codes and the same LaTeX, byte for byte.
+    Exact arithmetic uses a small `BigInt` of its own, since the server's
+    uses JavaScript's. Its tests run every case in
+    `Tests/EquationTests/Resources/equation-vectors.json`, a byte-for-byte
+    copy of the server's `contracts/equation-vectors.json`;
+    `scripts/check-vectors.sh` (in CI) fails when they differ. Change the
+    server first, copy the file, then make the port pass. A case it can't
+    pass is a bug to fix, never one to skip. Text longer than 64
+    characters is checked on a thread with a 16 MB stack, since a Debug
+    build's recursion overflows 512 KB about 100 brackets deep.
   - `SignReadingEval` and `sign-reading-eval`: the number-reading spike, which
     scores `SignReading` against signs with known numbers. See `docs/SPIKE.md`.
 - The app's Xcode project comes in a later PR.
@@ -38,8 +52,11 @@ The website and the server behind it are in
   swift test -c release -Xswiftc -enable-testing --package-path RoadSignMathKit
   ```
 
-  CI (`.github/workflows/test.yml`) runs both on every PR. Actions are pinned
-  by commit SHA.
+  CI (`.github/workflows/test.yml`) runs both on every PR, after
+  `scripts/check-vectors.sh`. Actions are pinned by commit SHA. With the
+  server's repo checked out beside this one,
+  `ROADSIGNMATH_SERVER=<its folder> swift test --package-path RoadSignMathKit`
+  also compares the vectors with that checkout.
 - Every TestFlight upload, internal ones included, is Jamie's call each time.
   Merge as usual, then ask before uploading.
 - Codex reviews every PR (`chatgpt-codex-connector[bot]`). Read its findings
