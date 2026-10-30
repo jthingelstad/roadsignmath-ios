@@ -102,7 +102,7 @@ public enum EquationChecker {
     return parseHere(text)
   }
 
-  private static func parseHere(_ text: String) -> [MathNode]? {
+  static func parseHere(_ text: String) -> [MathNode]? {
     guard let tokens = try? tokenize(text) else { return nil }
     var parser = Parser(tokens: tokens)
     return try? parser.equation()
@@ -155,7 +155,7 @@ public enum EquationChecker {
   /// is called.
   static let inlineLength = 64
 
-  private static func onLargeStack<T: Sendable>(_ work: @escaping @Sendable () -> T) -> T {
+  static func onLargeStack<T: Sendable>(_ work: @escaping @Sendable () -> T) -> T {
     let box = ResultBox<T>()
     let done = DispatchSemaphore(value: 0)
     let thread = Thread {

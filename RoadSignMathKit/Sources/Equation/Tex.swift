@@ -20,9 +20,18 @@ extension EquationChecker {
     }
   }
 
-  /// The LaTeX for a way's text, or nil when it doesn't parse.
+  /// The LaTeX for a way's text, or nil when it doesn't parse. Writing it
+  /// recurses as deep as parsing does, so long text is parsed and written
+  /// together on the parser's large stack. (`tex(_:)` on a node runs where
+  /// it is called; use this for text of any length.)
   public static func tex(of text: String) -> String? {
-    parse(text).map { $0.map(tex).joined(separator: " = ") }
+    if text.utf16.count > parseLength { return nil }
+    if text.utf16.count > inlineLength { return onLargeStack { texHere(text) } }
+    return texHere(text)
+  }
+
+  private static func texHere(_ text: String) -> String? {
+    parseHere(text).map { $0.map(tex).joined(separator: " = ") }
   }
 }
 

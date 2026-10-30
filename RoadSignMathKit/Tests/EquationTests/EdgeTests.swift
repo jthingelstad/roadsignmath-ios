@@ -127,6 +127,27 @@ import Testing
     #expect(EquationChecker.parse(deep) != nil)
   }
 
+  /// Writing the LaTeX for the deepest text recurses as far as parsing it,
+  /// so it too must not need the caller's stack: here a thread with the
+  /// 512 KB a secondary thread gets by default.
+  @Test func deepestTexOnASmallStack() {
+    let depth = 598
+    let deep = String(repeating: "(", count: depth) + "1" + String(repeating: ")", count: depth) + "=1"
+    final class Box: @unchecked Sendable { var tex: String? }
+    let box = Box()
+    let done = DispatchSemaphore(value: 0)
+    let thread = Thread {
+      box.tex = EquationChecker.tex(of: deep)
+      done.signal()
+    }
+    thread.stackSize = 512 << 10
+    thread.start()
+    done.wait()
+    let tex = try? #require(box.tex)
+    #expect(tex?.hasPrefix(String(repeating: "\\left(", count: 3)) == true)
+    #expect(tex?.hasSuffix("\\right) = 1") == true)
+  }
+
   @Test func deepNesting() async {
     let depth = 198
     let brackets = String(repeating: "(", count: depth) + "2" + String(repeating: ")", count: depth) + "= 2"
