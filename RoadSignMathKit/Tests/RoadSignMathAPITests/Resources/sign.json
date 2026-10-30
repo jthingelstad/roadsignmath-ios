@@ -1,0 +1,115 @@
+{
+  "id": "01K43VJQP8H8787XQXQDW47W0B",
+  "slug": "i-35w-at-82nd-street",
+  "title": "I-35W at 82nd Street",
+  "url": "https://roadsignmath.xyz/signs/i-35w-at-82nd-street",
+  "caption": "Tyler found this one driving up I-35W.",
+  "found_on": "2025-09-01",
+  "posted_at": "2025-09-02T00:00:13.000Z",
+  "posted_by": "jamie",
+  "place": {
+    "label": "I-35W at 82nd Street, Bloomington, Minnesota",
+    "state": "MN",
+    "lat": 44.857,
+    "lng": -93.29,
+    "approximate": true
+  },
+  "photos": [
+    {
+      "id": "01k43vjqp8x8n82dwwwbbwgwhp",
+      "width": 1600,
+      "height": 1201,
+      "alt": "Overhead signs on I-35W: Express Lane (E-ZPass or HOV 2+ only, 6AM-10AM Mon-Fri), Exit 8 82nd St 1 mile, and Exit 7B 90th St.",
+      "url": "https://roadsignmath.xyz/p/01k43vjqp8x8n82dwwwbbwgwhp/large.jpg",
+      "thumb_url": "https://roadsignmath.xyz/p/01k43vjqp8x8n82dwwwbbwgwhp/thumb.jpg"
+    }
+  ],
+  "numbers": [
+    {
+      "value": "2",
+      "text": "HOV 2+",
+      "why": "Read as 2",
+      "box": null
+    },
+    {
+      "value": "6",
+      "text": "6AM-10AM",
+      "why": "Times split in two",
+      "box": null
+    },
+    {
+      "value": "10",
+      "text": "6AM-10AM",
+      "why": "Times split in two",
+      "box": null
+    },
+    {
+      "value": "8",
+      "text": "EXIT 8",
+      "why": null,
+      "box": null
+    },
+    {
+      "value": "82",
+      "text": "82nd St",
+      "why": "Letters dropped",
+      "box": null
+    },
+    {
+      "value": "1",
+      "text": "1 MILE",
+      "why": null,
+      "box": null
+    },
+    {
+      "value": "7",
+      "text": "EXIT 7B",
+      "why": "Read as 7",
+      "box": null
+    },
+    {
+      "value": "90",
+      "text": "90th St",
+      "why": "Letters dropped",
+      "box": null
+    }
+  ],
+  "finders": [
+    {
+      "name": "Tyler",
+      "handle": "tyler",
+      "role": "found"
+    }
+  ],
+  "first_way": {
+    "text": "(90 \u2212 82) \u00f7 8 \u00d7 1 \u00d7 2 = 6 \u00f7 (10 \u2212 7)",
+    "tex": "\\frac{90 - 82}{8} \\times 1 \\times 2 = \\frac{6}{10 - 7}",
+    "value": "2"
+  },
+  "way_count": 1,
+  "visibility": "shown",
+  "moderation_note": null,
+  "ways": [
+    {
+      "id": "01K43VJQP8CX12BN737P2R31DT",
+      "text": "(90 \u2212 82) \u00f7 8 \u00d7 1 \u00d7 2 = 6 \u00f7 (10 \u2212 7)",
+      "tex": "\\frac{90 - 82}{8} \\times 1 \\times 2 = \\frac{6}{10 - 7}",
+      "value": "2",
+      "numbers": [
+        "90",
+        "82",
+        "8",
+        "1",
+        "2",
+        "6",
+        "10",
+        "7"
+      ],
+      "by": {
+        "handle": "tyler",
+        "name": "Tyler"
+      },
+      "created_at": "2025-09-02T00:00:13.000Z"
+    }
+  ]
+}

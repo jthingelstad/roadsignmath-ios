@@ -30,3 +30,10 @@ jobs:
       # that Debug ran fine (a task group, in a sibling app's crash on launch).
       - name: RoadSignMathKit tests, optimized
         run: swift test -c release -Xswiftc -enable-testing --package-path RoadSignMathKit
+      - name: Version arithmetic
+        run: scripts/version.sh test
+      - name: Build the app for the simulator
+        run: >
+          xcodebuild -project RoadSignMath.xcodeproj -scheme RoadSignMath
+          -destination 'generic/platform=iOS Simulator'
+          -derivedDataPath build/dd CODE_SIGNING_ALLOWED=NO build
