@@ -116,15 +116,23 @@ final class Account {
   /// every sign-in has said no, the newest one's answer is the one shown.
   func verify(code: String) async throws {
     guard let pending else { throw SignInProblem.noEmail }
+    let typed = attempt
     var first: (any Error)?
     for login in pending.logins {
       do {
         let done = try await client.finishSignIn(loginId: login, code: code)
+        guard typed == attempt, !signedIn else {
+          // Gone back for another email (or the link won) meanwhile: let
+          // this sign-in go, and end it on the server too.
+          Task { [client] in try? await client.signOut(token: done.token) }
+          return
+        }
         signedIn(done)
         return
       } catch let error as APIError where error.isUnauthorized {
         first = first ?? error
         // Only an older email's sign-in is worth a try after a no.
+        if typed != attempt { break }
         continue
       }
     }
@@ -141,6 +149,8 @@ final class Account {
     do {
       signedIn(try await client.finishSignIn(link))
     } catch {
+      // Signed in by a code meanwhile: the link's no doesn't matter.
+      guard !signedIn else { return }
       linkProblem = Account.say(error, link: true)
       if pending != nil { step = .code } else { step = .email }
     }
