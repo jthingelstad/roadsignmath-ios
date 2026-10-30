@@ -120,14 +120,7 @@ final class Account {
     var first: (any Error)?
     for login in pending.logins {
       do {
-        let done = try await client.finishSignIn(loginId: login, code: code)
-        guard typed == attempt, !signedIn else {
-          // Gone back for another email (or the link won) meanwhile: let
-          // this sign-in go, and end it on the server too.
-          Task { [client] in try? await client.signOut(token: done.token) }
-          return
-        }
-        signedIn(done)
+        accept(try await client.finishSignIn(loginId: login, code: code), from: typed)
         return
       } catch let error as APIError where error.isUnauthorized {
         first = first ?? error
@@ -146,8 +139,9 @@ final class Account {
       return
     }
     signingIn = true
+    let tapped = attempt
     do {
-      signedIn(try await client.finishSignIn(link))
+      accept(try await client.finishSignIn(link), from: tapped)
     } catch {
       // Signed in by a code meanwhile: the link's no doesn't matter.
       guard !signedIn else { return }
@@ -158,6 +152,17 @@ final class Account {
 
   /// What went wrong with a link, shown on the sign-in screen.
   var linkProblem: String?
+
+  /// A sign-in the server said yes to, kept only if it still answers the
+  /// sign-in in progress: gone back for another email, or signed in some
+  /// other way meanwhile, it's let go and its session ended on the server.
+  private func accept(_ done: SignedIn, from started: Int) {
+    guard started == attempt, !signedIn else {
+      Task { [client] in try? await client.signOut(token: done.token) }
+      return
+    }
+    signedIn(done)
+  }
 
   private func signedIn(_ done: SignedIn) {
     do { try tokens.save(done.token) } catch {
@@ -211,11 +216,15 @@ final class Account {
   }
 
   /// A call with the token. A 401 means the token has ended: sign out and
-  /// say so, then pass the error on.
+  /// say so, then pass the error on. An answer that arrives after a sign
+  /// out (or a sign-in as someone else) is for a session that's over, so
+  /// it's dropped the same way.
   private func authorized<T>(_ call: (String) async throws -> T) async throws -> T {
     guard let token else { throw SignInProblem.signedOut }
     do {
-      return try await call(token)
+      let answer = try await call(token)
+      guard self.token == token else { throw SignInProblem.signedOut }
+      return answer
     } catch let error as APIError where error.isUnauthorized {
       if self.token == token {
         forget()
