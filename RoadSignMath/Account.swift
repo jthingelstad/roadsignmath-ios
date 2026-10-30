@@ -203,9 +203,12 @@ final class Account {
     if let me = try? await authorized({ try await client.me(token: $0) }) { remember(me) }
   }
 
+  /// Signs out here at once, then tells the server to end that token, so
+  /// a slow answer can't sign out whoever signs in next.
   func signOut() async {
-    if let token { try? await client.signOut(token: token) }
+    let ending = token
     forget()
+    if let ending { try? await client.signOut(token: ending) }
   }
 
   /// Deletes the account and everything it made, then signs out.
