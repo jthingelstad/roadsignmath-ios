@@ -1,0 +1,201 @@
+{
+  "pins": [
+    {
+      "id": "01K43VJQP8H8787XQXQDW47W0B",
+      "slug": "i-35w-at-82nd-street",
+      "title": "I-35W at 82nd Street",
+      "url": "https://roadsignmath.xyz/signs/i-35w-at-82nd-street",
+      "lat": 44.857,
+      "lng": -93.29,
+      "approximate": true,
+      "state": "MN",
+      "found_on": "2025-09-01",
+      "thumb_url": "https://roadsignmath.xyz/p/01k43vjqp8x8n82dwwwbbwgwhp/thumb.jpg"
+    },
+    {
+      "id": "01K210TTHG7F6Q6AG14MZFMP6Y",
+      "slug": "on-the-way-to-the-airport",
+      "title": "On the way to the airport",
+      "url": "https://roadsignmath.xyz/signs/on-the-way-to-the-airport",
+      "lat": 44.466,
+      "lng": -73.171,
+      "approximate": true,
+      "state": "VT",
+      "found_on": "2025-08-06",
+      "thumb_url": "https://roadsignmath.xyz/p/01k210tthg8vkb04prekftccdy/thumb.jpg"
+    },
+    {
+      "id": "01JY5K00R8Q2WV9Y3V6VEX6K2V",
+      "slug": "cancel-it-all-out",
+      "title": "Cancel it all out",
+      "url": "https://roadsignmath.xyz/signs/cancel-it-all-out",
+      "lat": 44.905,
+      "lng": -93.271,
+      "approximate": true,
+      "state": "MN",
+      "found_on": "2025-06-19",
+      "thumb_url": "https://roadsignmath.xyz/p/01jy5k00r8ratxsmx5k1xjzang/thumb.jpg"
+    },
+    {
+      "id": "01HDCHR6P0PZ03MYQYDSAKRETH",
+      "slug": "twin-lakes",
+      "title": "Twin Lakes",
+      "url": "https://roadsignmath.xyz/signs/twin-lakes",
+      "lat": 43.559,
+      "lng": -93.421,
+      "approximate": true,
+      "state": "MN",
+      "found_on": "2023-10-22",
+      "thumb_url": "https://roadsignmath.xyz/p/01hdchr6p06aae2deqcwz3exds/thumb.jpg"
+    },
+    {
+      "id": "01HDCHP0C0FV1P7ZKK90JHHG33",
+      "slug": "mason-math",
+      "title": "Mason Math",
+      "url": "https://roadsignmath.xyz/signs/mason-math",
+      "lat": 43.153,
+      "lng": -93.201,
+      "approximate": true,
+      "state": "IA",
+      "found_on": "2023-10-22",
+      "thumb_url": "https://roadsignmath.xyz/p/01hdchp0c011t2xpa0z44yy3vf/thumb.jpg"
+    },
+    {
+      "id": "01HDC8PC8RXEG60GJHRXHCWE5R",
+      "slug": "iconium",
+      "title": "Iconium",
+      "url": "https://roadsignmath.xyz/signs/iconium",
+      "lat": 38.096,
+      "lng": -93.529,
+      "approximate": true,
+      "state": "MO",
+      "found_on": "2023-10-22",
+      "thumb_url": "https://roadsignmath.xyz/p/01hdc8pc8rr4gry8ap0zbmewvn/thumb.jpg"
+    },
+    {
+      "id": "01HDC8MJN063AH7JFGMR8PT2JN",
+      "slug": "osceola",
+      "title": "Osceola",
+      "url": "https://roadsignmath.xyz/signs/osceola",
+      "lat": 38.047,
+      "lng": -93.704,
+      "approximate": true,
+      "state": "MO",
+      "found_on": "2023-10-22",
+      "thumb_url": "https://roadsignmath.xyz/p/01hdc8mjn0hnm4c0b9jmq03d1q/thumb.jpg"
+    },
+    {
+      "id": "01HDC8K0V8979Z3953XMZQXPNF",
+      "slug": "bolivar",
+      "title": "Bolivar",
+      "url": "https://roadsignmath.xyz/signs/bolivar",
+      "lat": 37.614,
+      "lng": -93.41,
+      "approximate": true,
+      "state": "MO",
+      "found_on": "2023-10-22",
+      "thumb_url": "https://roadsignmath.xyz/p/01hdc8k0v863pabcfsr7vcj146/thumb.jpg"
+    },
+    {
+      "id": "01HD94Y3XRM6YJGZQXMXJW1QNW",
+      "slug": "genesis",
+      "title": "Genesis",
+      "url": "https://roadsignmath.xyz/signs/genesis",
+      "lat": 45.675,
+      "lng": -94.808,
+      "approximate": true,
+      "state": "MN",
+      "found_on": "2023-10-21",
+      "thumb_url": "https://roadsignmath.xyz/p/01hd94y3xrdh12e8fav5pvjhme/thumb.jpg"
+    },
+    {
+      "id": "01HD4QT9303KD3QEKBDWB268ET",
+      "slug": "fair-play",
+      "title": "Fair Play",
+      "url": "https://roadsignmath.xyz/signs/fair-play",
+      "lat": 37.631,
+      "lng": -93.577,
+      "approximate": true,
+      "state": "MO",
+      "found_on": "2023-10-19",
+      "thumb_url": "https://roadsignmath.xyz/p/01hd4qt93021hxcxag61r5m9vn/thumb.jpg"
+    },
+    {
+      "id": "01HD4QAE88Q1C5A4BP66PVM1YR",
+      "slug": "fair-grove",
+      "title": "Fair Grove",
+      "url": "https://roadsignmath.xyz/signs/fair-grove",
+      "lat": 37.384,
+      "lng": -93.151,
+      "approximate": true,
+      "state": "MO",
+      "found_on": "2023-10-19",
+      "thumb_url": "https://roadsignmath.xyz/p/01hd4qae882vkqf26yn3yceftw/thumb.jpg"
+    },
+    {
+      "id": "01FCAAXE40J8D1JXNDVDENRGQH",
+      "slug": "saratoga",
+      "title": "Saratoga",
+      "url": "https://roadsignmath.xyz/signs/saratoga",
+      "lat": 43.083,
+      "lng": -73.785,
+      "approximate": true,
+      "state": "NY",
+      "found_on": "2021-08-05",
+      "thumb_url": "https://roadsignmath.xyz/p/01fcaaxe40ghgw17w2r4ax0ryk/thumb.jpg"
+    },
+    {
+      "id": "01FC7RGQ40BC7TN495N65EG7J3",
+      "slug": "greenbush",
+      "title": "Greenbush",
+      "url": "https://roadsignmath.xyz/signs/greenbush",
+      "lat": 42.591,
+      "lng": -73.703,
+      "approximate": true,
+      "state": "NY",
+      "found_on": "2021-08-04",
+      "thumb_url": "https://roadsignmath.xyz/p/01fc7rgq40nag9eq75qnggjwmj/thumb.jpg"
+    },
+    {
+      "id": "01FC2KQ940BT8H1YHV70VNPR2X",
+      "slug": "wurtsboro",
+      "title": "Wurtsboro",
+      "url": "https://roadsignmath.xyz/signs/wurtsboro",
+      "lat": 41.577,
+      "lng": -74.487,
+      "approximate": true,
+      "state": "NY",
+      "found_on": "2021-08-02",
+      "thumb_url": "https://roadsignmath.xyz/p/01fc2kq9405wmt1nzp1nx0qkke/thumb.jpg"
+    },
+    {
+      "id": "01FBXEXV40R0KGRMBBEDC2BWZC",
+      "slug": "gross-vehicle-weight",
+      "title": "Gross Vehicle Weight",
+      "url": "https://roadsignmath.xyz/signs/gross-vehicle-weight",
+      "lat": null,
+      "lng": null,
+      "approximate": true,
+      "state": null,
+      "found_on": "2021-07-31",
+      "thumb_url": "https://roadsignmath.xyz/p/01fbxexv407yjnex6kmdd2xyas/thumb.jpg"
+    },
+    {
+      "id": "01EZXX4KR0ZQQMWC8X7PJ42X8E",
+      "slug": "phoenix-math",
+      "title": "Phoenix Math",
+      "url": "https://roadsignmath.xyz/signs/phoenix-math",
+      "lat": 33.67,
+      "lng": -112.06,
+      "approximate": true,
+      "state": "AZ",
+      "found_on": "2021-03-04",
+      "thumb_url": "https://roadsignmath.xyz/p/01ezxx4kr0b9zsne32jsw811xt/thumb.jpg"
+    }
+  ],
+  "years": [
+    2021,
+    2023,
+    2025
+  ]
+}

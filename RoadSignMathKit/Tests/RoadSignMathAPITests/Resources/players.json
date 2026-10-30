@@ -1,0 +1,44 @@
+{
+  "players": [
+    {
+      "handle": "tyler",
+      "name": "Tyler",
+      "avatar_color": "#004C80",
+      "bio": null,
+      "url": "https://roadsignmath.xyz/players/tyler",
+      "sign_count": 2,
+      "states": [
+        "MN"
+      ],
+      "first_year": 2025
+    },
+    {
+      "handle": "jamie",
+      "name": "Jamie",
+      "avatar_color": "#006348",
+      "bio": "Driving + Math = Fun.",
+      "url": "https://roadsignmath.xyz/players/jamie",
+      "sign_count": 13,
+      "states": [
+        "IA",
+        "MN",
+        "MO",
+        "NY",
+        "VT"
+      ],
+      "first_year": 2021
+    },
+    {
+      "handle": "tammy",
+      "name": "Tammy",
+      "avatar_color": "#F2B300",
+      "bio": null,
+      "url": "https://roadsignmath.xyz/players/tammy",
+      "sign_count": 1,
+      "states": [
+        "AZ"
+      ],
+      "first_year": 2021
+    }
+  ]
+}

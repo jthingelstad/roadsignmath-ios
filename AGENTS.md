@@ -31,7 +31,30 @@ The website and the server behind it are in
     build's recursion overflows 512 KB about 100 brackets deep.
   - `SignReadingEval` and `sign-reading-eval`: the number-reading spike, which
     scores `SignReading` against signs with known numbers. See `docs/SPIKE.md`.
-- The app's Xcode project comes in a later PR.
+  - `MathArt`: draws a way's LaTeX (the `tex` the server and `Equation`
+    write) as an image with SwiftMath in Latin Modern, the look of a math
+    book, and caches each picture by text, size and color so feeds scroll
+    smoothly. `fittingSize` shrinks a long equation to its width instead of
+    clipping it.
+  - `RoadSignMathAPI`: the read-only client for the server's
+    `/api/v1` (latest, sign, map pins) and its models. Its tests decode
+    fixtures shaped like the server's contract.
+- `RoadSignMath.xcodeproj` and `RoadSignMath/`: the app. SwiftUI, one
+  target, the project's folders synchronized, so a new Swift file needs no
+  project edit. `Store.swift` holds what the screens share; `Views/` holds
+  Home (the feed), the sign page, the Map (MapKit through
+  `UIViewRepresentable`, since SwiftUI's `Map` can't cluster pins), and the
+  tab bar with the raised Capture button. `Theme.swift` is the boards'
+  colors and type: Overpass (bundled, SIL OFL, its license beside it in
+  `Fonts/`) for words, Latin Modern for math.
+- `Config/`: `Info.plist`, the entitlements (Associated Domains for
+  `roadsignmath.xyz`), and `Signing.xcconfig`, which includes the ignored
+  `Signing.local.xcconfig` holding the team (`DEVELOPMENT_TEAM = ...`).
+  Signing is Automatic. Never commit the local file or a team id.
+- `scripts/version.sh`: the version a build carries, by Your Version
+  Number's arithmetic from 30 October 2026 (`scripts/version.sh test`
+  checks it). A build phase stamps it, the commit count and the commit into
+  the built Info.plist.
 
 ## Rules
 
@@ -39,7 +62,8 @@ The website and the server behind it are in
   Apple account details, email addresses, local paths, or photos with plates
   or faces that aren't blurred. Signing lives in an ignored local file when the
   app arrives. Tools take every path as an argument.
-- No third-party packages. Apple's frameworks only.
+- Apple's frameworks plus SwiftMath (mgriebling/SwiftMath, pinned to an
+  exact version), which draws the math. Any other package is Jamie's call.
 - iOS 26 and later, iPhone only, Swift 6 strict concurrency.
 - No task groups (`withTaskGroup` and its kin). An optimized build has ended
   one before its children finished and crashed a sibling app on launch, while
@@ -57,6 +81,23 @@ The website and the server behind it are in
   server's repo checked out beside this one,
   `ROADSIGNMATH_SERVER=<its folder> swift test --package-path RoadSignMathKit`
   also compares the vectors with that checkout.
+- Build the app for the simulator before pushing, as CI does:
+
+  ```sh
+  xcodebuild -project RoadSignMath.xcodeproj -scheme RoadSignMath \
+    -destination 'generic/platform=iOS Simulator' \
+    -derivedDataPath build/dd CODE_SIGNING_ALLOWED=NO build
+  ```
+
+  A Debug build in the simulator reads the local server (`npm run dev` in
+  the server's checkout, after its seed) at `http://localhost:8787/api/v1`,
+  and on a phone the live one; set the
+  scheme's `RSM_API` environment variable to read another, such as the live
+  site (reads only). Release reads `https://roadsignmath.xyz/api/v1`. Debug
+  builds also take launch arguments for screenshots: `-RSMTab map`,
+  `-RSMOpen /signs/<slug>`, `-RSMFocus <sign id>`, `-RSMSearch <words>`.
+- The app only reads from the server so far. Never write to the live API
+  (sign-in, posts, reports) to test anything.
 - Every TestFlight upload, internal ones included, is Jamie's call each time.
   Merge as usual, then ask before uploading.
 - Codex reviews every PR (`chatgpt-codex-connector[bot]`). Read its findings
