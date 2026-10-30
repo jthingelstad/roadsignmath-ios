@@ -86,8 +86,11 @@ public enum EquationChecker {
   static let maxBits = 4096
 
   /// The sides of a way, or nil when the text doesn't parse. What the app
-  /// draws from.
+  /// draws from. Text longer than any way can be (`check` answers too-big
+  /// past 400 characters) is nil too: the parser recurses once a bracket,
+  /// and no stack is deep enough for any length at all.
   public static func parse(_ text: String) -> [MathNode]? {
+    if text.utf16.count > maxLength { return nil }
     if text.utf16.count > inlineLength { return onLargeStack { parseHere(text) } }
     return parseHere(text)
   }

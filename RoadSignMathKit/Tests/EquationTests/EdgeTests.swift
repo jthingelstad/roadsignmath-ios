@@ -80,6 +80,22 @@ import Testing
   /// The longest text the checker takes, nested as deep as it goes, parses
   /// and evaluates without running out of stack, off the main thread as the
   /// app checks while you type.
+  /// Past 400 characters nothing parses, however it nests, so drawing
+  /// pasted text can't overflow the stack (Codex on #2).
+  @Test func tooLongToParse() {
+    let deep = String(repeating: "(", count: 10_000) + "1" + String(repeating: ")", count: 10_000) + "=1"
+    #expect(EquationChecker.parse(deep) == nil)
+    #expect(EquationChecker.tex(of: deep) == nil)
+    guard case .failed(let failure) = EquationChecker.check(deep) else {
+      Issue.record("expected too-big")
+      return
+    }
+    #expect(failure.error == .tooBig)
+    let long = "1 + " + String(repeating: "1 + ", count: 99) + "1 = 101"
+    #expect(long.count > 400)
+    #expect(EquationChecker.parse(long) == nil)
+  }
+
   @Test func deepNesting() async {
     let depth = 198
     let brackets = String(repeating: "(", count: depth) + "2" + String(repeating: ")", count: depth) + "= 2"
