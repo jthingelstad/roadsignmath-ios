@@ -253,7 +253,9 @@ struct MapScreen: View {
 
   private func nearest(to pin: Pin) -> [(pin: Pin, meters: Double)] {
     guard let here = pin.location else { return [] }
-    return store.pins
+    // Only signs on the map now, so a year chosen holds here too and every
+    // row can fly to its pin.
+    return shown
       .filter { $0.id != pin.id }
       .compactMap { other in other.location.map { (pin: other, meters: $0.distance(from: here)) } }
       .sorted { $0.meters < $1.meters }

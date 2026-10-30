@@ -108,12 +108,28 @@ struct SignView: View {
           .background(Color.wayGround, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
           .accessibilityElement(children: .combine)
         }
-      } else if let way = sign.firstWay {
-        MathLine(text: way.text, tex: way.tex, size: 19, light: 0x1F3A2E, dark: 0xCDE8DA, fallback: .bodyBold, leading: true)
-          .padding(.horizontal, 12)
-          .padding(.vertical, 9)
-          .background(Color.wayGround, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-          .redacted(reason: .placeholder)
+      } else {
+        if let way = sign.firstWay {
+          MathLine(text: way.text, tex: way.tex, size: 19, light: 0x1F3A2E, dark: 0xCDE8DA, fallback: .bodyBold, leading: true)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 9)
+            .background(Color.wayGround, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .redacted(reason: failed == nil ? .placeholder : [])
+        }
+        if let failed {
+          // The page came from a feed; only the rest of its ways are missing.
+          HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text("Couldn’t load the other ways. \(failed)")
+              .face(.meta)
+              .foregroundStyle(Color.ink2)
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .fixedSize(horizontal: false, vertical: true)
+            Button("Try again") { Task { await load() } }
+              .face(.name)
+              .foregroundStyle(Color.greenInk)
+          }
+          .padding(.top, 2)
+        }
       }
     }
   }
