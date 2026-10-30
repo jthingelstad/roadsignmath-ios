@@ -45,11 +45,6 @@ final class Store {
   private(set) var players: [String: Player] = [:]
   private(set) var details: [String: SignDetail] = [:]
 
-  /// Every sign, for the Map's search, read once the first time someone
-  /// searches: pins carry only a title and a state, so places, finders and
-  /// numbers come from here.
-  private(set) var everySign: [String: Sign] = [:]
-  private var everySignLoad: Load = .idle
 
   init(client: APIClient = APIClient(base: Store.server)) {
     self.client = client
@@ -151,30 +146,6 @@ final class Store {
     }
   }
 
-  /// Reads every sign, a full page at a time, for the Map's search. Once
-  /// is enough; a failure lets the next search try again.
-  func loadEverySign() async {
-    guard everySignLoad == .idle else { return }
-    everySignLoad = .loading
-    var cursor: String?
-    var found: [String: Sign] = [:]
-    do {
-      // A ceiling, so a server that keeps handing back a cursor can't keep
-      // this reading forever: 200 pages of 50.
-      for _ in 0..<200 {
-        let page = try await client.signs(cursor: cursor, limit: 50)
-        for sign in page.signs { found[sign.id] = sign }
-        guard let next = page.nextCursor, next != cursor else { break }
-        cursor = next
-      }
-      everySign = found
-      everySignLoad = .loaded
-    } catch {
-      everySign.merge(found) { _, new in new }
-      everySignLoad = .idle
-    }
-  }
-
   /// A sign with its ways, kept once read.
   func detail(_ id: String, fresh: Bool = false) async throws -> SignDetail {
     if !fresh, let kept = details[id] { return kept }
@@ -186,7 +157,7 @@ final class Store {
   /// A sign already in hand, by id or slug, from either feed or a detail read.
   func knownSign(_ id: String) -> Sign? {
     details[id]?.sign ?? latest.first { $0.id == id || $0.slug == id } ?? near.first { $0.id == id || $0.slug == id }
-      ?? details.values.first { $0.sign.slug == id }?.sign ?? everySign[id]
+      ?? details.values.first { $0.sign.slug == id }?.sign
   }
 
   /// A tab chosen from the bar: a second tap on Home goes back to the top.

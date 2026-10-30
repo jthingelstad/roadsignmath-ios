@@ -52,8 +52,11 @@ The website and the server behind it are in
   target, the project's folders synchronized, so a new Swift file needs no
   project edit. `Store.swift` holds what the screens share; `Views/` holds
   Home (the feed), the sign page, the Map (MapKit through
-  `UIViewRepresentable`, since SwiftUI's `Map` can't cluster pins), and the
-  tab bar with the raised Capture button. `Account.swift` is who's signed
+  `UIViewRepresentable`, since SwiftUI's `Map` can't cluster pins; its
+  search reads the pins' own place, finders and numbers, from API 1.4.0,
+  and its Mine chip, shown once you're signed in with a sign, keeps the
+  pins whose finders carry your handle), and the tab bar with the raised
+  Capture button. `Account.swift` is who's signed
   in and the sign-in in progress (an email waiting for its code survives a
   relaunch; after "Send the email again" a code from any of them works; a
   401 on any signed-in call signs out with a word why; deleting and
@@ -116,6 +119,7 @@ The website and the server behind it are in
   site (reads only). Release reads `https://roadsignmath.xyz/api/v1`. Debug
   builds also take launch arguments for screenshots: `-RSMTab map`,
   `-RSMOpen /signs/<slug>`, `-RSMFocus <sign id>`, `-RSMSearch <words>`,
+  `-RSMMine YES` (the Map's Mine chip),
   and for sign-in `-RSMSignIn <email>` (opens sign-in and sends the
   email), `-RSMCode <digits>`, `-RSMName <name>` (`-RSMNameSave YES`
   saves it) and `-RSMMe YES` (opens You). `RSM_API` also works as a
