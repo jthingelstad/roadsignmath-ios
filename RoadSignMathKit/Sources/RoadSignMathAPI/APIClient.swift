@@ -1,7 +1,7 @@
 import Foundation
 
-/// The server's read routes. Nothing here writes: posting, solving,
-/// reporting and signing in come later, each with its own review.
+/// The server's `/api/v1`: the public reads, signing in, and your account.
+/// Posting, solving and reporting come later, each with its own review.
 public struct APIClient: Sendable {
   /// The live server. Release builds always use it.
   public static let live = URL(string: "https://roadsignmath.xyz/api/v1")!
@@ -51,6 +51,44 @@ public struct APIClient: Sendable {
 
   public func index() async throws -> APIIndex { try await get([]) }
 
+  // MARK: Signing in
+
+  /// Emails a sign-in link and a 6-digit code to `email`. The answer is the
+  /// same whether or not the address has an account.
+  public func startSignIn(email: String) async throws -> SignInStarted {
+    try await send("POST", ["auth", "start"], body: ["email": email])
+  }
+
+  /// Trades the code from the email for a token.
+  public func finishSignIn(loginId: String, code: String) async throws -> SignedIn {
+    try await send("POST", ["auth", "verify"], body: ["login_id": loginId, "code": code])
+  }
+
+  /// Trades the email's link for a token.
+  public func finishSignIn(_ link: SignInLink) async throws -> SignedIn {
+    try await send("POST", ["auth", "verify"], body: ["login_id": link.loginId, "token": link.token])
+  }
+
+  /// Ends this token; other devices stay signed in.
+  public func signOut(token: String) async throws {
+    try await sendEmpty("POST", ["auth", "signout"], token: token)
+  }
+
+  // MARK: Your account
+
+  public func me(token: String) async throws -> Me { try await send("GET", ["me"], token: token) }
+
+  /// Changes your name. The first name you give also sets your handle,
+  /// which never changes after.
+  public func updateMe(token: String, name: String) async throws -> Me {
+    try await send("PATCH", ["me"], body: ["name": name], token: token)
+  }
+
+  /// Deletes your account and everything it made. It can't be undone.
+  public func deleteMe(token: String) async throws {
+    try await sendEmpty("DELETE", ["me"], token: token)
+  }
+
   /// The URL for a route: each part escaped as one path segment, and each
   /// query value escaped whole (a cursor's "+" or "=" stays itself).
   public func url(_ path: [String], _ query: [URLQueryItem] = []) -> URL {
@@ -69,10 +107,41 @@ public struct APIClient: Sendable {
   private static let unreserved = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
 
   private func get<T: Decodable>(_ path: [String], _ query: [URLQueryItem] = []) async throws -> T {
+    let (data, status) = try await perform(request("GET", path, query: query))
+    return try APIClient.answer(data, status: status)
+  }
+
+  private func send<T: Decodable>(_ method: String, _ path: [String], body: [String: String]? = nil, token: String? = nil) async throws -> T {
+    let (data, status) = try await perform(request(method, path, body: body, token: token))
+    return try APIClient.answer(data, status: status)
+  }
+
+  /// A request whose answer has no body (204).
+  private func sendEmpty(_ method: String, _ path: [String], token: String) async throws {
+    let (data, status) = try await perform(request(method, path, token: token))
+    let _: Empty = try APIClient.answer(status == 204 ? Data("{}".utf8) : data, status: status)
+  }
+
+  /// The request for a route: JSON both ways, and the token when there is one.
+  func request(_ method: String, _ path: [String], query: [URLQueryItem] = [], body: [String: String]? = nil, token: String? = nil) -> URLRequest {
     var request = URLRequest(url: url(path, query))
+    request.httpMethod = method
     request.setValue("application/json", forHTTPHeaderField: "Accept")
+    if let body {
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+      request.httpBody = try? JSONSerialization.data(withJSONObject: body, options: [.sortedKeys])
+    }
+    if let token {
+      request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+      // A signed-in answer is only ever for this person.
+      request.cachePolicy = .reloadIgnoringLocalCacheData
+    }
+    return request
+  }
+
+  private func perform(_ request: URLRequest) async throws -> (Data, Int) {
     let (data, response) = try await session.data(for: request)
-    return try APIClient.answer(data, status: (response as? HTTPURLResponse)?.statusCode ?? 0)
+    return (data, (response as? HTTPURLResponse)?.statusCode ?? 0)
   }
 
   /// A response's body as T, or the server's error when it said no.
@@ -102,6 +171,7 @@ public struct APIClient: Sendable {
   }
 }
 
+private struct Empty: Decodable {}
 private struct NearSigns: Decodable { var signs: [Sign] }
 private struct Players: Decodable { var players: [Player] }
 private struct ErrorBody: Decodable {

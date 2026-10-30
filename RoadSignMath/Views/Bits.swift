@@ -8,12 +8,19 @@ struct Avatar: View {
   var size: CGFloat = 34
 
   var body: some View {
-    Text(name.first.map { String($0).uppercased() } ?? "?")
-      .face(.avatar)
-      .foregroundStyle(.white)
-      .frame(width: size, height: size)
-      .background(color, in: Circle())
-      .accessibilityHidden(true)
+    Group {
+      if let first = name.first {
+        // Sized to the circle, which doesn't grow with Dynamic Type.
+        Text(String(first).uppercased()).font(Face.avatar.font(size: size * 0.44))
+      } else {
+        // No name yet: a person, not a letter.
+        Image(systemName: "person.fill").font(.system(size: size * 0.48, weight: .semibold))
+      }
+    }
+    .foregroundStyle(.white)
+    .frame(width: size, height: size)
+    .background(color, in: Circle())
+    .accessibilityHidden(true)
   }
 }
 

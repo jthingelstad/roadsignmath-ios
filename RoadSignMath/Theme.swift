@@ -18,6 +18,8 @@ extension Color {
   static let ink3 = Color(light: 0x55605A, dark: 0x8E9993)
   static let rule = Color(light: 0xD8DED9, dark: 0x2A332E)
   static let ruleStrong = Color(light: 0xB9C3BB, dark: 0x3A453F)
+  /// Warnings and the way out: sign out, delete, a wrong code.
+  static let warn = Color(light: 0xB01C33, dark: 0xFF8A98)
   /// Behind the ways found so far.
   static let wayGround = Color(light: 0xE3EFE9, dark: 0x15291F)
   static let wayInk = Color(light: 0x1F3A2E, dark: 0xCDE8DA)
@@ -75,6 +77,15 @@ struct Face {
   static let tab = Face(size: 11, weight: 700, style: .caption2)
   static let tabOn = Face(size: 11, weight: 800, style: .caption2)
   static let search = Face(size: 16, weight: 400, style: .body)
+  /// The sign-in screens' big words.
+  static let hero = Face(size: 34, weight: 900, style: .largeTitle, tracking: -0.02)
+  static let display = Face(size: 30, weight: 900, style: .largeTitle, tracking: -0.02)
+  static let lead = Face(size: 17, weight: 400, style: .body)
+  static let field = Face(size: 17, weight: 400, style: .body)
+  static let label = Face(size: 15, weight: 800, style: .subheadline)
+  static let button = Face(size: 17, weight: 800, style: .body)
+  static let guideSign = Face(size: 24, weight: 800, style: .title2)
+  static let digit = Face(family: .mono, size: 26, weight: 700, style: .title2)
 
   func font(size: CGFloat) -> Font {
     let axes: [NSNumber: NSNumber] = [NSNumber(value: Self.wght): NSNumber(value: Double(weight))]

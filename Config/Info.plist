@@ -16,6 +16,17 @@
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>To show the signs found nearest you. Only while Near you is open; your place is never sent with anything you post.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>xyz.roadsignmath.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>roadsignmath</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>
