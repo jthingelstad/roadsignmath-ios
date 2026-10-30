@@ -21,10 +21,7 @@ enum JSNumber {
   static func roundedString(_ x: Double, significantDigits p: Int) -> String {
     if !x.isFinite || x == 0 { return string(x) }
     let negative = x < 0
-    // A double's exact decimal expansion has at most 767 significant digits,
-    // so this is exact and nothing is rounded before we round.
-    let exact = String(format: "%.780e", abs(x))
-    let (all, point) = decompose(exact)
+    let (all, point) = exactDigits(abs(x))
     var kept = Array(all.prefix(p)).map { Int($0.asciiValue! - 48) }
     while kept.count < p { kept.append(0) }
     var exponent = point
@@ -49,6 +46,18 @@ enum JSNumber {
     let text = "0." + kept.map(String.init).joined() + "e" + String(exponent)
     let rounded = Double(text)!
     return string(negative ? -rounded : rounded)
+  }
+
+  /// Every decimal digit of a finite, positive double, worked out exactly
+  /// (a double is m × 2^e, and m × 2^-k is m × 5^k / 10^k), so nothing is
+  /// rounded before we round. printf's `%.780e` would do the same, but
+  /// some Foundations cut a string that long short.
+  private static func exactDigits(_ x: Double) -> (String, Int) {
+    let m = BigInt(Int(x.significandBitPattern | (x.isNormal ? 1 << 52 : 0)))
+    let e = Int(x.isNormal ? x.exponent : Double.leastNormalMagnitude.exponent) - 52
+    if e >= 0 { return decompose((m << e).description) }
+    let digits = (m * BigInt(5).power(-e)).description
+    return decompose(digits + "e" + String(e))
   }
 
   /// "123.45" → ("12345", 3); "1.5e-07" → ("15", -6); "0.0001" → ("1", -3).

@@ -180,6 +180,10 @@ import Testing
     #expect(JSNumber.roundedString(999_999.5, significantDigits: 6) == "1000000")
     #expect(JSNumber.roundedString(-0.000012345678, significantDigits: 6) == "-0.0000123457")
     #expect(JSNumber.roundedString(1_234_565, significantDigits: 6) == "1234570")
+    // The smallest and largest doubles: every digit is worked out exactly.
+    #expect(JSNumber.roundedString(5e-324, significantDigits: 6) == "5e-324")
+    #expect(JSNumber.roundedString(.greatestFiniteMagnitude, significantDigits: 6) == "1.79769e+308")
+    #expect(JSNumber.roundedString(0.1, significantDigits: 6) == "0.1")
   }
 
   @Test func powLikeJavaScript() {
