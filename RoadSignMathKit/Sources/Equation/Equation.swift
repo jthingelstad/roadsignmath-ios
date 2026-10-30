@@ -541,6 +541,12 @@ private func power(_ a: Value, _ b: Value) throws(MathError) -> Value {
     if an.isZero && bn.isNegative { throw .divideByZero }
     // e × bits ≤ 4096 and bits ≥ 1, so e fits an Int.
     let power = Int(e.description)!
+    // The server sizes a negative base by its denominator, since a negative
+    // numerator is never the larger, so a big one gets past the guard and is
+    // refused only once its power is built: at once in JavaScript, minutes
+    // in this BigInt. That power has at least power × (bits − 1) + 1 bits, so
+    // refuse it here when that is too many, as `rational` would.
+    if an.isNegative && power * (an.bitCount - 1) + 1 > EquationChecker.maxBits { throw .tooBig }
     return bn.isNegative ? try rational(ad.power(power), an.power(power)) : try rational(an.power(power), ad.power(power))
   }
   let r = JSNumber.pow(toFloat(a), toFloat(b))

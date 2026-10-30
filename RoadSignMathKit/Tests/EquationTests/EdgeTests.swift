@@ -64,6 +64,28 @@ import Testing
     }
   }
 
+  /// Negative bases whose powers grow too big, refused before they're
+  /// built, while ones the server can answer still get answered. The errors
+  /// are what the server's checker returns for each.
+  @Test(arguments: [
+    ("(−10^1000)^4096=1", "too-big"),
+    ("(−2)^4096=1", "too-big"),
+    ("(−2÷3)^4096=1", "too-big"),
+    ("(−3÷2)^4000=1", "too-big"),
+    ("(−7)^−1500=1", "too-big"),
+    ("(−2)^4095=1", "not-true"),
+    ("(−3)^2049=1", "not-true"),
+  ])
+  func negativePowers(text: String, error: String) {
+    let start = ContinuousClock.now
+    guard case .failed(let failure) = EquationChecker.check(text) else {
+      Issue.record("expected \(error) for \(text)")
+      return
+    }
+    #expect(failure.error.rawValue == error)
+    #expect(ContinuousClock.now - start < .seconds(2))
+  }
+
   @Test func parseMessages() {
     func message(_ text: String) -> String? {
       if case .failed(let f) = EquationChecker.check(text) { return f.message }
