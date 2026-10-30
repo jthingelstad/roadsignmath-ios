@@ -15,6 +15,8 @@ struct MapScreen: View {
   @State private var together: [String] = []
   @State private var focus: MapFocus?
   @FocusState private var searching: Bool
+  /// A PinRow's height, growing with the text size.
+  @ScaledMetric(relativeTo: .body) private var rowHeight = 47
 
   var body: some View {
     @Bindable var store = store
@@ -204,22 +206,35 @@ struct MapScreen: View {
         .face(.section)
         .foregroundStyle(Color.ink)
         .padding(.bottom, 2)
-      ForEach(found.prefix(4)) { pin in
-        PinRow(pin: pin, trailing: pin.year.map(String.init) ?? "") {
-          searching = false
-          query = ""
-          focus = MapFocus(id: pin.id)
-        }
+      rows(found) { pin in
+        searching = false
+        query = ""
+        focus = MapFocus(id: pin.id)
       }
+    }
+  }
+
+  /// A list of signs to choose from: four rows, and past four a list that
+  /// scrolls, its fifth row cut in half to say so.
+  @ViewBuilder private func rows(_ pins: [Pin], choose: @escaping (Pin) -> Void) -> some View {
+    let list = LazyVStack(alignment: .leading, spacing: 2) {
+      ForEach(pins) { pin in
+        PinRow(pin: pin, trailing: pin.year.map(String.init) ?? "") { choose(pin) }
+      }
+    }
+    if pins.count > 4 {
+      ScrollView { list }
+        .frame(maxHeight: rowHeight * 4.5)
+        .scrollIndicators(.visible)
+    } else {
+      list
     }
   }
 
   private var here: some View {
     VStack(alignment: .leading, spacing: 2) {
       Text("\(together.count) signs here").face(.section).foregroundStyle(Color.ink).padding(.bottom, 2)
-      ForEach(together.compactMap { id in store.pins.first { $0.id == id } }.prefix(5)) { pin in
-        PinRow(pin: pin, trailing: pin.year.map(String.init) ?? "") { selected = pin.id }
-      }
+      rows(together.compactMap { id in store.pins.first { $0.id == id } }) { selected = $0.id }
     }
   }
 
