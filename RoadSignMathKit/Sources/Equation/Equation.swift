@@ -85,12 +85,19 @@ public enum EquationChecker {
   static let maxLength = 400
   static let maxBits = 4096
 
+  /// The longest text `parse` takes. A way is at most 400 characters, but
+  /// its canonical text can be longer: "1+1" comes back as "1 + 1", and no
+  /// one-character operator grows past three. So three times the way's
+  /// limit parses the canonical text of every way `check` accepts, and
+  /// still bounds the recursion well inside the 16 MB stack below.
+  static let parseLength = 3 * maxLength
+
   /// The sides of a way, or nil when the text doesn't parse. What the app
-  /// draws from. Text longer than any way can be (`check` answers too-big
-  /// past 400 characters) is nil too: the parser recurses once a bracket,
-  /// and no stack is deep enough for any length at all.
+  /// draws from. Text longer than any way's canonical text can be is nil
+  /// too: the parser recurses once a bracket, and no stack is deep enough
+  /// for any length at all.
   public static func parse(_ text: String) -> [MathNode]? {
-    if text.utf16.count > maxLength { return nil }
+    if text.utf16.count > parseLength { return nil }
     if text.utf16.count > inlineLength { return onLargeStack { parseHere(text) } }
     return parseHere(text)
   }

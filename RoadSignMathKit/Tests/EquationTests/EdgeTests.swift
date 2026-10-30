@@ -91,9 +91,40 @@ import Testing
       return
     }
     #expect(failure.error == .tooBig)
-    let long = "1 + " + String(repeating: "1 + ", count: 99) + "1 = 101"
-    #expect(long.count > 400)
-    #expect(EquationChecker.parse(long) == nil)
+    let tooLong = String(repeating: "1 + ", count: 300) + "1 = 301"
+    #expect(tooLong.count > 1200)
+    #expect(EquationChecker.parse(tooLong) == nil)
+  }
+
+  /// A way within 400 characters can come back longer once canonical; the
+  /// checker must still parse and draw its own output.
+  @Test func canonicalLongerThanTheWay() throws {
+    let way = Array(repeating: "1", count: 101).joined(separator: "+") + "=101"
+    #expect(way.count <= 400)
+    guard case .solved(let solved) = EquationChecker.check(way) else {
+      Issue.record("expected true")
+      return
+    }
+    #expect(solved.canonical.count > 400)
+    let fromWay = try #require(EquationChecker.tex(of: way))
+    #expect(EquationChecker.tex(of: solved.canonical) == fromWay)
+    #expect(EquationChecker.parse(solved.canonical) == solved.sides)
+    // The worst a way can grow: every other character an operator.
+    let widest = Array(repeating: "1", count: 199).joined(separator: "*") + "=1"
+    #expect(widest.count <= 400)
+    guard case .solved(let wide) = EquationChecker.check(widest) else {
+      Issue.record("expected true")
+      return
+    }
+    #expect(EquationChecker.parse(wide.canonical) != nil)
+  }
+
+  /// The deepest text `parse` takes still fits its stack in Debug.
+  @Test func deepestParse() {
+    let depth = 598
+    let deep = String(repeating: "(", count: depth) + "1" + String(repeating: ")", count: depth) + "=1"
+    #expect(deep.utf16.count <= 1200)
+    #expect(EquationChecker.parse(deep) != nil)
   }
 
   @Test func deepNesting() async {
