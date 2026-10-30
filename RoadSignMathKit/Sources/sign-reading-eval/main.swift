@@ -345,7 +345,15 @@ try Data(report.utf8).write(to: arguments.out.appending(path: "report.md"))
 print("")
 print(report)
 
-let gallery = Gallery.html(for: best, signs: signs, images: images)
+// Keyed by the name each photo's result carries, so the gallery pairs a box
+// with its own photo even when another photo of the sign couldn't be read.
+var imagesByName: [String: CGImage] = [:]
+for sign in signs {
+  for photo in sign.photos {
+    if let image = images[photo] { imagesByName[relativeName(photo, era: sign.era)] = image }
+  }
+}
+let gallery = Gallery.html(for: best, signs: signs, images: imagesByName)
 try Data(gallery.utf8).write(to: arguments.out.appending(path: "gallery.html"))
 print("Gallery: \(gallery.utf8.count / 1024) KB, variant \(best.key)")
 

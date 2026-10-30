@@ -82,31 +82,39 @@ public struct NumberExtractor: Sendable {
 
     // 1. Time ranges: "6AM-10AM", "6-10AM", "7 AM TO 9 AM", "6:30-9 PM".
     scan.claim(
-      #"(?<!\d)(\d{1,2})(?::(\d{2}))?\s*"# + ampm + #"?\s*(?:-|–|—|TO|to|To)\s*(\d{1,2})(?::(\d{2}))?\s*"#
+      #"(?<![0-9])([0-9]{1,2})(?::([0-9]{2}))?\s*"# + ampm + #"?\s*(?:-|–|—|TO|to|To)\s*([0-9]{1,2})(?::([0-9]{2}))?\s*"#
         + ampm + #"(?![A-Za-z])"#
     ) { match in
-      [1, 2, 3, 4].compactMap { match.group($0) }.map { group in
-        Found(
-          value: Decimal(Int(group.text)!), text: plainInteger(group.text), range: group.range,
-          sourceRange: match.range, reason: .timesSplit)
+      allOrNone([1, 2, 3, 4].compactMap { match.group($0) }) { group in
+        number(group.text).map {
+          Found(
+            value: $0, text: plainInteger(group.text), range: group.range,
+            sourceRange: match.range, reason: .timesSplit)
+        }
       }
     }
 
     // 2. Clock times: "7:30", "10:00 PM".
-    scan.claim(#"(?<!\d)(\d{1,2}):(\d{2})(?!\d)(?:\s*"# + ampm + #"(?![A-Za-z]))?"#) { match in
-      [1, 2].compactMap { match.group($0) }.map { group in
-        Found(
-          value: Decimal(Int(group.text)!), text: plainInteger(group.text), range: group.range,
-          sourceRange: match.range, reason: .timesSplit)
+    scan.claim(#"(?<![0-9])([0-9]{1,2}):([0-9]{2})(?![0-9])(?:\s*"# + ampm + #"(?![A-Za-z]))?"#) { match in
+      allOrNone([1, 2].compactMap { match.group($0) }) { group in
+        number(group.text).map {
+          Found(
+            value: $0, text: plainInteger(group.text), range: group.range,
+            sourceRange: match.range, reason: .timesSplit)
+        }
       }
     }
 
     // 3. Fractions: unicode fractions ("½", "1½"), then a/b. "1 1/2" stays
     // two numbers, 1 and 1/2: a space can as well be two numbers side by side
     // ("EXIT 12 1/2 MILE").
-    scan.claim(#"(\d*)([½⅓⅔¼¾⅛⅜⅝⅞])"#) { match in
+    scan.claim(#"([0-9]*)([½⅓⅔¼¾⅛⅜⅝⅞])"#) { match in
       guard let glyph = match.group(2), let fraction = vulgarFractions[glyph.text] else { return nil }
-      let whole = match.group(1).map { Decimal(Int($0.text)!) } ?? 0
+      var whole: Decimal = 0
+      if let digits = match.group(1) {
+        guard let value = number(digits.text) else { return nil }
+        whole = value
+      }
       let wholeText = match.group(1).map { plainInteger($0.text) } ?? ""
       return [
         Found(
@@ -114,7 +122,7 @@ public struct NumberExtractor: Sendable {
           sourceRange: match.range, reason: .readFromPhoto)
       ]
     }
-    scan.claim(#"(?<![\d/])(\d{1,2})\s*[/⁄]\s*(\d{1,2})(?![\d/])"#) { match in
+    scan.claim(#"(?<![0-9/])([0-9]{1,2})\s*[/⁄]\s*([0-9]{1,2})(?![0-9/])"#) { match in
       guard let numerator = match.group(1), let denominator = match.group(2),
         let fraction = fractionValue(numerator.text, denominator.text)
       else { return nil }
@@ -128,39 +136,37 @@ public struct NumberExtractor: Sendable {
     // 4. Lists: "LOTS 1,3,5" (and "1,3.5", as Vision may read it) are each
     // their own number. Thousands and a single decimal are left for the next
     // rules.
-    scan.claim(#"(?<![\d.,])\d+(?:[.,]\d+)+(?!\d)"#) { match in
+    scan.claim(#"(?<![0-9.,])[0-9]+(?:[.,][0-9]+)+(?![0-9])"#) { match in
       let text = match.text
-      if text.range(of: #"^\d{1,3}(?:,\d{3})+$"#, options: .regularExpression) != nil
-        || text.range(of: #"^\d+\.\d+$"#, options: .regularExpression) != nil
+      if text.range(of: #"^[0-9]{1,3}(?:,[0-9]{3})+$"#, options: .regularExpression) != nil
+        || text.range(of: #"^[0-9]+\.[0-9]+$"#, options: .regularExpression) != nil
       {
         return nil
       }
-      return digitRuns(in: text).map { run in
+      return allOrNone(digitRuns(in: text)) { run in
         let digits = substring(text, run)
         let range = (match.range.lowerBound + run.lowerBound)..<(match.range.lowerBound + run.upperBound)
-        return Found(
-          value: Decimal(string: digits, locale: posix)!, text: plainInteger(digits), range: range,
-          sourceRange: range, reason: .readFromPhoto)
+        return number(digits).map {
+          Found(value: $0, text: plainInteger(digits), range: range, sourceRange: range, reason: .readFromPhoto)
+        }
       }
     }
 
     // 5. Thousands: "12,000".
-    scan.claim(#"(?<![\d,])\d{1,3}(?:,\d{3})+(?![\d,])"#) { match in
-      let digits = match.text.replacingOccurrences(of: ",", with: "")
+    scan.claim(#"(?<![0-9,])[0-9]{1,3}(?:,[0-9]{3})+(?![0-9,])"#) { match in
+      guard let value = number(match.text.replacingOccurrences(of: ",", with: "")) else { return nil }
       return [
         Found(
-          value: Decimal(string: digits, locale: posix)!, text: match.text, range: match.range,
-          sourceRange: match.range, reason: .readFromPhoto)
+          value: value, text: match.text, range: match.range, sourceRange: match.range,
+          reason: .readFromPhoto)
       ]
     }
 
     // 6. Decimals: "2.5". A trailing or leading dot is punctuation.
-    scan.claim(#"(?<![\d.])\d+\.\d+(?![\d.])"#) { match in
-      [
-        Found(
-          value: Decimal(string: match.text, locale: posix)!, text: match.text, range: match.range,
-          sourceRange: match.range, reason: .readFromPhoto)
-      ]
+    scan.claim(#"(?<![0-9.])[0-9]+\.[0-9]+(?![0-9.])"#) { match in
+      number(match.text).map {
+        [Found(value: $0, text: match.text, range: match.range, sourceRange: match.range, reason: .readFromPhoto)]
+      }
     }
 
     // 7. Words with digits in them.
@@ -176,12 +182,12 @@ public struct NumberExtractor: Sendable {
       } else {
         reason = .lettersDropped
       }
-      return runs.map { run in
+      return allOrNone(runs) { run in
         let digits = substring(word, run)
         let range = (match.range.lowerBound + run.lowerBound)..<(match.range.lowerBound + run.upperBound)
-        return Found(
-          value: Decimal(string: digits, locale: posix)!, text: plainInteger(digits), range: range,
-          sourceRange: match.range, reason: reason)
+        return number(digits).map {
+          Found(value: $0, text: plainInteger(digits), range: range, sourceRange: match.range, reason: reason)
+        }
       }
     }
 
@@ -191,11 +197,13 @@ public struct NumberExtractor: Sendable {
   static func digitsOnly(_ text: String) -> [Found] {
     var scan = Scan(text)
     scan.claim(#"[0-9]+"#) { match in
-      [
-        Found(
-          value: Decimal(string: match.text, locale: posix)!, text: plainInteger(match.text),
-          range: match.range, sourceRange: match.range, reason: .readFromPhoto)
-      ]
+      number(match.text).map {
+        [
+          Found(
+            value: $0, text: plainInteger(match.text), range: match.range, sourceRange: match.range,
+            reason: .readFromPhoto)
+        ]
+      }
     }
     return scan.found
   }
@@ -203,6 +211,26 @@ public struct NumberExtractor: Sendable {
   // MARK: - Helpers
 
   static let posix = Locale(identifier: "en_US_POSIX")
+
+  /// The value of ASCII digits with at most one dot, or nil for anything else
+  /// (the rules never force a conversion, so odd text can't crash a read).
+  static func number(_ text: String) -> Decimal? {
+    guard !text.isEmpty, text.allSatisfy({ $0 == "." || ($0.isASCII && $0.isNumber) }),
+      text.filter({ $0 == "." }).count <= 1, text.first != ".", text.last != "."
+    else { return nil }
+    return Decimal(string: text, locale: posix)
+  }
+
+  /// `transform` applied to every item, or nil if it fails on any, so a rule
+  /// leaves text it can't fully read to the rules after it.
+  static func allOrNone<Item>(_ items: [Item], _ transform: (Item) -> Found?) -> [Found]? {
+    var found: [Found] = []
+    for item in items {
+      guard let one = transform(item) else { return nil }
+      found.append(one)
+    }
+    return found
+  }
 
   static let vulgarFractions: [String: Decimal] = [
     "½": Decimal(1) / 2, "⅓": Decimal(1) / 3, "⅔": Decimal(2) / 3, "¼": Decimal(1) / 4,
@@ -288,13 +316,28 @@ struct Scan {
   private(set) var found: [NumberExtractor.Found] = []
 
   /// Letters from other scripts Vision sometimes gives for a digit on an
-  /// English sign (a Cyrillic Ze for 3). Each is one UTF-16 unit, like the
-  /// digit, so offsets hold.
+  /// English sign (a Cyrillic Ze for 3).
   static let lookalikeDigits: [Character: Character] = ["З": "3", "з": "3"]
 
+  /// `character` as an ASCII digit when it is a look-alike or a digit from
+  /// another script ("７", "٣"), else unchanged. One `Character` for one, so
+  /// `Character` offsets into the original text hold.
+  static func normalized(_ character: Character) -> Character {
+    if let digit = lookalikeDigits[character] { return digit }
+    guard !character.isASCII, character.unicodeScalars.count == 1,
+      let scalar = character.unicodeScalars.first,
+      scalar.properties.numericType == .decimal,
+      let value = scalar.properties.numericValue, value >= 0, value <= 9
+    else { return character }
+    return Character(String(Int(value)))
+  }
+
   init(_ text: String) {
-    masked = String(text.map { Self.lookalikeDigits[$0] ?? $0 }) as NSString
-    characterOffsets = Self.characterOffsets(of: text)
+    let normalized = String(text.map(Self.normalized))
+    masked = normalized as NSString
+    // Offsets come from the normalized text: a digit outside the BMP is two
+    // UTF-16 units there and one after.
+    characterOffsets = Self.characterOffsets(of: normalized)
   }
 
   /// UTF-16 offset to `Character` offset, so ranges line up with Vision's

@@ -151,6 +151,28 @@ private func decimal(_ text: String) -> Decimal {
     #expect(numbers.first?.sourceText == "З")
   }
 
+  @Test(arguments: [
+    ("７:３０", [7, 30]),
+    ("６AM-１０AM", [6, 10]),
+    ("EXIT ٣", [3]),
+    ("𝟕 MILES TO EXIT 8", [7, 8]),
+  ] as [(String, [Decimal])])
+  func digitsFromOtherScriptsReadAsDigits(text: String, expected: [Decimal]) {
+    #expect(values(text) == expected)
+    #expect(values(text, rules: .digitsOnly) == expected)
+  }
+
+  @Test func aDigitWithAMarkIsNotADigitAndNothingCrashes() {
+    // One Character, "７" plus a combining accent: no rule reads it.
+    #expect(values("７\u{0301}:30") == [30])
+    #expect(values("1\u{0301}/2 MILE") == [2])
+  }
+
+  @Test func theSourceKeepsTheOriginalCharacters() {
+    #expect(read("EXIT ٣").first?.sourceText == "٣")
+    #expect(read("𝟕 MILES TO EXIT 8").last?.sourceText == "8")
+  }
+
   @Test func noDigitsNoNumbers() {
     #expect(read("E Greenbush").isEmpty)
     #expect(read("").isEmpty)

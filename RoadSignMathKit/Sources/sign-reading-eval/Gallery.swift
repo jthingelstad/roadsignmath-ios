@@ -12,7 +12,7 @@ enum Gallery {
   static let byteBudget = 11_500_000
 
   static func html(
-    for variant: VariantResult, signs: [EvalSign], images: [URL: CGImage]
+    for variant: VariantResult, signs: [EvalSign], images: [String: CGImage]
   ) -> String {
     // New-era signs in feed order, then the archive, worst recall first.
     let order = variant.signs.indices.sorted { lhs, rhs in
@@ -32,20 +32,19 @@ enum Gallery {
   }
 
   static func render(
-    variant: VariantResult, signs: [EvalSign], order: [Int], images: [URL: CGImage], quality: Double
+    variant: VariantResult, signs: [EvalSign], order: [Int], images: [String: CGImage], quality: Double
   ) -> String {
     var cards = ""
     var lastEra: EvalSign.Era?
     for index in order {
       let result = variant.signs[index]
-      let sign = signs[index]
       if result.era != lastEra {
         cards += result.era == .newEra
           ? "<h2>New-era signs (2021-2025)</h2>\n"
           : "<h2>Archive signs (2005-2014), worst recall first</h2>\n<p class=note>The archive lists only the numbers the old rules allowed, so yellow boxes here are often real numbers on the sign.</p>\n"
         lastEra = result.era
       }
-      cards += card(result: result, sign: sign, images: images, quality: quality)
+      cards += card(result: result, images: images, quality: quality)
     }
     let summary = "\(variant.newEra.fullHits) of \(variant.newEra.signs) new-era signs and "
       + "\(variant.archive.fullHits) of \(variant.archive.signs) archive signs had every number read."
@@ -104,7 +103,9 @@ enum Gallery {
       """
   }
 
-  static func card(result: SignResult, sign: EvalSign, images: [URL: CGImage], quality: Double) -> String {
+  /// One sign's card. `images` is keyed by each photo's name in the results,
+  /// so a photo that couldn't be read can't shift the others' boxes.
+  static func card(result: SignResult, images: [String: CGImage], quality: Double) -> String {
     var expectedLeft = Multiset(result.read)
     let expectedChips = result.expected.map { value in
       let hit = expectedLeft.remove(value)
@@ -113,10 +114,10 @@ enum Gallery {
 
     var photos = ""
     var readChips: [String] = []
-    for (photo, photoResult) in zip(sign.photos, result.photos) {
+    for photoResult in result.photos {
       var left = Multiset(result.expected)
       var rects = ""
-      guard let image = images[photo], let encoded = jpeg(image, quality: quality) else { continue }
+      guard let image = images[photoResult.photo], let encoded = jpeg(image, quality: quality) else { continue }
       for number in photoResult.numbers {
         let kind = left.remove(number.value) ? "hit" : "extra"
         let box = number.box
