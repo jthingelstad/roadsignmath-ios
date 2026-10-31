@@ -2,9 +2,9 @@ import RoadSignMathAPI
 import SwiftUI
 
 /// The boards' Me: you, your signs and where they took you, then your
-/// signs as photos or as their math. A tap opens a sign; the gear opens
-/// settings (passenger mode, your name and email, sign out, Delete my
-/// account, and the build).
+/// signs as Home's timeline or as photos. A tap opens a sign; the gear
+/// opens settings (your name and email, sign out, Delete my account, and
+/// the build).
 struct MeView: View {
   enum Look: Hashable { case timeline, photos }
 
@@ -334,12 +334,11 @@ private struct OnlyYou: View {
   }
 }
 
-/// Me's settings: passenger mode, your name and email, sign out, Delete my
+/// Me's settings: your name and email, sign out, Delete my
 /// account, and the build this is.
 private struct SettingsView: View {
   @Environment(Account.self) private var account
   @Environment(\.dismiss) private var dismiss
-  @AppStorage(Preferences.passengerMode) private var passengerMode = true
   @State private var renaming = false
   @State private var confirmSignOut = false
   @State private var confirmDelete = false
@@ -370,19 +369,6 @@ private struct SettingsView: View {
 
   private func list(_ me: Me) -> some View {
     List {
-      Section {
-        Toggle(isOn: $passengerMode) {
-          Label {
-            Text("Passenger mode").face(.bodyBold).foregroundStyle(Color.ink)
-          } icon: {
-            Image(systemName: "steeringwheel").foregroundStyle(Color.greenInk)
-          }
-        }
-        .tint(.signGreen)
-      } footer: {
-        Text("Shows “Passenger mode” on the camera: a reminder that Road Sign Math is for the passenger seat. It never stops you taking a photo.")
-          .face(.meta)
-      }
       Section {
         Button {
           renaming = true
