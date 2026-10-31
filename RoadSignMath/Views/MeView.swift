@@ -15,6 +15,7 @@ struct MeView: View {
 
   @Environment(Account.self) private var account
   @Environment(CaptureFlow.self) private var flow
+  @Environment(Store.self) private var store
   @Environment(\.dismiss) private var dismiss
   @Environment(\.dynamicTypeSize) private var typeSize
   @State private var look = Look.photos
@@ -69,11 +70,14 @@ struct MeView: View {
       await reload()
     }
     .onChange(of: account.signedIn) { _, now in if !now { dismiss() } }
+    // A sign's mini-map moves to the Map tab underneath; get out of its way.
+    .onChange(of: store.tab) { dismiss() }
     .sensoryFeedback(.selection, trigger: look)
   }
 
   private func reload() async {
-    async let fresh: Void = account.refresh()
+    // Side by side as a Task of its own: no async let or task groups here.
+    let fresh = Task { await account.refresh() }
     do {
       let mine = try await account.mySigns()
       withAnimation(.smooth) {
@@ -83,7 +87,7 @@ struct MeView: View {
     } catch {
       if account.signedIn, signs.isEmpty { load = .failed(Account.say(error)) }
     }
-    await fresh
+    await fresh.value
     #if DEBUG
       if Script.value("RSMLook") == "math" { look = .math }
     #endif
