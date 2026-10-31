@@ -96,6 +96,10 @@ The website and the server behind it are in
   and `Signing.xcconfig`, which includes the ignored
   `Signing.local.xcconfig` holding the team (`DEVELOPMENT_TEAM = ...`).
   Signing is Automatic. Never commit the local file or a team id.
+- `scripts/testflight.sh` archives main and uploads it to TestFlight
+  (`Config/ExportOptions-TestFlight.plist`, internal only unless
+  `--external`); `docs/DISTRIBUTION.md` is the road from there to the App
+  Store and `docs/PHONE-TEST.md` the pass each build gets on a phone.
 - `scripts/version.sh`: the version a build carries, by Your Version
   Number's arithmetic from 30 October 2026 (`scripts/version.sh test`
   checks it). A build phase stamps it, the commit count and the commit into
@@ -163,8 +167,14 @@ The website and the server behind it are in
   `xcrun simctl openurl`: the app finishes it against the server it
   reads, so the live site is never asked. A `roadsignmath://` link asks
   "Open in?" first, which a headless simulator can't tap.
-- Every TestFlight upload, internal ones included, is Jamie's call each time.
-  Merge as usual, then ask before uploading.
+- TestFlight: `scripts/testflight.sh` uploads main for internal testers
+  (`docs/DISTRIBUTION.md`). Jamie, 2026-10-30: "When you have a complete
+  build go ahead and send internal build to TestFlight." So the first
+  internal upload goes once the core loop works on main (Capture, Check
+  the numbers, Solve, Post). After that, upload for a change worth a
+  tester's time, not every merge: each upload pings the testers' phones.
+  `--external`, the public beta and the App Store are each Jamie's call.
+  Each build gets `docs/PHONE-TEST.md` on a real phone.
 - Codex reviews every PR (`chatgpt-codex-connector[bot]`). Read its findings
   and fix or answer each one before calling the work done.
 - What counts as a sign, what players are promised, and who sees what are
