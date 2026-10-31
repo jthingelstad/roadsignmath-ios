@@ -78,10 +78,11 @@ The website and the server behind it are in
     30 min), a rate limit waits an hour, a 401 waits for sign-in, any
     other 4xx is a refusal. A post that left the phone with no answer back
     (a timeout, a dropped connection, a gateway error) may have made the
-    sign; the server knows its key for a day, so once 20 hours have passed,
-    or its photo turns out to be taken, it stops and says "This one may
-    have posted already" instead of posting again. The player's own Try
-    again clears that. `OutboxFolder` keeps the queue and its photos
+    sign, so the next try first looks on the poster's own page for a sign
+    whose photo is its upload (a sign keeps its upload's id): found, the
+    post is done; not there, it goes again with the same key. However long
+    the phone waited, a post is never made twice and the player never has
+    to look. `OutboxFolder` keeps the queue and its photos
     in Application Support (`Outbox/`, not backed up), so a post survives
     a relaunch. `PostParts` makes the upload (JPEG, upright, no metadata,
     under 4 MB), the numbers (with their text, why and box), the finders

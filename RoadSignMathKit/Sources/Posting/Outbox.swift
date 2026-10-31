@@ -36,8 +36,8 @@ public struct OutboxItem: Codable, Sendable, Hashable, Identifiable {
   public var nextTry: Date
   public let createdAt: Date
   /// When a try first went to the server and no answer came back, so the
-  /// sign may have been made. The server knows the key for a day; past
-  /// that, sending again could make a second sign.
+  /// sign may have been made. The next try looks for it on the poster's
+  /// own page before sending anything.
   public var unsureSince: Date?
 
   public init(handle: String, post: SignPost, now: Date = .now, id: UUID = UUID()) {
@@ -106,13 +106,19 @@ public struct PostedSign: Codable, Sendable, Hashable {
 public struct OutboxSender: Sendable {
   public var upload: @Sendable (Data) async throws -> Upload
   public var post: @Sendable (SignPost, String) async throws -> SignDetail
+  /// The sign on this player's own page (held and hidden ones too) whose
+  /// photo is this upload, or nil when there's none: a sign keeps its
+  /// upload's id as its photo's.
+  public var find: @Sendable (_ handle: String, _ photoId: String) async throws -> Sign?
 
   public init(
     upload: @escaping @Sendable (Data) async throws -> Upload,
-    post: @escaping @Sendable (SignPost, String) async throws -> SignDetail
+    post: @escaping @Sendable (SignPost, String) async throws -> SignDetail,
+    find: @escaping @Sendable (_ handle: String, _ photoId: String) async throws -> Sign?
   ) {
     self.upload = upload
     self.post = post
+    self.find = find
   }
 }
 
@@ -130,12 +136,8 @@ public enum Delivery {
   /// Uploads older than this are sent again: the server keeps them a day,
   /// and a post can take a while to go after its upload.
   public static let uploadFresh: TimeInterval = 20 * 3600
-  /// How long after an unanswered try the key still covers a retry: the
-  /// server remembers it a day from that try.
-  public static let keyFresh: TimeInterval = 20 * 3600
-
-  /// What the player is told when a post may have gone and it's too late
-  /// to send it again safely.
+  /// What the player is told when a post may have gone and there's no way
+  /// to look for it.
   public static let unsure =
     "This one may have posted already: the connection dropped as it went. Look for it on your page, and try again only if it isn’t there."
 
@@ -150,9 +152,35 @@ public enum Delivery {
     item.attempts += 1
     var uploadedNow = false
     var sent = false
-    if let since = item.unsureSince, now().timeIntervalSince(since) > keyFresh {
-      item.state = .refused(unsure)
-      return item
+    if item.unsureSince != nil {
+      // The last try went and no answer came back: the sign may be made.
+      // Look for it on the poster's page before sending again, so a post
+      // is never made twice however long the phone waited.
+      guard let photoId = item.uploadId else {
+        item.state = .refused(unsure)
+        return item
+      }
+      do {
+        if let sign = try await sender.find(item.handle, photoId) {
+          item.state = settled(sign)
+          return item
+        }
+        // Not there: that try made no sign, so sending again is safe. (One
+        // still being made answers the same key with "still being made".)
+        item.unsureSince = nil
+      } catch {
+        switch Outcome(error) {
+        case .signIn:
+          item.state = .needsSignIn
+        case .later(let problem, let wait):
+          item.state = .waiting(problem: problem)
+          item.nextTry = now().addingTimeInterval(wait ?? Backoff.delay(after: item.attempts))
+        case .uploadAgain, .refused:
+          item.state = .waiting(problem: busy)
+          item.nextTry = now().addingTimeInterval(Backoff.delay(after: item.attempts))
+        }
+        return item
+      }
     }
     do {
       if item.uploadId == nil || item.uploadedAt.map({ now().timeIntervalSince($0) > uploadFresh }) ?? true {
@@ -168,8 +196,7 @@ public enum Delivery {
       item.post.photoIds = [item.uploadId!]
       sent = true
       let detail = try await sender.post(item.post, item.key)
-      let sign = PostedSign(detail.sign)
-      item.state = detail.sign.visibility == .shown ? .posted(sign) : .held(sign, note: detail.sign.moderationNote)
+      item.state = settled(detail.sign)
       return item
     } catch {
       if sent, item.unsureSince == nil, Outcome.unanswered(error) { item.unsureSince = now() }
@@ -184,11 +211,7 @@ public enum Delivery {
         // fresh upload is refused the same way, say so.
         item.uploadId = nil
         item.uploadedAt = nil
-        if item.unsureSince != nil {
-          // The photo's taken, most likely by this post's own sign from
-          // the try that went unanswered: don't post it twice.
-          item.state = .refused(unsure)
-        } else if uploadedNow {
+        if uploadedNow {
           item.state = .refused(message)
         } else {
           item.state = .waiting(problem: nil)
@@ -199,6 +222,11 @@ public enum Delivery {
       }
       return item
     }
+  }
+
+  /// Where a made sign leaves the post: on the map, or held for a look.
+  static func settled(_ sign: Sign) -> OutboxItem.State {
+    sign.visibility == .shown ? .posted(PostedSign(sign)) : .held(PostedSign(sign), note: sign.moderationNote)
   }
 
   /// What a failed try means for the post.
