@@ -52,7 +52,11 @@ final class CaptureFlow {
 
   /// Capture is showing.
   var open = false
-  var path: [Stop] = []
+  var path: [Stop] = [] {
+    // A way belongs to the one trip to posting it was set for: back out of
+    // posting (to Solve, or to Check and "Post unsolved") and it's gone.
+    didSet { if !path.contains(.post) { way = nil } }
+  }
   /// The camera shows the shot with its numbers boxed, not the live view.
   var reviewing = false
   private(set) var shot: Shot?
