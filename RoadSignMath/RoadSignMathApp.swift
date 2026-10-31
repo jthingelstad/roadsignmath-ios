@@ -39,6 +39,15 @@ struct RoadSignMathApp: App {
             Task { await account.refresh() }
             outbox.wakeUp()
           }
+          // Views still waiting go before the app sleeps, given the few
+          // seconds the system allows to send them.
+          if now == .background {
+            let asked = UIApplication.shared.beginBackgroundTask(withName: "Screen views")
+            Task {
+              await store.views.sendNow()
+              UIApplication.shared.endBackgroundTask(asked)
+            }
+          }
         }
     }
   }

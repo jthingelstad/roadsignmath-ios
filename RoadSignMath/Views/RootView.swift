@@ -50,6 +50,10 @@ struct RootView: View {
     }
     .overlay(alignment: .top) { NoticeToast() }
     .onAppear(perform: welcome)
+    // Home or the Map coming into view (chosen, or back from a sign).
+    .onChange(of: store.rootScreen, initial: true) { _, now in
+      if let now { store.saw(now) }
+    }
     // A post waiting for its poster goes once they're signed in, and a
     // post that went up shows on Home and the Map.
     .onChange(of: account.me?.handle) {

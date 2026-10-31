@@ -50,8 +50,12 @@ final class Store {
   private(set) var details: [String: SignDetail] = [:]
 
 
+  /// The app's screen views on their way to the site's analytics.
+  let views: ViewCounter
+
   init(client: APIClient = APIClient(base: Store.server)) {
     self.client = client
+    views = ViewCounter { paths in try await client.countViews(paths) }
     #if DEBUG
       // For screenshots and UI checks: `-RSMTab map`, `-RSMOpen /signs/<slug>`,
       // `-RSMFocus <sign id>` as launch arguments.
@@ -298,6 +302,22 @@ final class Store {
       if account?.readToken == token { return answer }
     }
     throw CancellationError()
+  }
+
+  /// A screen came into view: counted with the app's others, a batch at
+  /// a time.
+  func saw(_ path: String) {
+    Task { await views.saw(path) }
+  }
+
+  /// The screen at the root of the tab showing, when nothing is pushed
+  /// on it: Home or the Map.
+  var rootScreen: String? {
+    switch tab {
+    case .home: homePath.isEmpty ? ViewPath.home : nil
+    case .map: mapPath.isEmpty ? ViewPath.map : nil
+    case .capture: nil
+    }
   }
 
   /// A sign already in hand, by id or slug, from either feed or a detail read.

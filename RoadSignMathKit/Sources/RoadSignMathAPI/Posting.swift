@@ -159,7 +159,7 @@ extension APIClient {
     return similar.signs
   }
 
-  private func answer<T: Decodable>(to request: URLRequest) async throws -> T {
+  func answer<T: Decodable>(to request: URLRequest) async throws -> T {
     let (data, response) = try await session.data(for: request)
     return try APIClient.answer(data, status: (response as? HTTPURLResponse)?.statusCode ?? 0)
   }

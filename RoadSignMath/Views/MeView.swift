@@ -100,6 +100,7 @@ struct MeView: View {
     .tint(.greenInk)
     .onAppear { showing = true }
     .onDisappear { showing = false }
+    .countsView(ViewPath.you)
     .task {
       // Opened while signed out (the token ended a moment ago): nothing to show.
       guard account.signedIn else { return dismiss() }
