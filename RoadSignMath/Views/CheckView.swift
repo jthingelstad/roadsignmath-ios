@@ -85,11 +85,12 @@ struct CheckView: View {
       Text("Your photo and its numbers wait right here while you do.")
     }
     .fullScreenCover(isPresented: $signingIn) {
-      SignInView {
-        account.finishSignIn()
-        signingIn = false
-        if account.signedIn { flow.path.append(.post) }
-      }
+      // "Not now" on the email step comes back here; a finished sign-in
+      // ends on its own (the welcome moment resets the step), seen below.
+      SignInView { leaveSignIn() }
+    }
+    .onChange(of: account.step) { _, step in
+      if signingIn, step == .email, account.signedIn { leaveSignIn() }
     }
     // Sign-in stands upright, as it does everywhere else.
     .onChange(of: signingIn) { _, now in Orientation.allow(now ? .portrait : .allButUpsideDown) }
@@ -155,6 +156,8 @@ struct CheckView: View {
         .frame(maxWidth: .infinity, minHeight: 80)
       case .failed(let why):
         Notice(symbol: "exclamationmark.magnifyingglass", title: "Couldn’t read this one", message: why)
+        // The ones the player added themselves, to fix, untick or remove.
+        if !flow.numbers.isEmpty { rows }
       case .read where flow.numbers.isEmpty:
         Notice(
           symbol: "number.square",
@@ -252,6 +255,13 @@ struct CheckView: View {
     .padding(.top, 12)
     .padding(.bottom, 8)
     .background(Color.ground.shadow(.drop(color: .black.opacity(0.08), radius: 8, y: -2)))
+  }
+
+  /// Closes sign-in and, once signed in, goes on to posting.
+  private func leaveSignIn() {
+    account.finishSignIn()
+    signingIn = false
+    if account.signedIn { flow.path.append(.post) }
   }
 
   private var ready: Bool {
