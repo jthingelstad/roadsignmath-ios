@@ -6,7 +6,9 @@ struct HomeView: View {
   enum Which: Hashable { case latest, near }
 
   @Environment(Store.self) private var store
+  @Environment(Account.self) private var account
   @State private var which = Which.latest
+  @State private var showingMe = Script.flag("RSMMe")
   @State private var top = ScrollPosition(edge: .top)
   @Namespace private var zoom
 
@@ -34,6 +36,8 @@ struct HomeView: View {
       }
       .toolbar {
         ToolbarItem(placement: .principal) { Brand() }
+        ToolbarItem(placement: .topBarTrailing) { you }
+          .sharedBackgroundVisibility(.hidden)
       }
       .navigationBarTitleDisplayMode(.inline)
       .toolbarBackground(Color.card, for: .navigationBar)
@@ -43,9 +47,44 @@ struct HomeView: View {
       }
     }
     .task { if store.latestLoad == .idle { await store.loadLatest() } }
+    .sheet(isPresented: $showingMe) { MeView() }
     .sensoryFeedback(.selection, trigger: which)
     .onChange(of: which) { _, now in
       if now == .near, store.nearLoad == .idle { Task { await store.loadNear() } }
+    }
+  }
+
+  /// Your avatar, which opens Me, or a way to sign in.
+  @ViewBuilder private var you: some View {
+    if let me = account.me, account.signedIn {
+      Button {
+        showingMe = true
+      } label: {
+        Avatar(name: me.name, color: Color(hex: me.avatarColor) ?? .signGreen, size: 34)
+          .frame(width: 44, height: 44)
+          .contentShape(Circle())
+      }
+      .buttonStyle(.plain)
+      .accessibilityLabel(me.name.isEmpty ? "You" : "You: \(me.name)")
+    } else if account.signedIn {
+      Button { showingMe = true } label: {
+        Image(systemName: "person.crop.circle.fill").font(.system(size: 28)).foregroundStyle(Color.greenInk)
+          .frame(width: 44, height: 44)
+      }
+      .buttonStyle(.plain)
+      .accessibilityLabel("You")
+    } else {
+      Button { account.beginSignIn() } label: {
+        // The words when they fit beside the title, else the symbol.
+        ViewThatFits(in: .horizontal) {
+          Text("Sign in").face(.action).lineLimit(1).fixedSize()
+          Image(systemName: "person.crop.circle").font(.system(size: 26))
+        }
+        .foregroundStyle(Color.greenInk)
+        .frame(minWidth: 44, minHeight: 44)
+      }
+      .buttonStyle(.plain)
+      .accessibilityLabel("Sign in")
     }
   }
 

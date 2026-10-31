@@ -4,9 +4,15 @@ import SwiftUI
 /// bar: Home, the raised green Capture button, Map.
 struct RootView: View {
   @Environment(Store.self) private var store
+  @Environment(Account.self) private var account
   @State private var capturing = false
+  /// Someone chose "Look around first" (or "Not now"): sign-in waits until
+  /// they ask for it.
+  @AppStorage("lookedAround") private var lookedAround = false
+  @State private var firstRun = false
 
   var body: some View {
+    @Bindable var account = account
     VStack(spacing: 0) {
       ZStack {
       HomeView()
@@ -30,6 +36,62 @@ struct RootView: View {
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
     }
+    .fullScreenCover(isPresented: $account.signingIn) {
+      SignInView(firstRun: firstRun) {
+        lookedAround = true
+        firstRun = false
+        account.finishSignIn()
+      }
+      .overlay(alignment: .top) { NoticeToast() }
+    }
+    .overlay(alignment: .top) { NoticeToast() }
+    .onAppear(perform: welcome)
+  }
+
+  /// The first time, the app opens on sign-in, with "Look around first"
+  /// for anyone who'd rather see the signs. A sign-in left waiting for its
+  /// code (the app closed while you were in Mail) picks up where it was.
+  private func welcome() {
+    guard !account.signedIn else { return account.resumeNaming() }
+    if Script.value("RSMSignIn") != nil {
+      account.useAnotherEmail()
+      account.beginSignIn()
+    } else if !Script.scripted, !lookedAround || account.pending != nil {
+      firstRun = !lookedAround
+      account.beginSignIn()
+    }
+  }
+}
+
+/// A word that floats down from the top for a few seconds: signed out by
+/// the server, the account deleted, already signed in.
+private struct NoticeToast: View {
+  @Environment(Account.self) private var account
+
+  var body: some View {
+    ZStack {
+      if let notice = account.notice {
+        Text(notice)
+          .face(.name)
+          .foregroundStyle(Color.card)
+          .multilineTextAlignment(.center)
+          .padding(.horizontal, 18)
+          .padding(.vertical, 12)
+          .background(Color.ink, in: Capsule())
+          .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
+          .padding(.horizontal, 24)
+          .padding(.top, 8)
+          .transition(.move(edge: .top).combined(with: .opacity))
+          .onTapGesture { account.notice = nil }
+          .task(id: notice) {
+            AccessibilityNotification.Announcement(notice).post()
+            try? await Task.sleep(for: .seconds(4))
+            withAnimation { account.notice = nil }
+          }
+          .accessibilityAddTraits(.isStaticText)
+      }
+    }
+    .animation(.spring(duration: 0.4), value: account.notice)
   }
 }
 
@@ -93,6 +155,7 @@ private struct TabBar: View {
 /// What the Capture button shows until capturing arrives.
 private struct CaptureSoon: View {
   @Environment(\.dismiss) private var dismiss
+  @Environment(Account.self) private var account
 
   var body: some View {
     VStack(spacing: 14) {
@@ -111,6 +174,18 @@ private struct CaptureSoon: View {
         .padding(.top, 6)
         .accessibilityHidden(true)
       Spacer(minLength: 0)
+      if !account.signedIn {
+        Button {
+          dismiss()
+          account.beginSignIn()
+        } label: {
+          Text("Sign in now, so you’re ready")
+            .face(.action)
+            .foregroundStyle(Color.greenInk)
+            .frame(maxWidth: .infinity, minHeight: 44)
+        }
+        .buttonStyle(.plain)
+      }
       Button {
         dismiss()
       } label: {

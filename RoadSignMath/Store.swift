@@ -65,10 +65,13 @@ final class Store {
 
   /// Release builds read the live server. A Debug build in the simulator
   /// reads `npm run dev` on this Mac; on a phone, the live server. The
-  /// scheme's RSM_API environment variable picks any other.
+  /// scheme's RSM_API environment variable picks any other, as does an
+  /// `RSM_API` default (a launch argument, or `defaults write`, which also
+  /// holds when a link opens the app cold).
   static var server: URL {
     #if DEBUG
-      if let named = ProcessInfo.processInfo.environment["RSM_API"], let url = URL(string: named) { return url }
+      let named = ProcessInfo.processInfo.environment["RSM_API"] ?? UserDefaults.standard.string(forKey: "RSM_API")
+      if let named, let url = URL(string: named) { return url }
       #if targetEnvironment(simulator)
         return APIClient.local
       #else

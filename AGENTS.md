@@ -36,19 +36,39 @@ The website and the server behind it are in
     book, and caches each picture by text, size and color so feeds scroll
     smoothly. `fittingSize` shrinks a long equation to its width instead of
     clipping it.
-  - `RoadSignMathAPI`: the read-only client for the server's
-    `/api/v1` (latest, sign, map pins) and its models. Its tests decode
-    fixtures shaped like the server's contract.
+  - `RoadSignMathAPI`: the client for the server's `/api/v1` and its
+    models: the reads (latest, sign, map pins) and the account
+    (`auth/start`, `auth/verify` with a code or the email's link,
+    `auth/signout`, `GET`/`PATCH`/`DELETE /me`, the token as a Bearer
+    header). `SignInLink` reads the email's link, `Handle.preview` ports
+    the server's handle slug so the name step can show the address a name
+    makes, and `TokenStore` keeps the token: `KeychainTokenStore` (this
+    device only, after first unlock, one item per server address) and
+    `MemoryTokenStore` for tests. Its tests decode fixtures shaped like
+    the server's contract and check each request against a stub
+    `URLProtocol`, never a server. The Keychain test needs an app's
+    entitlements, so a plain `swift test` on a Mac skips it.
 - `RoadSignMath.xcodeproj` and `RoadSignMath/`: the app. SwiftUI, one
   target, the project's folders synchronized, so a new Swift file needs no
   project edit. `Store.swift` holds what the screens share; `Views/` holds
   Home (the feed), the sign page, the Map (MapKit through
   `UIViewRepresentable`, since SwiftUI's `Map` can't cluster pins), and the
-  tab bar with the raised Capture button. `Theme.swift` is the boards'
-  colors and type: Overpass (bundled, SIL OFL, its license beside it in
-  `Fonts/`) for words, Latin Modern for math.
-- `Config/`: `Info.plist`, the entitlements (Associated Domains for
-  `roadsignmath.xyz`), and `Signing.xcconfig`, which includes the ignored
+  tab bar with the raised Capture button. `Account.swift` is who's signed
+  in and the sign-in in progress (an email waiting for its code survives a
+  relaunch; after "Send the email again" a code from any of them works; a
+  401 on any signed-in call signs out with a word why; deleting and
+  reinstalling the app signs out, since the Keychain outlives the app).
+  `Views/SignInView.swift` is the sign-in screen (email, code, name,
+  welcome), shown on first launch with "Look around first", and
+  `Views/MeView.swift` is You: name, email, sign out, delete my account.
+  `Theme.swift` is the boards' colors and type: Overpass (bundled, SIL
+  OFL, its license beside it in `Fonts/`) for words, Latin Modern for
+  math.
+- `Config/`: `Info.plist` (it also claims the `roadsignmath://` scheme,
+  so `roadsignmath://signin?l=<login>&t=<token>` finishes a sign-in where
+  a universal link can't), the entitlements (Associated Domains for
+  `roadsignmath.xyz`: the server's AASA covers `/signin` and `/signs/*`),
+  and `Signing.xcconfig`, which includes the ignored
   `Signing.local.xcconfig` holding the team (`DEVELOPMENT_TEAM = ...`).
   Signing is Automatic. Never commit the local file or a team id.
 - `scripts/version.sh`: the version a build carries, by Your Version
@@ -95,9 +115,22 @@ The website and the server behind it are in
   scheme's `RSM_API` environment variable to read another, such as the live
   site (reads only). Release reads `https://roadsignmath.xyz/api/v1`. Debug
   builds also take launch arguments for screenshots: `-RSMTab map`,
-  `-RSMOpen /signs/<slug>`, `-RSMFocus <sign id>`, `-RSMSearch <words>`.
-- The app only reads from the server so far. Never write to the live API
-  (sign-in, posts, reports) to test anything.
+  `-RSMOpen /signs/<slug>`, `-RSMFocus <sign id>`, `-RSMSearch <words>`,
+  and for sign-in `-RSMSignIn <email>` (opens sign-in and sends the
+  email), `-RSMCode <digits>`, `-RSMName <name>` (`-RSMNameSave YES`
+  saves it) and `-RSMMe YES` (opens You). `RSM_API` also works as a
+  default (`xcrun simctl spawn <sim> defaults write xyz.roadsignmath.app
+  RSM_API <url>`), which a launch from `simctl` without the scheme needs.
+- Never sign in, post or report against the live API to test anything:
+  `auth/start` emails a real person and `auth/verify` makes a live player.
+  Sign in against `npm run dev`, whose emails land in its `.data/mail/`.
+  To test the email's link, build signed for the simulator
+  (`-allowProvisioningUpdates`, no `CODE_SIGNING_ALLOWED=NO`, so the
+  associated domain is there), then take the link from the local mail and
+  open it as `https://roadsignmath.xyz/signin?l=<login>&t=<token>` with
+  `xcrun simctl openurl`: the app finishes it against the server it
+  reads, so the live site is never asked. A `roadsignmath://` link asks
+  "Open in?" first, which a headless simulator can't tap.
 - Every TestFlight upload, internal ones included, is Jamie's call each time.
   Merge as usual, then ask before uploading.
 - Codex reviews every PR (`chatgpt-codex-connector[bot]`). Read its findings
