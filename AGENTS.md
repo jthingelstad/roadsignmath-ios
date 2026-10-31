@@ -42,7 +42,10 @@ The website and the server behind it are in
     gantry (EXIT 8, 82nd St, EXIT 7B, 90th St, 1 MILE) with a made-up date
     and place, so the simulator, which has no camera, can run Capture and
     the tests can read a sign without a real photo. Never add real photos
-    as fixtures.
+    as fixtures. `WayDraft` is the math written on Solve: tiles (each kept
+    number goes in once, so a number shown twice goes in twice) and keys,
+    the text the checker reads, the LaTeX to draw with a box where the next
+    piece goes, and a status from the checker's own answer.
   - `MathArt`: draws a way's LaTeX (the `tex` the server and `Equation`
     write) as an image with SwiftMath in Latin Modern, the look of a math
     book, and caches each picture by text, size and color so feeds scroll
@@ -81,8 +84,11 @@ The website and the server behind it are in
   (AVFoundation on its own queue; the preview turns with the phone through
   the rotation coordinator) and `Views/CaptureView.swift` (camera and the
   shot with its numbers boxed), `CheckView.swift` (Check the numbers),
-  `NumberSheet.swift` (fix or add a number) and `NextStepView.swift` (where
-  Solve and posting will go). The app stands upright except Capture, which
+  `NumberSheet.swift` (fix or add a number), `SolveView.swift` (Solve: the
+  math on a sign of its own, the numbers as tiles that check off, an
+  operator keypad with no digits, and a live "It works"; `WayDraft` in
+  `SignCapture` is the math being written and asks `Equation` whether it's
+  true) and `PostNext.swift` (where posting will go). The app stands upright except Capture, which
   turns: Info.plist allows both landscapes and `Orientation.swift` narrows
   the rest of the app to portrait. Capture never asks for the phone's
   location; a library photo brings its own day and place.
@@ -150,7 +156,8 @@ The website and the server behind it are in
   library (the simulator reads Mac paths); then `-RSMCheck YES` (Check the
   numbers), `-RSMFix <n>` (the nth number's sheet), `-RSMAdd YES`,
   `-RSMSpot <x>,<y>` (a tap on the photo, 0 to 1 each way), `-RSMSolve YES`
-  or `-RSMPost YES`, and `-RSMLandscape YES` to turn sideways. `RSM_API`
+  (with `-RSMWay <math>` to write the math, its numbers taken from the
+  tiles) or `-RSMPost YES`, and `-RSMLandscape YES` to turn sideways. `RSM_API`
   also works as a default (`xcrun simctl spawn <sim> defaults write xyz.roadsignmath.app
   RSM_API <url>`), which a launch from `simctl` without the scheme needs.
 - Never sign in, post or report against the live API to test anything:

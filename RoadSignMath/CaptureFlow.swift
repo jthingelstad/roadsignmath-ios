@@ -58,6 +58,12 @@ final class CaptureFlow {
   private(set) var shot: Shot?
   private(set) var reading: Reading = .idle
   var numbers = NumberList()
+  /// The math being written on Solve. It stays while the player goes back
+  /// to fix a number, and goes with the photo.
+  var draft: WayDraft?
+  /// The way to post: a working equation's canonical text, or nil to post
+  /// the sign unsolved.
+  var way: String?
   /// A photo is being opened, after the shutter or the picker.
   private(set) var opening = false
   /// A photo that couldn't be opened, said on the camera.
@@ -105,6 +111,8 @@ final class CaptureFlow {
         file: file, picture: UIImage(cgImage: show), readable: read, source: source,
         takenAt: source == .camera ? (time ?? .now) : file.facts.takenAt)
       numbers = NumberList()
+      draft = nil
+      way = nil
       path = []
       reviewing = true
       reading = .reading
@@ -171,7 +179,8 @@ final class CaptureFlow {
   /// goes on to Check the numbers, `-RSMFix <n>` opens the nth number's
   /// sheet, `-RSMAdd YES` the sheet for a missed number, `-RSMSpot x,y`
   /// taps the photo there (0...1 each way), `-RSMSolve YES` or
-  /// `-RSMPost YES` the step after, and `-RSMLandscape YES` turns sideways.
+  /// `-RSMPost YES` the step after (`-RSMWay <math>` writes the math on
+  /// Solve), and `-RSMLandscape YES` turns sideways.
   func script() {
     #if DEBUG
       guard let what = Script.value("RSMCapture") else { return }

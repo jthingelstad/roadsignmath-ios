@@ -326,6 +326,19 @@ enum Script {
     #endif
   }
 
+  /// A launch argument's value exactly as given. UserDefaults reads a value
+  /// as a property list first, so math starting with "(" would come back as
+  /// an array, not the text.
+  static func text(_ key: String) -> String? {
+    #if DEBUG
+      let arguments = ProcessInfo.processInfo.arguments
+      guard let at = arguments.firstIndex(of: "-" + key), at + 1 < arguments.count else { return nil }
+      return arguments[at + 1]
+    #else
+      return nil
+    #endif
+  }
+
   /// Any launch argument that sets up a screen, so the first-run sign-in
   /// stays out of the way.
   /// A YES/NO launch argument.
