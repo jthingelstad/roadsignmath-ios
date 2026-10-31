@@ -1,13 +1,13 @@
 import RoadSignMathAPI
 import SwiftUI
 
-/// Everyone's signs, newest first, or nearest first.
+/// Everyone's signs, newest first, nearest first, or the most hearted first.
 struct HomeView: View {
-  enum Which: Hashable { case latest, near }
+  enum Which: Hashable { case latest, near, popular }
 
   @Environment(Store.self) private var store
   @Environment(Account.self) private var account
-  @State private var which = Which.latest
+  @State private var which = Script.value("RSMFeed") == "popular" ? Which.popular : Which.latest
   @State private var showingMe = Script.flag("RSMMe") || Script.flag("RSMBadges") || Script.value("RSMBadge") != nil
   @State private var top = ScrollPosition(edge: .top)
   @Namespace private var zoom
@@ -33,6 +33,7 @@ struct HomeView: View {
         switch which {
         case .latest: await store.loadLatest()
         case .near: await store.loadNear()
+        case .popular: await store.loadPopular()
         }
       }
       .toolbar {
@@ -58,7 +59,9 @@ struct HomeView: View {
     .sensoryFeedback(.selection, trigger: which)
     .onChange(of: which) { _, now in
       if now == .near, store.nearLoad == .idle { Task { await store.loadNear() } }
+      if now == .popular, store.popularLoad == .idle { Task { await store.loadPopular() } }
     }
+    .task { if which == .popular, store.popularLoad == .idle { await store.loadPopular() } }
   }
 
   /// Your avatar, which opens Me, or a way to sign in.
@@ -101,6 +104,7 @@ struct HomeView: View {
     HStack(spacing: 6) {
       Pill(label: "Latest", chosen: which == .latest) { withAnimation(.snappy) { which = .latest } }
       Pill(label: "Near you", chosen: which == .near) { withAnimation(.snappy) { which = .near } }
+      Pill(label: "Popular", chosen: which == .popular) { withAnimation(.snappy) { which = .popular } }
       Spacer()
     }
     .padding(.horizontal, 16)
@@ -115,6 +119,7 @@ struct HomeView: View {
     switch which {
     case .latest: latest
     case .near: near
+    case .popular: popular
     }
   }
 
@@ -171,6 +176,26 @@ struct HomeView: View {
         } else {
           cards(store.near, miles: true)
         }
+      }
+    }
+  }
+
+  /// The most hearted first (Jamie, 2026-10-31: all-time hearts, newest
+  /// breaks ties, unhearted signs last), in the order the server gives.
+  @ViewBuilder private var popular: some View {
+    switch store.popularLoad {
+    case .idle, .loading where store.popular.isEmpty:
+      ForEach(0..<3, id: \.self) { _ in CardSkeleton() }
+    case .failed(let why):
+      Notice(symbol: "wifi.exclamationmark", title: "Can’t reach the signs", message: why,
+             action: ("Try again", { Task { await store.loadPopular() } }))
+        .padding(.top, 60)
+    default:
+      if store.popular.isEmpty {
+        Notice(symbol: "heart", title: "No signs yet", message: "Heart the signs you love and the favorites rise to the top here.")
+          .padding(.top, 60)
+      } else {
+        cards(store.popular, miles: false)
       }
     }
   }

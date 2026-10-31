@@ -65,6 +65,7 @@ struct RootView: View {
     .onChange(of: outbox.postedCount) {
       Task {
         await store.loadLatest()
+        if store.popularLoad == .loaded { await store.loadPopular() }
         await store.loadMap()
       }
       // A post can earn a badge; reading you again puts its dot on Home.

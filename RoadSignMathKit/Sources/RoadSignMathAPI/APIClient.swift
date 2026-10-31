@@ -40,6 +40,13 @@ public struct APIClient: Sendable {
     return near.signs
   }
 
+  /// The most hearted signs (API 1.8.0): most hearts first, ties and the
+  /// unhearted newest first; the newest when the counts can't be read.
+  public func popularSigns(token: String? = nil) async throws -> [Sign] {
+    let popular: NearSigns = try await get(["signs", "popular"], [], token: token)
+    return popular.signs
+  }
+
   // MARK: Hearts
 
   /// Hearts a shown sign, or takes your heart back. Doing it twice changes
