@@ -59,7 +59,13 @@ The website and the server behind it are in
     your held and hidden signs), and posting (`Posting.swift`:
     `uploadPhoto` sends `POST /photos` the photo's bytes, `postSign` sends
     `POST /signs` a `SignPost` with its `Idempotency-Key`, and
-    `similarSigns` reads `GET /signs/similar`). `SignInLink` reads the email's link, `Handle.preview` ports
+    `similarSigns` reads `GET /signs/similar`), and badges (API 1.6.0,
+    `Badges.swift`: `badges()` reads the `GET /badges` catalog, secret
+    ones only an id and shelf; `badges` on `Player` and `Me`; `unlocked`
+    on a post's answer; `Badges.shelves` puts the catalog and the earned
+    ones on the five shelves, `Badges.newest` orders the few on You, and
+    `SeenBadges` is which ones this phone has shown, per step).
+    `SignInLink` reads the email's link, `Handle.preview` ports
     the server's handle slug so the name step can show the address a name
     makes, and `TokenStore` keeps the token: `KeychainTokenStore` (this
     device only, after first unlock, one item per server address) and
@@ -89,8 +95,10 @@ The website and the server behind it are in
     (none when you found it alone, so the server names you; with others,
     you took the photo and they spotted it, an `@handle` that matches a
     player linking to them), the state from a place, and the title
-    suggestion ("Ames Math"). Its tests drive the outbox with a fake
-    sender, never a server.
+    suggestion ("Ames Math"). A posted item keeps the badges its post
+    unlocked (`PostedSign.unlocked`), so Posted! or Home's note can show
+    them later; one found on the poster's page after a lost answer has
+    none. Its tests drive the outbox with a fake sender, never a server.
 - `RoadSignMath.xcodeproj` and `RoadSignMath/`: the app. SwiftUI, one
   target, the project's folders synchronized, so a new Swift file needs no
   project edit. `Store.swift` holds what the screens share; `Views/` holds
@@ -111,7 +119,22 @@ The website and the server behind it are in
   posted first) or a grid of photos (a tap opens the sign; held or hidden
   ones only you see say why instead), a warm empty state that opens Capture, and the settings
   sheet (name, email, sign out, delete my account, and the build at
-  the bottom). It reads `GET /me` and your own
+  the bottom). Under the profile is the Badges row (shown with none earned
+  too, so "See all" says how to earn the first): the newest six earned,
+  a red dot on any not seen on this phone, and "See all", the shelves
+  (`Views/BadgesView.swift`: five shelves, earned in color with the step,
+  the day and the sign, a tap opens that sign; not earned faded with how,
+  a stepped one showing its first step; secret ones a blank plate
+  until earned; each badge's own `BadgeSheet`). `Views/BadgeArt.swift`
+  draws every badge natively as the website's `src/web/badges.tsx` does
+  (same 64-point grid and colors), and `BadgeRow` is the earned-only row.
+  Seen badges live on the phone (UserDefaults, per server and handle):
+  the first time a player's badges are read, the ones already earned
+  arrive seen, so there's no fanfare on day one; the You avatar on Home
+  carries the dot too. Opening the shelves or a Posted! card sees them.
+  Other players: tap a sign's finder for `Views/PlayerSheet.swift`, their
+  signs, states, year and earned badges only (never a count or the ones
+  not earned), with their page on the website. It reads `GET /me` and your own
   `GET /players/{handle}` with your token, which carries your held and
   hidden signs. `Preferences.swift` holds `BuildInfo`, the stamped
   version, build and commit. Capture always shows "Passenger mode": a
@@ -131,7 +154,8 @@ The website and the server behind it are in
   none, "Where was it?", a town search; the day found; who found it and
   who spotted it; your name if you've none yet; and "Posted already?",
   the signs nearby with the same numbers), `PostedView.swift` (the post
-  on its way, then "Posted!" with its numbers bursting out, or why it
+  on its way, then "Posted!" with its numbers bursting out and any new
+  badge flipping in with a heavy tap, "New badge: Square Root", or why it
   waits, is held or was refused), `Places.swift` (MapKit's reverse
   geocode and town search; never the phone's own location),
   `Outbox.swift` (the queue on the phone: it sends one post at a time,
@@ -221,7 +245,16 @@ The website and the server behind it are in
   picks the first), `-RSMScrollEnd YES` (to the bottom once "Posted
   already?" has its answer), `-RSMPostIt YES` (posts once the form is
   ready) and `-RSMOffline YES` (every send fails as if offline, for the
-  waiting screens; a simulator can't drop its network). The token lives
+  waiting screens; a simulator can't drop its network). Badges:
+  `-RSMBadges YES` opens You's shelves, `-RSMBadge <id>` opens that
+  badge's sheet over them, and `-RSMUnlocked <id,id>` shows Posted! for
+  the sample sign as if its post had unlocked those badges (made from the
+  catalog, a stepped one at its first step; nothing is sent). To see the
+  You dot, write the seen record into the app's container plist
+  (`$(xcrun simctl get_app_container <sim> xyz.roadsignmath.app
+  data)/Library/Preferences/xyz.roadsignmath.app.plist`, key
+  `account:<api>:badgesSeen:<handle>`, JSON `{"keys":[...]}`);
+  `simctl spawn defaults write` doesn't reach it. The token lives
   in the Keychain, which an unsigned simulator build can't write, so for
   anything across relaunches (a post waiting in the outbox) build signed
   for the simulator as for the email's link below. `RSM_API`

@@ -34,6 +34,21 @@ import Testing
     #expect(item.key.count >= 8 && item.key.count <= 128)
   }
 
+  @Test func aPostKeepsTheBadgesItEarned() async throws {
+    let fake = Fake(unlocked: """
+      [{"id":"first-sign","shelf":"firsts","name":"First Sign","how":"Post your first sign.","mark":"1ST","step":null,
+        "earned_on":"2026-10-30","sign":{"id":"01sign","slug":"ames-math","title":"Ames Math","url":"https://roadsignmath.xyz/signs/ames-math"}}]
+      """)
+    let sent = await Delivery.attempt(item, photo: Data([1]), sender: fake.sender)
+    #expect(sent.posted?.unlocked?.map(\.title) == ["First Sign"])
+    // Kept on disk with the post, so Home can say it after a relaunch.
+    let saved = try JSONDecoder().decode(OutboxItem.self, from: JSONEncoder().encode(sent))
+    #expect(saved.posted?.unlocked?.first?.earnedOn == "2026-10-30")
+    // An outbox saved before badges still reads.
+    let old = #"{"id":"01sign","slug":"ames-math","title":"Ames Math","url":"https://roadsignmath.xyz/signs/ames-math"}"#
+    #expect(try JSONDecoder().decode(PostedSign.self, from: Data(old.utf8)).unlocked == nil)
+  }
+
   @Test func aHeldPostSaysTheNote() async throws {
     let fake = Fake(visibility: "held", note: "A person will look at this one.")
     let sent = await Delivery.attempt(item, photo: Data([1]), sender: fake.sender)
@@ -161,6 +176,8 @@ import Testing
     let late = start.addingTimeInterval(3 * 86400)
     let found = await Delivery.attempt(first, photo: Data([1]), sender: fake.sender, now: { late })
     #expect(found.posted?.slug == "ames-math")
+    // Found on the page, which doesn't say what that post earned.
+    #expect(found.posted?.unlocked == nil)
     #expect(fake.posts.count == 1)
     #expect(fake.looks.map { "\($0.0) \($0.1)" } == ["zoe 01up1"])
   }
@@ -242,10 +259,13 @@ final class Fake: Sendable {
   private let log = Mutex(Log())
   let visibility: String
   let note: String?
+  /// The post answer's `unlocked`, as JSON.
+  let unlocked: String
 
-  init(visibility: String = "shown", note: String? = nil) {
+  init(visibility: String = "shown", note: String? = nil, unlocked: String = "[]") {
     self.visibility = visibility
     self.note = note
+    self.unlocked = unlocked
   }
 
   var uploads: [Data] { log.withLock { $0.uploads } }
@@ -273,7 +293,7 @@ final class Fake: Sendable {
           log.posts.append((post, key))
           if !log.postErrors.isEmpty { throw log.postErrors.removeFirst() }
         }
-        return try self.detail(post)
+        return try self.detail(post, unlocked: self.unlocked)
       },
       find: { handle, photoId in
         let post = try self.log.withLock { log in
@@ -285,14 +305,15 @@ final class Fake: Sendable {
       })
   }
 
-  func detail(_ post: SignPost) throws -> SignDetail {
+  func detail(_ post: SignPost, unlocked: String = "[]") throws -> SignDetail {
     let note = note.map { "\"\($0)\"" } ?? "null"
     let json = """
       {"id":"01sign","slug":"ames-math","title":"\(post.title)","url":"https://roadsignmath.xyz/signs/ames-math",
        "caption":null,"found_on":"\(post.foundOn)","posted_at":"2026-10-30T12:00:00.000Z","posted_by":"zoe",
        "place":{"label":"Ames, IA","state":"IA","lat":null,"lng":null,"approximate":true},
        "photos":[],"numbers":[{"value":"7"}],"finders":[{"name":"Zoë","handle":"zoe","role":"found"}],
-       "first_way":null,"way_count":0,"visibility":"\(visibility)","moderation_note":\(note),"ways":[]}
+       "first_way":null,"way_count":0,"visibility":"\(visibility)","moderation_note":\(note),"ways":[],
+       "unlocked":\(unlocked)}
       """
     return try APIClient.decoder.decode(SignDetail.self, from: Data(json.utf8))
   }

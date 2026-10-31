@@ -44,9 +44,12 @@ public struct Me: Codable, Sendable, Hashable {
   /// Only ever sent to you.
   public var email: String
   public var needsName: Bool
+  /// Since API 1.6.0: the badges you've earned, in the catalog's order.
+  /// Nil from an older server, or a `Me` saved before it.
+  public var badges: [EarnedBadge]?
 
   public init(handle: String, name: String, avatarColor: String, bio: String? = nil, url: URL, signCount: Int = 0,
-              states: [String] = [], firstYear: Int? = nil, email: String, needsName: Bool) {
+              states: [String] = [], firstYear: Int? = nil, email: String, needsName: Bool, badges: [EarnedBadge]? = nil) {
     self.handle = handle
     self.name = name
     self.avatarColor = avatarColor
@@ -57,6 +60,7 @@ public struct Me: Codable, Sendable, Hashable {
     self.firstYear = firstYear
     self.email = email
     self.needsName = needsName
+    self.badges = badges
   }
 }
 

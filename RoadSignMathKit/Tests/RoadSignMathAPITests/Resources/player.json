@@ -179,5 +179,52 @@
       "visibility": "held",
       "moderation_note": "Held for a second look."
     }
+  ],
+  "badges": [
+    {
+      "id": "first-sign",
+      "shelf": "firsts",
+      "name": "First Sign",
+      "how": "Post your first sign.",
+      "mark": "1ST",
+      "step": null,
+      "earned_on": "2025-08-06",
+      "sign": {
+        "id": "01K210TTHG7F6Q6AG14MZFMP6Y",
+        "slug": "on-the-way-to-the-airport",
+        "title": "On the way to the airport",
+        "url": "https://roadsignmath.xyz/signs/on-the-way-to-the-airport"
+      }
+    },
+    {
+      "id": "states",
+      "shelf": "places",
+      "name": "States",
+      "how": "Find signs in more states.",
+      "mark": "2",
+      "step": 2,
+      "earned_on": "2025-09-01",
+      "sign": {
+        "id": "01K43VJQP8H8787XQXQDW47W0B",
+        "slug": "i-35w-at-82nd-street",
+        "title": "I-35W at 82nd Street",
+        "url": "https://roadsignmath.xyz/signs/i-35w-at-82nd-street"
+      }
+    },
+    {
+      "id": "square-root",
+      "shelf": "math",
+      "name": "Square Root",
+      "how": "Use √ in a way.",
+      "mark": "√",
+      "step": null,
+      "earned_on": "2025-09-01",
+      "sign": {
+        "id": "01K43VJQP8H8787XQXQDW47W0B",
+        "slug": "i-35w-at-82nd-street",
+        "title": "I-35W at 82nd Street",
+        "url": "https://roadsignmath.xyz/signs/i-35w-at-82nd-street"
+      }
+    }
   ]
 }

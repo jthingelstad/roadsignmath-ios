@@ -110,7 +110,7 @@ public struct APIClient: Sendable {
 
   private static let unreserved = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
 
-  private func get<T: Decodable>(_ path: [String], _ query: [URLQueryItem] = []) async throws -> T {
+  func get<T: Decodable>(_ path: [String], _ query: [URLQueryItem] = []) async throws -> T {
     let (data, status) = try await perform(request("GET", path, query: query))
     return try APIClient.answer(data, status: status)
   }
