@@ -82,22 +82,29 @@ public struct OutboxItem: Codable, Sendable, Hashable, Identifiable {
   }
 }
 
-/// The sign a post made: enough to open it and say where it went.
+/// The sign a post made: enough to open it and say where it went, and the
+/// badges the post earned, so a post that went while the player was away
+/// still shows them.
 public struct PostedSign: Codable, Sendable, Hashable {
   public var id: String
   public var slug: String
   public var title: String
   public var url: URL
+  /// The post answer's `unlocked`. Nil when none were earned, or the sign
+  /// was found on the poster's page after a try that got no answer (the
+  /// page doesn't say what that post earned).
+  public var unlocked: [EarnedBadge]?
 
-  public init(id: String, slug: String, title: String, url: URL) {
+  public init(id: String, slug: String, title: String, url: URL, unlocked: [EarnedBadge]? = nil) {
     self.id = id
     self.slug = slug
     self.title = title
     self.url = url
+    self.unlocked = unlocked
   }
 
-  public init(_ sign: Sign) {
-    self.init(id: sign.id, slug: sign.slug, title: sign.title, url: sign.url)
+  public init(_ sign: Sign, unlocked: [EarnedBadge] = []) {
+    self.init(id: sign.id, slug: sign.slug, title: sign.title, url: sign.url, unlocked: unlocked.isEmpty ? nil : unlocked)
   }
 }
 
@@ -196,7 +203,7 @@ public enum Delivery {
       item.post.photoIds = [item.uploadId!]
       sent = true
       let detail = try await sender.post(item.post, item.key)
-      item.state = settled(detail.sign)
+      item.state = settled(detail.sign, unlocked: detail.unlocked)
       return item
     } catch {
       if sent, item.unsureSince == nil, Outcome.unanswered(error) { item.unsureSince = now() }
@@ -224,9 +231,11 @@ public enum Delivery {
     }
   }
 
-  /// Where a made sign leaves the post: on the map, or held for a look.
-  static func settled(_ sign: Sign) -> OutboxItem.State {
-    sign.visibility == .shown ? .posted(PostedSign(sign)) : .held(PostedSign(sign), note: sign.moderationNote)
+  /// Where a made sign leaves the post: on the map with what it earned,
+  /// or held for a look (a held sign earns nothing until it's shown).
+  static func settled(_ sign: Sign, unlocked: [EarnedBadge] = []) -> OutboxItem.State {
+    sign.visibility == .shown
+      ? .posted(PostedSign(sign, unlocked: unlocked)) : .held(PostedSign(sign), note: sign.moderationNote)
   }
 
   /// What a failed try means for the post.

@@ -8,7 +8,7 @@ struct HomeView: View {
   @Environment(Store.self) private var store
   @Environment(Account.self) private var account
   @State private var which = Which.latest
-  @State private var showingMe = Script.flag("RSMMe")
+  @State private var showingMe = Script.flag("RSMMe") || Script.flag("RSMBadges") || Script.value("RSMBadge") != nil
   @State private var top = ScrollPosition(edge: .top)
   @Namespace private var zoom
 
@@ -62,11 +62,13 @@ struct HomeView: View {
         showingMe = true
       } label: {
         Avatar(name: me.name, color: Color(hex: me.avatarColor) ?? .signGreen, size: 34)
+          // A badge not seen yet.
+          .overlay(alignment: .topTrailing) { if !account.newBadges.isEmpty { NewDot().offset(x: 2, y: -2) } }
           .frame(width: 44, height: 44)
           .contentShape(Circle())
       }
       .buttonStyle(.plain)
-      .accessibilityLabel(me.name.isEmpty ? "You" : "You: \(me.name)")
+      .accessibilityLabel((me.name.isEmpty ? "You" : "You: \(me.name)") + (account.newBadges.isEmpty ? "" : ", a new badge"))
     } else if account.signedIn {
       Button { showingMe = true } label: {
         Image(systemName: "person.crop.circle.fill").font(.system(size: 28)).foregroundStyle(Color.greenInk)

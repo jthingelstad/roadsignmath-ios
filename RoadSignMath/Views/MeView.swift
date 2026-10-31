@@ -1,12 +1,18 @@
 import RoadSignMathAPI
 import SwiftUI
 
-/// The boards' Me: you, your signs and where they took you, then your
-/// signs as Home's timeline or as photos. A tap opens a sign; the gear
-/// opens settings (your name and email, sign out, Delete my account, and
-/// the build).
+/// The boards' Me: you, your signs and where they took you, your newest
+/// badges, then your signs as Home's timeline or as photos. A tap opens a
+/// sign; the gear opens settings (your name and email, sign out, Delete
+/// my account, and the build).
 struct MeView: View {
   enum Look: Hashable { case timeline, photos }
+
+  /// Where You goes: a sign, or your badges' shelves.
+  enum Route: Hashable {
+    case sign(String)
+    case badges
+  }
 
   enum Load: Equatable {
     case loading, loaded
@@ -22,7 +28,9 @@ struct MeView: View {
   @State private var signs: [Sign] = []
   @State private var load = Load.loading
   @State private var showingSettings = Script.flag("RSMSettings")
-  @State private var path: [String] = []
+  @State private var path: [Route] = Script.flag("RSMBadges") || Script.value("RSMBadge") != nil ? [.badges] : []
+  /// A badge in the row tapped: its own sheet.
+  @State private var badge: EarnedBadge?
   /// A held or hidden sign tapped: only you see it, so it has no page yet.
   @State private var onlyYours: Sign?
 
@@ -52,10 +60,21 @@ struct MeView: View {
           Button("Done") { dismiss() }.face(.action)
         }
       }
-      .navigationDestination(for: String.self) { id in
-        SignView(id: id).navigationTransition(.zoom(sourceID: id, in: zoom))
+      .navigationDestination(for: Route.self) { route in
+        switch route {
+        case .sign(let id):
+          SignView(id: id).navigationTransition(.zoom(sourceID: id, in: zoom))
+        case .badges:
+          BadgesView(earned: account.me?.badges ?? []) { path.append(.sign($0)) }
+        }
       }
       .sheet(isPresented: $showingSettings) { SettingsView() }
+      .sheet(item: $badge) { badge in
+        BadgeSheet(slot: BadgeSlot(badge)) { id in
+          self.badge = nil
+          path.append(.sign(id))
+        }
+      }
       .alert(
         "Only you can see this one", isPresented: Binding(get: { onlyYours != nil }, set: { if !$0 { onlyYours = nil } }),
         presenting: onlyYours
@@ -102,6 +121,7 @@ struct MeView: View {
     ScrollView {
       VStack(spacing: 20) {
         header(me)
+        if let badges = me.badges, !badges.isEmpty { badgesRow(badges) }
         switch load {
         case .loading where signs.isEmpty:
           placeholder
@@ -167,6 +187,51 @@ struct MeView: View {
     }
     .frame(maxWidth: .infinity)
   }
+
+  /// Your newest few badges, a dot on any not seen yet, and "See all" for
+  /// the shelves.
+  private func badgesRow(_ badges: [EarnedBadge]) -> some View {
+    let fresh = Set(account.newBadges.map(SeenBadges.key))
+    return VStack(alignment: .leading, spacing: 10) {
+      HStack(alignment: .firstTextBaseline) {
+        Text("Badges")
+          .face(.section)
+          .foregroundStyle(Color.ink)
+          .accessibilityLabel(fresh.isEmpty ? "Badges" : "Badges, \(fresh.count) new")
+          .accessibilityAddTraits(.isHeader)
+        if !fresh.isEmpty { NewDot() }
+        Spacer()
+        Button {
+          path.append(.badges)
+        } label: {
+          Text("See all").face(.name).foregroundStyle(Color.greenInk).frame(minHeight: 44)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("See all your badges")
+      }
+      .padding(.horizontal, 16)
+      ScrollView(.horizontal) {
+        HStack(alignment: .top, spacing: 10) {
+          ForEach(Badges.newest(badges).prefix(MeView.newestBadges), id: \.self) { earned in
+            Button {
+              badge = earned
+            } label: {
+              BadgeTile(badge: earned, new: fresh.contains(SeenBadges.key(earned)))
+            }
+            .buttonStyle(CardPress())
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel((fresh.contains(SeenBadges.key(earned)) ? "New: " : "") + earned.spoken)
+            .accessibilityAddTraits(.isButton)
+          }
+        }
+        .padding(.horizontal, 16)
+      }
+      .scrollIndicators(.hidden)
+    }
+  }
+
+  /// How many of your newest badges the row shows.
+  static let newestBadges = 6
 
   /// Your signs as Home's timeline, or as a grid of photos.
   private var looks: some View {
@@ -269,7 +334,7 @@ struct MeView: View {
   }
 
   private func open(_ sign: Sign) {
-    if sign.visibility == .shown { path.append(sign.id) } else { onlyYours = sign }
+    if sign.visibility == .shown { path.append(.sign(sign.id)) } else { onlyYours = sign }
   }
 
   static func spoken(_ sign: Sign) -> String {

@@ -1,3 +1,4 @@
+import SignCapture
 import SwiftUI
 
 /// Home and Map side by side, each keeping its place, under the boards' tab
@@ -65,6 +66,16 @@ struct RootView: View {
   /// code (the app closed while you were in Mail) picks up where it was.
   private func welcome() {
     flow.script()
+    #if DEBUG
+      if let ids = Script.value("RSMUnlocked") {
+        Task {
+          let picture = SampleSign.photo().flatMap { UIImage(data: $0.data) }
+          let id = await outbox.scriptPosted(unlocked: ids.split(separator: ",").map(String.init), picture: picture)
+          flow.begin()
+          flow.path = [.posted(id)]
+        }
+      }
+    #endif
     guard !account.signedIn else { return account.resumeNaming() }
     if Script.value("RSMSignIn") != nil {
       account.useAnotherEmail()

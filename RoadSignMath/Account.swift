@@ -50,6 +50,9 @@ final class Account {
   /// A word for the person after something happened on its own: signed
   /// out by the server, account deleted.
   var notice: String?
+  /// The badges you've seen on this phone, per handle, so a new one gets
+  /// a dot until it's looked at. Nil until your badges are first read.
+  private(set) var seenBadges: SeenBadges?
 
   init(client: APIClient, tokens: (any TokenStore)? = nil, defaults: UserDefaults = .standard) {
     self.client = client
@@ -67,6 +70,7 @@ final class Account {
     if token != nil, let saved = defaults.data(forKey: key + ":me") {
       me = try? JSONDecoder().decode(Me.self, from: saved)
     }
+    loadSeenBadges()
     if let saved = defaults.data(forKey: key + ":pending"),
       let pending = try? JSONDecoder().decode(Pending.self, from: saved), pending.expires > .now
     {
@@ -272,7 +276,44 @@ final class Account {
   private func remember(_ me: Me) {
     self.me = me
     defaults.set(try? JSONEncoder().encode(me), forKey: key + ":me")
+    loadSeenBadges()
   }
+
+  // MARK: Badges seen
+
+  /// Your earned badges not seen on this phone yet.
+  var newBadges: [EarnedBadge] {
+    guard let seenBadges, let badges = me?.badges else { return [] }
+    return seenBadges.unseen(badges)
+  }
+
+  /// Looked at: on the Badges page, or as they flipped in on "Posted!".
+  /// Before your badges were first read here, there's nothing to keep:
+  /// that first read counts everything earned as seen.
+  func seeBadges(_ badges: [EarnedBadge]) {
+    guard var seen = seenBadges, let handle = me?.handle, !seen.unseen(badges).isEmpty else { return }
+    seen.see(badges)
+    seenBadges = seen
+    defaults.set(try? JSONEncoder().encode(seen), forKey: seenKey(handle))
+  }
+
+  /// This player's seen badges, or, the first time their badges are read
+  /// on this phone (this version, or a new install), all of them: no fuss
+  /// on day one about badges earned before.
+  private func loadSeenBadges() {
+    guard let me else { seenBadges = nil; return }
+    if let saved = defaults.data(forKey: seenKey(me.handle)), let seen = try? JSONDecoder().decode(SeenBadges.self, from: saved) {
+      seenBadges = seen
+    } else if let badges = me.badges {
+      let seen = SeenBadges(arriving: badges)
+      seenBadges = seen
+      defaults.set(try? JSONEncoder().encode(seen), forKey: seenKey(me.handle))
+    } else {
+      seenBadges = nil
+    }
+  }
+
+  private func seenKey(_ handle: String) -> String { key + ":badgesSeen:" + handle }
 
   private func forget() {
     attempt += 1
@@ -281,6 +322,7 @@ final class Account {
     token = nil
     me = nil
     defaults.removeObject(forKey: key + ":me")
+    seenBadges = nil
   }
 
   private func setPending(_ pending: Pending?) {
@@ -338,7 +380,9 @@ extension Account {
 /// Debug builds' launch arguments for screenshots and checks against
 /// `npm run dev`: `-RSMSignIn <email>` opens sign-in and sends the email,
 /// `-RSMCode <digits>` types into the code boxes, `-RSMName <name>` into
-/// the name field (`-RSMNameSave YES` saves it), and `-RSMMe YES` opens Me.
+/// the name field (`-RSMNameSave YES` saves it), and `-RSMMe YES` opens Me
+/// (`-RSMBadges YES` its Badges page, `-RSMBadge <id>` that badge's sheet).
+/// `-RSMUnlocked <id,id>` shows "Posted!" with those badges flipping in.
 /// Capture's are in `CaptureFlow.script()`. Release builds ignore them.
 enum Script {
   static func value(_ key: String) -> String? {
@@ -374,7 +418,8 @@ enum Script {
   }
 
   static var scripted: Bool {
-    ["RSMTab", "RSMOpen", "RSMFocus", "RSMSearch", "RSMCapture"].contains { value($0) != nil } || flag("RSMMe")
+    ["RSMTab", "RSMOpen", "RSMFocus", "RSMSearch", "RSMCapture", "RSMBadge", "RSMUnlocked"].contains { value($0) != nil }
+      || flag("RSMMe") || flag("RSMBadges")
   }
 }
 

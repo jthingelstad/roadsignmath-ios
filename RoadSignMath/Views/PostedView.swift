@@ -3,18 +3,22 @@ import RoadSignMathAPI
 import SwiftUI
 
 /// After Post it: the post on its way, then the moment it's up ("Posted!",
-/// with the sign's numbers bursting out), or what's keeping it: no
-/// connection (it posts on its own), held for a look, or the server's no.
+/// with the sign's numbers bursting out, and any badge it earned flipping
+/// in), or what's keeping it: no connection (it posts on its own), held
+/// for a look, or the server's no.
 struct PostedView: View {
   let id: UUID
 
   @Environment(Outbox.self) private var outbox
+  @Environment(Account.self) private var account
   @Environment(Store.self) private var store
   @Environment(CaptureFlow.self) private var flow
   @Environment(\.accessibilityReduceMotion) private var still
   /// The post as last seen, kept once the outbox lets it go.
   @State private var last: OutboxItem?
   @State private var burst = false
+  /// The badges the post earned have flipped in.
+  @State private var flipped = false
 
   private var item: OutboxItem? { outbox.item(id) ?? last }
 
@@ -37,6 +41,7 @@ struct PostedView: View {
         badge
           .padding(.top, 28)
         words
+        newBadges
         card
         buttons
       }
@@ -56,6 +61,7 @@ struct PostedView: View {
       AccessibilityNotification.Announcement(headline).post()
     }
     .onAppear { if moment == .posted { celebrate() } }
+    .sensoryFeedback(.impact(weight: .heavy), trigger: flipped)
     .sensoryFeedback(trigger: moment) { _, now in
       switch now {
       case .posted, .held: .success
@@ -232,13 +238,75 @@ struct PostedView: View {
 
   private var numbers: [String] { item.map { Array($0.post.numbers.prefix(10).map(\.value)) } ?? [] }
 
+  // MARK: Badges
+
+  /// What the post's answer said it earned. Only a sign on the map earns
+  /// anything, so a held one has none.
+  private var unlocked: [EarnedBadge] {
+    guard moment == .posted else { return [] }
+    return item?.posted?.unlocked ?? []
+  }
+
+  /// "New badge: Square Root", each badge's sign flipping in after the
+  /// numbers burst.
+  @ViewBuilder private var newBadges: some View {
+    let badges = unlocked
+    if !badges.isEmpty {
+      VStack(spacing: 12) {
+        Text(PostedView.newWords(badges))
+          .face(.section)
+          .foregroundStyle(Color.ink)
+          .multilineTextAlignment(.center)
+          .fixedSize(horizontal: false, vertical: true)
+        // Centered in a row; wrapped when there are too many for one.
+        ViewThatFits(in: .horizontal) {
+          HStack(spacing: 12) { flipping(badges) }
+          FlowLayout(spacing: 12) { flipping(badges) }
+        }
+      }
+      .padding(16)
+      .frame(maxWidth: .infinity)
+      .background(Color.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+      .overlay { RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Color.signYellow, lineWidth: 1.5) }
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel(badges.map(\.spoken).joined(separator: " "))
+      .transition(.opacity)
+    }
+  }
+
+  private func flipping(_ badges: [EarnedBadge]) -> some View {
+    ForEach(Array(badges.enumerated()), id: \.element) { index, badge in
+      BadgeArt(badge, size: 76)
+        .rotation3DEffect(.degrees(flipped || still ? 0 : -90), axis: (x: 0, y: 1, z: 0), perspective: 0.6)
+        .scaleEffect(flipped || still ? 1 : 0.7)
+        .opacity(flipped ? 1 : 0)
+        .animation(still ? .easeIn(duration: 0.2) : .spring(response: 0.55, dampingFraction: 0.6).delay(0.14 * Double(index)), value: flipped)
+    }
+  }
+
+  /// "New badge: Square Root", "New badges: Square Root and States: 3".
+  static func newWords(_ badges: [EarnedBadge]) -> String {
+    let names = badges.map(\.title).formatted(.list(type: .and))
+    return (badges.count == 1 ? "New badge: " : "New badges: ") + names
+  }
+
   /// "Posted!" seen: Home needn't say it again, so the outbox lets it go
-  /// (the screen keeps its copy).
+  /// (the screen keeps its copy). Then the badges it earned flip in, once
+  /// the numbers are out, and count as seen.
   private func celebrate() {
     guard !burst else { return }
     burst = true
     last = outbox.item(id) ?? last
     outbox.acknowledge(id)
+    let badges = unlocked
+    guard !badges.isEmpty else { return }
+    Task {
+      try? await Task.sleep(for: .milliseconds(still ? 300 : 750))
+      flipped = true
+      account.seeBadges(badges)
+      try? await Task.sleep(for: .milliseconds(600))
+      AccessibilityNotification.Announcement(PostedView.newWords(badges)).post()
+    }
   }
 
   // MARK: Leaving

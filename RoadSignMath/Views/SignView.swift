@@ -12,6 +12,8 @@ struct SignView: View {
   @State private var detail: SignDetail?
   @State private var failed: String?
   @State private var showNumbers = false
+  /// A finder's handle, tapped in the byline: their player sheet.
+  @State private var player: String?
 
   private var sign: Sign? { detail?.sign ?? store.knownSign(id) }
 
@@ -41,6 +43,7 @@ struct SignView: View {
     }
     .task { await load() }
     .refreshable { await load(fresh: true) }
+    .sheet(item: Binding(get: { player.map(PlayerHandle.init) }, set: { player = $0?.id })) { PlayerSheet(handle: $0.id) }
   }
 
   private func load(fresh: Bool = false) async {
@@ -75,7 +78,30 @@ struct SignView: View {
     }
   }
 
-  private func finder(_ sign: Sign) -> some View {
+  /// Who found it; a tap opens a finder who plays (a menu of them when
+  /// there are several).
+  @ViewBuilder private func finder(_ sign: Sign) -> some View {
+    let players = sign.foundBy.filter { $0.handle != nil }
+    if players.count == 1, let handle = players[0].handle {
+      Button { player = handle } label: { byline(sign) }
+        .buttonStyle(.plain)
+        .accessibilityHint("Shows \(players[0].name)’s badges")
+    } else if players.count > 1 {
+      Menu {
+        ForEach(players, id: \.self) { finder in
+          Button(finder.name) { player = finder.handle }
+        }
+      } label: {
+        byline(sign)
+      }
+      .buttonStyle(.plain)
+      .accessibilityHint("Shows a finder’s badges")
+    } else {
+      byline(sign)
+    }
+  }
+
+  private func byline(_ sign: Sign) -> some View {
     HStack(spacing: 10) {
       Avatar(name: sign.leadFinder?.name ?? "?", color: store.color(for: sign.leadFinder?.handle), size: 38)
       VStack(alignment: .leading, spacing: 2) {
@@ -84,7 +110,9 @@ struct SignView: View {
           .face(.meta)
           .foregroundStyle(Color.ink3)
       }
+      Spacer(minLength: 0)
     }
+    .contentShape(Rectangle())
     .accessibilityElement(children: .combine)
   }
 
@@ -292,4 +320,9 @@ struct FlowLayout: Layout {
     if !row.items.isEmpty { rows.append(row) }
     return rows
   }
+}
+
+/// A handle, as an item for a sheet.
+private struct PlayerHandle: Identifiable {
+  let id: String
 }

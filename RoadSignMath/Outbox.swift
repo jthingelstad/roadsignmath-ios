@@ -226,6 +226,33 @@ final class Outbox {
       })
   }
 
+  #if DEBUG
+    /// `-RSMUnlocked <id,id>`: a post that's just gone up having earned
+    /// these badges, for the "Posted!" moment's screenshots. Shown, never
+    /// sent or saved; the badges' names come from the catalog.
+    func scriptPosted(unlocked ids: [String], picture: UIImage?) async -> UUID {
+      let catalog = (try? await account.client.badges()) ?? []
+      let sign = BadgeSign(id: "01scripted", slug: "bloomington-math", title: "Bloomington Math",
+                           url: URL(string: "https://roadsignmath.xyz/signs/bloomington-math")!)
+      let badges = ids.map { id in
+        let known = catalog.first { $0.id == id }
+        let step = known?.steps?.first
+        return EarnedBadge(
+          id: id, shelf: known?.shelf ?? .math, name: known?.name ?? id, how: known?.how ?? "",
+          mark: step.map(String.init) ?? known?.mark ?? "?", step: step, earnedOn: "2026-10-30", sign: sign)
+      }
+      var item = OutboxItem(
+        handle: account.me?.handle ?? "you",
+        post: SignPost(
+          title: sign.title, numbers: ["8", "82", "90"].map { PostNumber(value: $0) },
+          place: PostPlace(label: "Bloomington, MN", state: "MN", approximate: true), foundOn: "2026-10-30", way: "90 − 82 = 8"))
+      item.state = .posted(PostedSign(id: sign.id, slug: sign.slug, title: sign.title, url: sign.url, unlocked: badges))
+      pictures[item.id] = picture
+      items.append(item)
+      return item.id
+    }
+  #endif
+
   private func save() {
     try? folder?.save(items)
   }

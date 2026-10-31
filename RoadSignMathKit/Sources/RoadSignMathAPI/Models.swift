@@ -1,6 +1,6 @@
 import Foundation
 
-// The JSON the server's read routes answer with (OpenAPI 1.3.0 at
+// The JSON the server's read routes answer with (OpenAPI 1.6.0 at
 // GET /api/v1/openapi.json). Keys are snake_case on the wire and camelCase
 // here; `APIClient` decodes with `.convertFromSnakeCase`. Every field the
 // schema allows to be null is optional, so a new nullable field never
@@ -33,20 +33,26 @@ public struct Sign: Codable, Sendable, Hashable, Identifiable {
 public struct SignDetail: Codable, Sendable, Hashable, Identifiable {
   public var sign: Sign
   public var ways: [Way]
+  /// Since API 1.6.0, on posting a sign (and adding a way): the badges
+  /// that answer earned, or reached a new step of. Empty on a plain read.
+  public var unlocked: [EarnedBadge]
   public var id: String { sign.id }
 
   public init(from decoder: any Decoder) throws {
     sign = try Sign(from: decoder)
-    ways = try decoder.container(keyedBy: Keys.self).decode([Way].self, forKey: .ways)
+    let container = try decoder.container(keyedBy: Keys.self)
+    ways = try container.decode([Way].self, forKey: .ways)
+    unlocked = try container.decodeIfPresent([EarnedBadge].self, forKey: .unlocked) ?? []
   }
 
   public func encode(to encoder: any Encoder) throws {
     try sign.encode(to: encoder)
     var container = encoder.container(keyedBy: Keys.self)
     try container.encode(ways, forKey: .ways)
+    if !unlocked.isEmpty { try container.encode(unlocked, forKey: .unlocked) }
   }
 
-  private enum Keys: String, CodingKey { case ways }
+  private enum Keys: String, CodingKey { case ways, unlocked }
 }
 
 public enum Visibility: String, Codable, Sendable, Hashable {
@@ -165,6 +171,9 @@ public struct Player: Codable, Sendable, Hashable, Identifiable {
   public var firstYear: Int?
   /// With one player only.
   public var signs: [Sign]?
+  /// With one player only, since API 1.6.0: the badges they've earned, in
+  /// the catalog's order. Never the ones not earned, and no count.
+  public var badges: [EarnedBadge]?
   public var id: String { handle }
 }
 

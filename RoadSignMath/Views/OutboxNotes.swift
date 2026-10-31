@@ -3,8 +3,9 @@ import RoadSignMathAPI
 import SwiftUI
 
 /// Home's word about your posts in the outbox: one waiting for a
-/// connection, one posted while you were elsewhere, one held, or one the
-/// server said no to. Nothing when the outbox is empty.
+/// connection, one posted while you were elsewhere (with any badge it
+/// earned), one held, or one the server said no to. Nothing when the
+/// outbox is empty.
 struct OutboxNotes: View {
   @Environment(Outbox.self) private var outbox
   @Environment(Store.self) private var store
@@ -79,7 +80,9 @@ struct OutboxNotes: View {
     switch item.state {
     case .waiting(let problem): problem
     case .needsSignIn: "It goes once you’re signed in."
-    case .posted: "It’s on the map."
+    case .posted(let sign):
+      // What the post earned, said here when it went while you were away.
+      (sign.unlocked ?? []).isEmpty ? "It’s on the map." : "It’s on the map. " + PostedView.newWords(sign.unlocked ?? []) + "."
     case .held(_, let note): [note, "Only you can see it until then."].compactMap { $0 }.joined(separator: " ")
     case .refused(let message): message
     }
