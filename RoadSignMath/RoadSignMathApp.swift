@@ -4,13 +4,16 @@ import SwiftUI
 @main
 struct RoadSignMathApp: App {
   @UIApplicationDelegateAdaptor(AppDelegate.self) private var delegate
-  @State private var store = Store()
+  @State private var store: Store
   @State private var account: Account
   @State private var outbox: Outbox
   @Environment(\.scenePhase) private var phase
 
   init() {
     let account = Account(client: APIClient(base: Store.server))
+    let store = Store()
+    store.account = account
+    _store = State(initialValue: store)
     _account = State(initialValue: account)
     _outbox = State(initialValue: Outbox(account: account))
   }

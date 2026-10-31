@@ -15,7 +15,7 @@ struct SignView: View {
   @Environment(\.opener) private var opener
   @Environment(\.findWay) private var findWay
 
-  private var sign: Sign? { detail?.sign ?? store.knownSign(id) }
+  private var sign: Sign? { (detail?.sign ?? store.knownSign(id)).map(store.current) }
 
   var body: some View {
     Group {
@@ -67,7 +67,10 @@ struct SignView: View {
           if let way = sign.firstWay {
             SignPlate(text: way.text, tex: way.tex, size: 26, large: true)
           }
-          finder(sign)
+          HStack(alignment: .center, spacing: 10) {
+            finder(sign)
+            if sign.visibility == .shown { HeartButton(sign: sign, large: true) }
+          }
           if let caption = sign.caption, !caption.isEmpty {
             Text(caption).face(.body).foregroundStyle(Color.ink2).lineSpacing(3)
           }

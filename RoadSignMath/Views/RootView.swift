@@ -52,7 +52,10 @@ struct RootView: View {
     .onAppear(perform: welcome)
     // A post waiting for its poster goes once they're signed in, and a
     // post that went up shows on Home and the Map.
-    .onChange(of: account.me?.handle) { outbox.signedInChanged() }
+    .onChange(of: account.me?.handle) {
+      outbox.signedInChanged()
+      store.signedInChanged()
+    }
     .onChange(of: outbox.postedCount) {
       Task {
         await store.loadLatest()

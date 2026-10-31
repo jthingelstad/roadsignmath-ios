@@ -5,13 +5,19 @@ extension View {
   /// over the screen (upright, as everywhere), then on to posting once
   /// signed in. `waiting` says what waits on the screen meanwhile.
   func signInToPost(_ asking: Binding<Bool>, waiting: String, then post: @escaping () -> Void) -> some View {
-    modifier(SignInToPost(asking: asking, waiting: waiting, post: post))
+    modifier(SignInToPost(asking: asking, title: "Sign in to post", waiting: waiting, post: post))
+  }
+
+  /// The same question for anything else a player does: hearting a sign.
+  func signInFirst(_ asking: Binding<Bool>, title: String, waiting: String, then go: @escaping () -> Void) -> some View {
+    modifier(SignInToPost(asking: asking, title: title, waiting: waiting, post: go))
   }
 }
 
 private struct SignInToPost: ViewModifier {
   @Environment(Account.self) private var account
   @Binding var asking: Bool
+  let title: String
   let waiting: String
   let post: () -> Void
   @State private var signingIn = false
@@ -21,7 +27,7 @@ private struct SignInToPost: ViewModifier {
 
   func body(content: Content) -> some View {
     content
-      .alert("Sign in to post", isPresented: $asking) {
+      .alert(title, isPresented: $asking) {
         Button("Sign in") {
           if account.prepareSignIn() { signingIn = true }
         }

@@ -20,6 +20,9 @@ extension Color {
   static let ruleStrong = Color(light: 0xB9C3BB, dark: 0x3A453F)
   /// Warnings and the way out: sign out, delete, a wrong code.
   static let warn = Color(light: 0xB01C33, dark: 0xFF8A98)
+  /// A heart, as the website draws it (`--heart`, `--heart-soft`).
+  static let heart = Color(light: 0xB01C33, dark: 0xE0566B)
+  static let heartSoft = Color(light: 0xFBE9EC, dark: 0x3A1D23)
   /// Behind the ways found so far.
   static let wayGround = Color(light: 0xE3EFE9, dark: 0x15291F)
   static let wayInk = Color(light: 0x1F3A2E, dark: 0xCDE8DA)

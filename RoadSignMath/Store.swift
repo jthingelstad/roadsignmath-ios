@@ -3,8 +3,9 @@ import Foundation
 import Observation
 import RoadSignMathAPI
 
-/// What the screens show, read from the server. Read only: nothing here
-/// posts, solves, reports or signs in.
+/// What the screens show, read from the server. Nothing here posts,
+/// solves, reports or signs in; signed in, the reads carry your token so
+/// they say which signs you hearted, and hearts go through `Account`.
 @MainActor @Observable
 final class Store {
   enum Tab: Hashable { case home, capture, map }
@@ -15,6 +16,9 @@ final class Store {
   }
 
   let client: APIClient
+  /// Who's signed in, for reads that say which signs you hearted, and for
+  /// hearting. Set once at launch.
+  var account: Account?
   var tab: Tab = .home
   /// The pin the Map should show next ("Show on the map" from a sign).
   var mapFocus: String?
@@ -82,9 +86,11 @@ final class Store {
   func loadLatest() async {
     if latestLoad == .loading { return }
     if latest.isEmpty { latestLoad = .loading }
+    let started = Date()
     do {
-      let page = try await client.signs(limit: 20)
+      let page = try await read { try await self.client.signs(limit: 20, token: $0) }
       latest = page.signs
+      settleHearts(page.signs, readAt: started)
       nextCursor = page.nextCursor
       // A later page still being read belongs to the feed this replaced.
       feedGeneration += 1
@@ -100,7 +106,9 @@ final class Store {
     let generation = feedGeneration
     loadingMore = true
     defer { loadingMore = false }
-    if let page = try? await client.signs(cursor: cursor, limit: 20), generation == feedGeneration {
+    let started = Date()
+    if let page = try? await read({ try await self.client.signs(cursor: cursor, limit: 20, token: $0) }), generation == feedGeneration {
+      settleHearts(page.signs, readAt: started)
       let seen = Set(latest.map(\.id))
       latest += page.signs.filter { !seen.contains($0.id) }
       nextCursor = page.nextCursor
@@ -118,8 +126,12 @@ final class Store {
       nearLoad = .failed("Couldn’t tell where you are just now.")
     case .found(let place):
       locationDenied = false
+      let started = Date()
       do {
-        near = try await client.signs(nearLatitude: place.coordinate.latitude, longitude: place.coordinate.longitude)
+        near = try await read {
+          try await self.client.signs(nearLatitude: place.coordinate.latitude, longitude: place.coordinate.longitude, token: $0)
+        }
+        settleHearts(near, readAt: started)
         nearLoad = .loaded
       } catch {
         nearLoad = Self.cancelled(error) ? .idle : .failed(Self.say(error))
@@ -158,8 +170,10 @@ final class Store {
   /// A sign with its ways, kept once read.
   func detail(_ id: String, fresh: Bool = false) async throws -> SignDetail {
     if !fresh, let kept = details[id] { return kept }
-    let detail = try await client.sign(id)
+    let started = Date()
+    let detail = try await read { try await self.client.sign(id, token: $0) }
     details[id] = detail
+    settleHearts([detail.sign], readAt: started)
     if withNewWays[detail.sign.id] != nil { withNewWays[detail.sign.id] = detail.sign }
     return detail
   }
@@ -180,11 +194,110 @@ final class Store {
     if let at = near.firstIndex(where: { $0.id == sign.id }) { near[at] = sign.keepingMiles(of: near[at]) }
   }
 
-  /// A sign from a list read before a way was added to it, as it is now.
-  /// A list read since, with as many ways or more, is newer and wins.
+  /// A sign from a list read before a way was added to it, or a heart
+  /// given, as it is now. A list read since, with as many ways or more,
+  /// is newer and wins. Hearts always come from `heartsGiven`, which
+  /// holds the newest word on each sign you've hearted on this phone.
   func current(_ sign: Sign) -> Sign {
-    guard let added = withNewWays[sign.id], added.wayCount > sign.wayCount else { return sign }
-    return added
+    var now = sign
+    if let added = withNewWays[sign.id], added.wayCount > sign.wayCount {
+      now = added
+      now.miles = sign.miles
+    }
+    if let given = heartsGiven[sign.id] {
+      now.hearted = given.state.hearted
+      now.hearts = given.state.hearts ?? now.hearts
+    }
+    return now
+  }
+
+  /// One player and their signs; signed in, it says which you hearted.
+  func player(_ handle: String) async throws -> Player {
+    let started = Date()
+    let player = try await read { try await self.client.player(handle, token: $0) }
+    settleHearts(player.signs ?? [], readAt: started)
+    return player
+  }
+
+  // MARK: Hearts
+
+  struct GivenHeart: Equatable {
+    var state: HeartState
+    /// When this was known: the heart's answer, or a read begun later.
+    var at: Date
+    var sending: Bool
+  }
+
+  /// Signs you've hearted or taken back on this phone, as last known,
+  /// laid over every copy of them: Home's list, a sign page kept from
+  /// before and a player's timeline all show the same. Kept until you sign
+  /// in or out.
+  private(set) var heartsGiven: [String: GivenHeart] = [:]
+
+  func isSendingHeart(_ id: String) -> Bool { heartsGiven[id]?.sending == true }
+
+  /// Gives your heart to a sign or takes it back: shown at once, then put
+  /// back as it was if the server says no.
+  func heart(_ sign: Sign, _ on: Bool) async throws {
+    guard let account, !isSendingHeart(sign.id) else { return }
+    let before = current(sign)
+    let kept = heartsGiven[sign.id]
+    let count = before.hearted == on ? before.hearts : before.hearts.map { max(0, $0 + (on ? 1 : -1)) }
+    heartsGiven[sign.id] = GivenHeart(state: HeartState(hearted: on, hearts: count), at: Date(), sending: true)
+    do {
+      let state = try await account.heart(sign.id, on)
+      heartsGiven[sign.id] = GivenHeart(state: state, at: Date(), sending: false)
+    } catch {
+      heartsGiven[sign.id] = kept
+      throw error
+    }
+  }
+
+  /// Signs read afresh: a read begun after a heart's answer is newer, so
+  /// its word (others' hearts too) becomes the one every copy shows.
+  private func settleHearts(_ signs: [Sign], readAt started: Date) {
+    for sign in signs {
+      guard var given = heartsGiven[sign.id], !given.sending, given.at < started,
+        let hearted = sign.hearted
+      else { continue }
+      given.state = HeartState(hearted: hearted, hearts: sign.hearts ?? given.state.hearts)
+      given.at = started
+      heartsGiven[sign.id] = given
+    }
+  }
+
+  /// Signed in, out, or as someone else: whose hearts the signs show has
+  /// changed, so the kept reads go and Home reads again.
+  func signedInChanged() {
+    heartsGiven = [:]
+    details = [:]
+    Task {
+      await loadLatest()
+      if nearLoad == .loaded, !locationDenied { await loadNear() }
+    }
+  }
+
+  /// A read with your token when signed in. A 401 tells `Account`, which
+  /// checks and signs out if the token has ended, and reads again without.
+  /// An answer read as someone who has since signed out (or in) would show
+  /// their hearts, so it's read again as whoever is signed in now.
+  private func read<T>(_ work: (String?) async throws -> T) async throws -> T {
+    for _ in 0..<3 {
+      let token = account?.readToken
+      let answer: T
+      if let token {
+        do {
+          answer = try await work(token)
+        } catch let error as APIError where error.isUnauthorized {
+          account?.readRefused(token)
+          return try await work(nil)
+        }
+      } else {
+        answer = try await work(nil)
+      }
+      if account?.readToken == token { return answer }
+    }
+    throw CancellationError()
   }
 
   /// A sign already in hand, by id or slug, from either feed or a detail read.

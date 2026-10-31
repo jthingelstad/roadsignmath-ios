@@ -18,24 +18,34 @@ public struct APIClient: Sendable {
 
   /// The newest signs first, a page at a time; pass the last page's
   /// `nextCursor` for the next.
-  public func signs(cursor: String? = nil, limit: Int? = nil) async throws -> SignPage {
+  /// With your token, each sign also says whether you hearted it (and
+  /// the answer is yours alone, never cached for anyone else).
+  public func signs(cursor: String? = nil, limit: Int? = nil, token: String? = nil) async throws -> SignPage {
     var query: [URLQueryItem] = []
     if let cursor { query.append(URLQueryItem(name: "cursor", value: cursor)) }
     if let limit { query.append(URLQueryItem(name: "limit", value: String(limit))) }
-    return try await get(["signs"], query)
+    return try await get(["signs"], query, token: token)
   }
 
   /// One sign, by id or slug, with every way found so far.
-  public func sign(_ idOrSlug: String) async throws -> SignDetail {
-    try await get(["signs", idOrSlug])
+  public func sign(_ idOrSlug: String, token: String? = nil) async throws -> SignDetail {
+    try await get(["signs", idOrSlug], token: token)
   }
 
   /// Signs nearest a place, nearest first, each with its `miles`.
-  public func signs(nearLatitude lat: Double, longitude lng: Double) async throws -> [Sign] {
+  public func signs(nearLatitude lat: Double, longitude lng: Double, token: String? = nil) async throws -> [Sign] {
     let near: NearSigns = try await get(["signs", "near"], [
       URLQueryItem(name: "lat", value: String(lat)), URLQueryItem(name: "lng", value: String(lng)),
-    ])
+    ], token: token)
     return near.signs
+  }
+
+  // MARK: Hearts
+
+  /// Hearts a shown sign, or takes your heart back. Doing it twice changes
+  /// nothing; a 503 means nothing changed and it can be tried again.
+  public func heart(_ signId: String, _ on: Bool, token: String) async throws -> HeartState {
+    try await send(on ? "PUT" : "DELETE", ["signs", signId, "heart"], token: token)
   }
 
   /// Every sign's pin, and the years they were found in.
@@ -127,8 +137,8 @@ public struct APIClient: Sendable {
 
   private static let unreserved = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
 
-  func get<T: Decodable>(_ path: [String], _ query: [URLQueryItem] = []) async throws -> T {
-    let (data, status) = try await perform(request("GET", path, query: query))
+  func get<T: Decodable>(_ path: [String], _ query: [URLQueryItem] = [], token: String? = nil) async throws -> T {
+    let (data, status) = try await perform(request("GET", path, query: query, token: token))
     return try APIClient.answer(data, status: status)
   }
 

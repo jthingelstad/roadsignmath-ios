@@ -28,6 +28,23 @@ public struct Sign: Codable, Sendable, Hashable, Identifiable {
   public var moderationNote: String?
   /// How far away, with signs near a place only.
   public var miles: Double?
+  /// Its hearts, the website's and the app's together (API 1.5.0); nil
+  /// when they can't be counted just now.
+  public var hearts: Int?
+  /// Whether you hearted it: only on a read that carries your token.
+  public var hearted: Bool?
+}
+
+/// A sign's hearts after you gave or took back yours.
+public struct HeartState: Codable, Sendable, Hashable {
+  public var hearted: Bool
+  /// Nil when the count can't be read just now.
+  public var hearts: Int?
+
+  public init(hearted: Bool, hearts: Int?) {
+    self.hearted = hearted
+    self.hearts = hearts
+  }
 }
 
 public struct SignDetail: Codable, Sendable, Hashable, Identifiable {

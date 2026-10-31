@@ -54,7 +54,7 @@ struct PlayerView: View {
 
   private func load() async {
     do {
-      player = try await store.client.player(handle)
+      player = try await store.player(handle)
       failed = nil
       #if DEBUG
         if Script.value("RSMLook") == "photos" { look = .photos }
