@@ -29,21 +29,26 @@ number is the commit count, so a commit uploads once. Each build gets
 
 ## 2. The public beta
 
-The website will link a public TestFlight invite with the app's story
-(Jamie, 30 October 2026). Apple calls these external testers. It takes:
+Jamie made the Beta group and its public invite on 31 October 2026, and
+roadsignmath.xyz links it from Home's app section. Apple calls these
+external testers. It takes:
 
 - **A build that isn't internal only.** `scripts/testflight.sh --external`
   leaves `testFlightInternalTestingOnly` out. The commit needs its own
-  upload: one already uploaded internal only has used its build number.
+  upload: one already uploaded internal only has used its build number, so
+  a docs-only commit is enough to make a fresh one.
 - **Test information** under TestFlight in App Store Connect: a Beta App
-  Description, a feedback email, a contact and a privacy policy URL.
-- **A sign-in for Apple's reviewers.** Sign-in sends a code by email,
-  which a reviewer can't receive, so review needs a way in that doesn't:
-  a demo account Apple can use that never expires. How is Jamie's call
-  before the first review.
+  Description, a feedback email, a contact and a privacy policy URL
+  (roadsignmath.xyz/privacy).
+- **A sign-in for Apple's reviewers.** Anyone can sign up with an email
+  address, so reviewers sign in with their own and get the 6-digit code
+  there; no demo account. "Look around first" shows the signs without
+  signing in. The review notes say both.
 - **Review.** The first external build gets a full Beta App Review, about
-  a day. A build stays installable for 90 days.
-- **A public group** with its link, and how many testers it takes.
+  a day. A build stays installable for 90 days. Apple reviews one build
+  per version at a time.
+- **Each round is Jamie's call** (Jamie's go on 31 October 2026 was for
+  the first).
 
 ## 3. The App Store
 

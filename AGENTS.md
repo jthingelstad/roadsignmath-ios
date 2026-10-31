@@ -207,7 +207,7 @@ The website and the server behind it are in
 - `Config/`: `Info.plist` (it also claims the `roadsignmath://` scheme,
   so `roadsignmath://signin?l=<login>&t=<token>` finishes a sign-in where
   a universal link can't), the entitlements (Associated Domains for
-  `roadsignmath.xyz`: the server's AASA covers `/signin` and `/signs/*`),
+  `roadsignmath.xyz`: the server's AASA covers `/signin`, `/signs/*` and `/players/*`),
   and `Signing.xcconfig`, which includes the ignored
   `Signing.local.xcconfig` holding the team (`DEVELOPMENT_TEAM = ...`).
   Signing is Automatic. Never commit the local file or a team id.
