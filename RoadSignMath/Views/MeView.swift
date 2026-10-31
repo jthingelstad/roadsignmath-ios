@@ -38,6 +38,8 @@ struct MeView: View {
   /// card at the top that flips them in once You has read you afresh.
   @State private var arrived: [EarnedBadge] = []
   @State private var flipped = false
+  /// On screen: a reload that ends after You closed reveals nothing.
+  @State private var showing = false
   @Environment(\.accessibilityReduceMotion) private var still
 
   var body: some View {
@@ -96,6 +98,8 @@ struct MeView: View {
     .findsAnotherWay()
     .environment(\.opener, Opener(sign: { path.append(.sign($0)) }, player: { path.append(.player($0)) }))
     .tint(.greenInk)
+    .onAppear { showing = true }
+    .onDisappear { showing = false }
     .task {
       // Opened while signed out (the token ended a moment ago): nothing to show.
       guard account.signedIn else { return dismiss() }
@@ -130,14 +134,21 @@ struct MeView: View {
   /// Badges earned since you last looked (a way someone found on your
   /// sign, a badge the server grew, a post that went up while you were
   /// away) flip in, as on "Posted!", then count as seen. Once a visit.
+  /// Gone before they flipped (You closed mid-way), they stay unseen
+  /// for next time.
   private func welcomeBack() async {
-    let new = account.newBadges
-    guard arrived.isEmpty, !new.isEmpty else { return }
-    withAnimation(.smooth) { arrived = Badges.newest(new) }
-    try? await Task.sleep(for: .milliseconds(still ? 300 : 650))
+    guard showing, !Task.isCancelled, !flipped else { return }
+    if arrived.isEmpty {
+      let new = account.newBadges
+      guard !new.isEmpty else { return }
+      withAnimation(.smooth) { arrived = Badges.newest(new) }
+    }
+    do { try await Task.sleep(for: .milliseconds(still ? 300 : 650)) } catch { return }
+    guard showing else { return }
     flipped = true
     account.seeBadges(arrived)
-    try? await Task.sleep(for: .milliseconds(600))
+    do { try await Task.sleep(for: .milliseconds(600)) } catch { return }
+    guard showing else { return }
     AccessibilityNotification.Announcement(NewBadgesCard.words(arrived)).post()
   }
 
