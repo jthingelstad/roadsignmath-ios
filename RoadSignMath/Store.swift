@@ -154,15 +154,23 @@ final class Store {
     return detail
   }
 
+  /// Signs a way was just added to, as the server answered, for the lists
+  /// the store doesn't hold (You's and a player's timelines).
+  private(set) var withNewWays: [String: Sign] = [:]
+
   /// A way just added: the sign as the server now has it, everywhere it's
   /// shown, so its page lists the new way and the feeds count it.
   func wayAdded(_ detail: SignDetail) {
     let sign = detail.sign
+    withNewWays[sign.id] = sign
     for key in details.keys where details[key]?.sign.id == sign.id { details[key] = detail }
     details[sign.id] = detail
     if let at = latest.firstIndex(where: { $0.id == sign.id }) { latest[at] = sign.keepingMiles(of: latest[at]) }
     if let at = near.firstIndex(where: { $0.id == sign.id }) { near[at] = sign.keepingMiles(of: near[at]) }
   }
+
+  /// A sign from a list read before a way was added to it, as it is now.
+  func current(_ sign: Sign) -> Sign { withNewWays[sign.id] ?? sign }
 
   /// A sign already in hand, by id or slug, from either feed or a detail read.
   func knownSign(_ id: String) -> Sign? {

@@ -105,6 +105,7 @@ struct ProfileSigns: View {
   /// "your", "Jamie’s": for VoiceOver's "Show your signs as".
   let whose: String
   let open: (Sign) -> Void
+  @Environment(Store.self) private var store
 
   var body: some View {
     looks
@@ -154,7 +155,8 @@ struct ProfileSigns: View {
   private var timeline: some View {
     LazyVStack(spacing: 10) {
       ForEach(signs) { sign in
-        SignCard(sign: sign, zoom: zoom) { open(sign) }
+        // A way added from here shows at once, though the list was read before.
+        SignCard(sign: store.current(sign), zoom: zoom) { open(sign) }
           .overlay(alignment: .topTrailing) { OnlyYou(sign: sign) }
       }
     }
