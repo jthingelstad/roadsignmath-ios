@@ -114,10 +114,13 @@ The website and the server behind it are in
   target, the project's folders synchronized, so a new Swift file needs no
   project edit. `Store.swift` holds what the screens share (signed in, its
   reads and a player's page carry your token so they say which signs you
-  hearted; a 401 there reads again without it and lets `Account` check;
+  hearted; a 401 there reads again without it and lets `Account` check,
+  and an answer read as someone since signed out is read again;
   `Store.heart` shows a heart at once and puts it back if the server
-  says no, and `current(_:)` lays hearts given and ways added over signs
-  read before them); `Views/` holds
+  says no; `heartsGiven` keeps the newest word on each sign hearted on
+  this phone (a read begun after the heart's answer updates it) and
+  `current(_:)` lays it, and ways added, over every copy of the sign, so
+  Home, a kept sign page and a player's timeline agree); `Views/` holds
   Home (the feed), the sign page, the Map (MapKit through
   `UIViewRepresentable`, since SwiftUI's `Map` can't cluster pins; its
   search reads the pins' own place, finders and numbers, from API 1.4.0,

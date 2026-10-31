@@ -196,7 +196,8 @@ final class Store {
 
   /// A sign from a list read before a way was added to it, or a heart
   /// given, as it is now. A list read since, with as many ways or more,
-  /// is newer and wins; so is any read begun after a heart's answer.
+  /// is newer and wins. Hearts always come from `heartsGiven`, which
+  /// holds the newest word on each sign you've hearted on this phone.
   func current(_ sign: Sign) -> Sign {
     var now = sign
     if let added = withNewWays[sign.id], added.wayCount > sign.wayCount {
@@ -222,13 +223,15 @@ final class Store {
 
   struct GivenHeart: Equatable {
     var state: HeartState
-    /// When the server answered (or, while it hasn't, when it was asked).
+    /// When this was known: the heart's answer, or a read begun later.
     var at: Date
     var sending: Bool
   }
 
-  /// Hearts given or taken back on this phone, laid over the signs read
-  /// before them, until a read begun after says the same.
+  /// Signs you've hearted or taken back on this phone, as last known,
+  /// laid over every copy of them: Home's list, a sign page kept from
+  /// before and a player's timeline all show the same. Kept until you sign
+  /// in or out.
   private(set) var heartsGiven: [String: GivenHeart] = [:]
 
   func isSendingHeart(_ id: String) -> Bool { heartsGiven[id]?.sending == true }
@@ -250,10 +253,16 @@ final class Store {
     }
   }
 
-  /// Signs read afresh: a heart answered before the read began is in it.
+  /// Signs read afresh: a read begun after a heart's answer is newer, so
+  /// its word (others' hearts too) becomes the one every copy shows.
   private func settleHearts(_ signs: [Sign], readAt started: Date) {
     for sign in signs {
-      if let given = heartsGiven[sign.id], !given.sending, given.at < started { heartsGiven[sign.id] = nil }
+      guard var given = heartsGiven[sign.id], !given.sending, given.at < started,
+        let hearted = sign.hearted
+      else { continue }
+      given.state = HeartState(hearted: hearted, hearts: sign.hearts ?? given.state.hearts)
+      given.at = started
+      heartsGiven[sign.id] = given
     }
   }
 
@@ -270,14 +279,25 @@ final class Store {
 
   /// A read with your token when signed in. A 401 tells `Account`, which
   /// checks and signs out if the token has ended, and reads again without.
+  /// An answer read as someone who has since signed out (or in) would show
+  /// their hearts, so it's read again as whoever is signed in now.
   private func read<T>(_ work: (String?) async throws -> T) async throws -> T {
-    guard let token = account?.readToken else { return try await work(nil) }
-    do {
-      return try await work(token)
-    } catch let error as APIError where error.isUnauthorized {
-      account?.readRefused(token)
-      return try await work(nil)
+    for _ in 0..<3 {
+      let token = account?.readToken
+      let answer: T
+      if let token {
+        do {
+          answer = try await work(token)
+        } catch let error as APIError where error.isUnauthorized {
+          account?.readRefused(token)
+          return try await work(nil)
+        }
+      } else {
+        answer = try await work(nil)
+      }
+      if account?.readToken == token { return answer }
     }
+    throw CancellationError()
   }
 
   /// A sign already in hand, by id or slug, from either feed or a detail read.
