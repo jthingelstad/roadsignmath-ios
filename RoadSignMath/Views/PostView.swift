@@ -371,6 +371,15 @@ struct PostView: View {
           .foregroundStyle(Color.ink3)
           .multilineTextAlignment(.center)
           .frame(maxWidth: .infinity)
+      } else {
+        // Jamie, 2026-10-31: everything shared, photos too, is CC BY 4.0.
+        // Said here, once, just before it goes.
+        Text("It’s public and shared under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/): anyone may use it if they credit you.")
+          .face(.meta)
+          .foregroundStyle(Color.ink3)
+          .tint(Color.greenInk)
+          .multilineTextAlignment(.center)
+          .frame(maxWidth: .infinity)
       }
       BigButton(
         label: flow.way == nil ? "Post unsolved" : "Post it", symbol: "paperplane.fill", busy: posting,
