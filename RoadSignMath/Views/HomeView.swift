@@ -18,6 +18,7 @@ struct HomeView: View {
       ScrollView {
         LazyVStack(spacing: 10, pinnedViews: .sectionHeaders) {
           Section {
+            OutboxNotes()
             content
           } header: {
             tabs

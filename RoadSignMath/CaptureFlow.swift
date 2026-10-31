@@ -16,8 +16,8 @@ import UIKit
 final class CaptureFlow {
   enum Source: Hashable { case camera, library, sample }
 
-  /// The screens after the camera.
-  enum Stop: Hashable { case check, solve, post }
+  /// The screens after the camera. `posted` is the moment after Post it.
+  enum Stop: Hashable { case check, solve, post, posted(UUID) }
 
   enum Reading: Equatable {
     case idle, reading, read
@@ -155,6 +155,18 @@ final class CaptureFlow {
       .integral.intersection(CGRect(x: 0, y: 0, width: width, height: height))
     guard !rect.isEmpty, let cropped = image.cropping(to: rect) else { return nil }
     return UIImage(cgImage: cropped)
+  }
+
+  /// The shot is posted (or on its way, in the outbox): it leaves, so
+  /// Capture opens on the camera with nothing behind its thumbnail.
+  func finishPosting() {
+    work?.cancel()
+    shot = nil
+    reading = .idle
+    numbers = NumberList()
+    draft = nil
+    way = nil
+    reviewing = false
   }
 
   /// Back to the live camera, keeping the shot behind its thumbnail.

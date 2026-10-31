@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import Posting
 import RoadSignMathAPI
 
 /// Who's signed in, and the sign-in in progress.
@@ -237,6 +238,16 @@ final class Account {
     try await authorized { try await client.deleteMe(token: $0) }
     forget()
     notice = "Your account is deleted. Thanks for playing."
+  }
+
+  /// A signed-in call for the outbox: as `authorized`, with signed out
+  /// said as the outbox's `SignedOut`, so the post waits for its poster.
+  func call<T: Sendable>(_ work: @escaping @Sendable (String) async throws -> T) async throws -> T {
+    do {
+      return try await authorized(work)
+    } catch SignInProblem.signedOut {
+      throw SignedOut()
+    }
   }
 
   /// A call with the token. A 401 means the token has ended: sign out and

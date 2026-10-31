@@ -10,6 +10,7 @@ let package = Package(
     .library(name: "MathArt", targets: ["MathArt"]),
     .library(name: "RoadSignMathAPI", targets: ["RoadSignMathAPI"]),
     .library(name: "SignCapture", targets: ["SignCapture"]),
+    .library(name: "Posting", targets: ["Posting"]),
   ],
   dependencies: [
     // The one package from outside Apple: it typesets the math's LaTeX the
@@ -43,5 +44,10 @@ let package = Package(
     // sample sign the simulator and the tests use instead of a photo.
     .target(name: "SignCapture", dependencies: ["SignReading", "Equation"]),
     .testTarget(name: "SignCaptureTests", dependencies: ["SignCapture", "SignReading"]),
+    // Posting: the outbox that sends a post (the photo, then the sign, with
+    // one Idempotency-Key, trying again when offline), and the post's parts
+    // made from what Capture kept.
+    .target(name: "Posting", dependencies: ["RoadSignMathAPI", "SignCapture", "SignReading"]),
+    .testTarget(name: "PostingTests", dependencies: ["Posting", "RoadSignMathAPI", "SignCapture", "SignReading"]),
   ]
 )

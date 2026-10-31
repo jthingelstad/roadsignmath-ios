@@ -29,7 +29,6 @@ struct CheckView: View {
   @State private var focus: CheckedNumber.ID?
   @State private var spot: CGPoint?
   @State private var askSignIn = false
-  @State private var signingIn = false
   @State private var nothingThere = false
   /// Sideways: the photo and the list side by side, the title over the list.
   @State private var wide = false
@@ -81,24 +80,9 @@ struct CheckView: View {
     .sheet(item: $editing, onDismiss: { focus = nil }) { edit in
       NumberSheet(edit: edit)
     }
-    .alert("Sign in to post", isPresented: $askSignIn) {
-      Button("Sign in") {
-        if account.prepareSignIn() { signingIn = true }
-      }
-      Button("Not now", role: .cancel) {}
-    } message: {
-      Text("Your photo and its numbers wait right here while you do.")
+    .signInToPost($askSignIn, waiting: "Your photo and its numbers wait right here while you do.") {
+      flow.path.append(.post)
     }
-    .fullScreenCover(isPresented: $signingIn) {
-      // "Not now" on the email step comes back here; a finished sign-in
-      // ends on its own (the welcome moment resets the step), seen below.
-      SignInView { leaveSignIn() }
-    }
-    .onChange(of: account.step) { _, step in
-      if signingIn, step == .email, account.signedIn { leaveSignIn() }
-    }
-    // Sign-in stands upright, as it does everywhere else.
-    .onChange(of: signingIn) { _, now in Orientation.allow(now ? .portrait : .allButUpsideDown) }
     .onAppear(perform: script)
   }
 
@@ -271,13 +255,6 @@ struct CheckView: View {
     .padding(.top, 12)
     .padding(.bottom, 8)
     .background(Color.ground.shadow(.drop(color: .black.opacity(0.08), radius: 8, y: -2)))
-  }
-
-  /// Closes sign-in and, once signed in, goes on to posting.
-  private func leaveSignIn() {
-    account.finishSignIn()
-    signingIn = false
-    if account.signedIn { flow.path.append(.post) }
   }
 
   private var ready: Bool {

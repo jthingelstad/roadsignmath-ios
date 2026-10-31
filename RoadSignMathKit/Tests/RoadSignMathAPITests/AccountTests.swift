@@ -186,6 +186,11 @@ final class Stub: Sendable {
     var path: String
     var authorization: String?
     var body: [String: String]?
+    /// The body as sent, and the request's other headers and query, for
+    /// the posting calls.
+    var data: Data? = nil
+    var headers: [String: String] = [:]
+    var query: String? = nil
   }
 
   let host = "stub-\(UUID().uuidString.lowercased()).invalid"
@@ -225,7 +230,8 @@ final class StubProtocol: URLProtocol {
     }
     let body = bodyData.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: String] }
     let sent = Stub.Sent(method: request.httpMethod ?? "GET", path: request.url?.path ?? "",
-                         authorization: request.value(forHTTPHeaderField: "Authorization"), body: body)
+                         authorization: request.value(forHTTPHeaderField: "Authorization"), body: body,
+                         data: bodyData, headers: request.allHTTPHeaderFields ?? [:], query: request.url?.query)
     Self.sent.withLock { $0[host, default: []].append(sent) }
     let (status, data) = Self.answers.withLock { $0[host] } ?? (500, Data())
     let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": "application/json"])!

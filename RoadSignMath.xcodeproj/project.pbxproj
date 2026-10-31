@@ -12,6 +12,7 @@
 		A5D0000000000000000000A3 /* Equation in Frameworks */ = {isa = PBXBuildFile; productRef = A5D0000000000000000000B3 /* Equation */; };
 		A5D0000000000000000000A4 /* SignReading in Frameworks */ = {isa = PBXBuildFile; productRef = A5D0000000000000000000B4 /* SignReading */; };
 		A5D0000000000000000000A5 /* SignCapture in Frameworks */ = {isa = PBXBuildFile; productRef = A5D0000000000000000000B5 /* SignCapture */; };
+		A5D0000000000000000000A6 /* Posting in Frameworks */ = {isa = PBXBuildFile; productRef = A5D0000000000000000000B6 /* Posting */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -37,6 +38,7 @@
 				A5D0000000000000000000A3 /* Equation in Frameworks */,
 				A5D0000000000000000000A4 /* SignReading in Frameworks */,
 				A5D0000000000000000000A5 /* SignCapture in Frameworks */,
+				A5D0000000000000000000A6 /* Posting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -86,6 +88,7 @@
 				A5D0000000000000000000B3 /* Equation */,
 				A5D0000000000000000000B4 /* SignReading */,
 				A5D0000000000000000000B5 /* SignCapture */,
+				A5D0000000000000000000B6 /* Posting */,
 			);
 			productName = RoadSignMath;
 			productReference = A5D000000000000000000001 /* RoadSignMath.app */;
@@ -322,6 +325,10 @@
 		A5D0000000000000000000B5 /* SignCapture */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SignCapture;
+		};
+		A5D0000000000000000000B6 /* Posting */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Posting;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

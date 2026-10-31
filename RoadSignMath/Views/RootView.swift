@@ -5,6 +5,7 @@ import SwiftUI
 struct RootView: View {
   @Environment(Store.self) private var store
   @Environment(Account.self) private var account
+  @Environment(Outbox.self) private var outbox
   @State private var flow = CaptureFlow()
   /// Someone chose "Look around first" (or "Not now"): sign-in waits until
   /// they ask for it.
@@ -48,6 +49,15 @@ struct RootView: View {
     }
     .overlay(alignment: .top) { NoticeToast() }
     .onAppear(perform: welcome)
+    // A post waiting for its poster goes once they're signed in, and a
+    // post that went up shows on Home and the Map.
+    .onChange(of: account.me?.handle) { outbox.signedInChanged() }
+    .onChange(of: outbox.postedCount) {
+      Task {
+        await store.loadLatest()
+        await store.loadMap()
+      }
+    }
   }
 
   /// The first time, the app opens on sign-in, with "Look around first"
