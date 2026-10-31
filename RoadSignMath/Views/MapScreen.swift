@@ -32,7 +32,9 @@ struct MapScreen: View {
       }
       .safeAreaInset(edge: .bottom, spacing: 0) { panel }
       .toolbar(.hidden, for: .navigationBar)
-      .navigationDestination(for: String.self) { SignView(id: $0) }
+      .navigationDestination(for: String.self) { id in
+        if let handle = PlayerPath.handle(id) { PlayerView(handle: handle) } else { SignView(id: id) }
+      }
       .overlay {
         if case .failed(let why) = store.mapLoad {
           Notice(symbol: "map", title: "Can’t load the map", message: why,
@@ -53,6 +55,7 @@ struct MapScreen: View {
         if UserDefaults.standard.bool(forKey: "RSMMine") { mine = true }
       #endif
     }
+    .environment(\.opener, Opener(sign: { store.mapPath.append($0) }, player: { store.mapPath.append(PlayerPath.of($0)) }))
     .onChange(of: store.mapFocus) { takeFocus() }
     .onChange(of: store.pins) { takeFocus() }
     .onChange(of: selected) { _, id in

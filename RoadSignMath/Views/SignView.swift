@@ -12,8 +12,7 @@ struct SignView: View {
   @State private var detail: SignDetail?
   @State private var failed: String?
   @State private var showNumbers = false
-  /// A finder's handle, tapped in the byline: their player sheet.
-  @State private var player: String?
+  @Environment(\.opener) private var opener
 
   private var sign: Sign? { detail?.sign ?? store.knownSign(id) }
 
@@ -43,7 +42,6 @@ struct SignView: View {
     }
     .task { await load() }
     .refreshable { await load(fresh: true) }
-    .sheet(item: Binding(get: { player.map(PlayerHandle.init) }, set: { player = $0?.id })) { PlayerSheet(handle: $0.id) }
   }
 
   private func load(fresh: Bool = false) async {
@@ -78,24 +76,24 @@ struct SignView: View {
     }
   }
 
-  /// Who found it; a tap opens a finder who plays (a menu of them when
-  /// there are several).
+  /// Who found it; a tap opens the page of a finder who plays (a menu of
+  /// them when there are several).
   @ViewBuilder private func finder(_ sign: Sign) -> some View {
-    let players = sign.foundBy.filter { $0.handle != nil }
+    let players = opener == nil ? [] : sign.foundBy.filter { $0.handle != nil }
     if players.count == 1, let handle = players[0].handle {
-      Button { player = handle } label: { byline(sign) }
+      Button { opener?.player(handle) } label: { byline(sign) }
         .buttonStyle(.plain)
-        .accessibilityHint("Shows \(players[0].name)’s badges")
+        .accessibilityHint("Opens \(players[0].name)’s page")
     } else if players.count > 1 {
       Menu {
         ForEach(players, id: \.self) { finder in
-          Button(finder.name) { player = finder.handle }
+          Button(finder.name) { if let handle = finder.handle { opener?.player(handle) } }
         }
       } label: {
         byline(sign)
       }
       .buttonStyle(.plain)
-      .accessibilityHint("Shows a finder’s badges")
+      .accessibilityHint("Opens a finder’s page")
     } else {
       byline(sign)
     }
@@ -320,9 +318,4 @@ struct FlowLayout: Layout {
     if !row.items.isEmpty { rows.append(row) }
     return rows
   }
-}
-
-/// A handle, as an item for a sheet.
-private struct PlayerHandle: Identifiable {
-  let id: String
 }
