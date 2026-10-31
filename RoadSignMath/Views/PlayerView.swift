@@ -49,6 +49,7 @@ struct PlayerView: View {
     }
     .task { if player == nil { await load() } }
     .refreshable { await load() }
+    .countsView(ViewPath.player(handle))
     .sensoryFeedback(.selection, trigger: look)
   }
 

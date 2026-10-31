@@ -1,4 +1,5 @@
 import PhotosUI
+import RoadSignMathAPI
 import SignCapture
 import SwiftUI
 
@@ -24,6 +25,7 @@ struct CaptureScreen: View {
         }
     }
     .tint(.greenInk)
+    .countsView(ViewPath.capture)
     .onAppear {
       Orientation.allow(.allButUpsideDown)
       #if DEBUG

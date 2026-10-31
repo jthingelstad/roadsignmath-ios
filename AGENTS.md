@@ -70,7 +70,12 @@ The website and the server behind it are in
     sends `PUT` or `DELETE /signs/{id}/heart` and answers with `HeartState`;
     `hearts` and `hearted` on `Sign`; the sign reads take an optional
     token, so a signed-in read says which signs you hearted and is never
-    cached for anyone else), and badges (API 1.6.0,
+    cached for anyone else), screen views (`ScreenViews.swift`: `ViewPath`
+    makes and checks a screen's path as the server's `VIEW_PATH` does,
+    `countViews` sends `POST /app/views` with no token, and `ViewCounter`
+    batches them, the first a few seconds after a view and then at most
+    one batch of 20 every 30 seconds, keeping them while offline, dropping
+    a refused batch and resting an hour after a 429), and badges (API 1.6.0,
     `Badges.swift`: `badges()` reads the `GET /badges` catalog, secret
     ones only an id and shelf; `badges` on `Player` and `Me`; `unlocked`
     on a post's answer; `Badges.shelves` puts the catalog and the earned
@@ -218,6 +223,17 @@ The website and the server behind it are in
   takes it back with a light one; signed out it asks "Sign in to heart
   it"; a failure says so in the notice toast. The count is the website's
   and the app's hearts together, hidden when there are none.
+  Screen views: `countsView(_:)` (`Views/ScreenViews.swift`) counts a
+  screen in the site's analytics each time it comes into view, as a page
+  load would: a sign page (`/signs/<slug>`), a player's (`/players/<handle>`),
+  You (`/you`) and Capture (`/capture`); `RootView` counts Home (`/`) and
+  the Map (`/map`) when chosen or come back to. Home and the Map stay
+  mounted side by side, so `tabShown` (environment) tells a page kept on
+  a hidden tab when its tab is back, and it counts again. `Store.views`
+  sends them, with nothing about who looked, and the app sends any
+  waiting as it goes to the background (`BackgroundSend`: if the
+  system's few seconds run out first, the send is cancelled and they
+  wait for the next batch). Counts are never per person.
   `Views/SignInToPost.swift` is the "Sign in to post" alert
   and sign-in sheet that Check, Solve and "Find another way" share
   (`signInFirst` asks the same in its own words, for hearts). The app stands upright except Capture, which

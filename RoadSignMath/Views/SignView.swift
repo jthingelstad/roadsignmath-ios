@@ -43,6 +43,7 @@ struct SignView: View {
     }
     .task { await load() }
     .refreshable { await load(fresh: true) }
+    .countsView(sign.flatMap { ViewPath.sign($0.slug) })
     // A way just added from here goes on the list at once.
     .onChange(of: store.details[id]) { _, now in if let now { detail = now } }
   }

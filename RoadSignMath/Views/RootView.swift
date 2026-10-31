@@ -21,10 +21,12 @@ struct RootView: View {
         .opacity(store.tab == .home ? 1 : 0)
         .allowsHitTesting(store.tab == .home)
         .accessibilityHidden(store.tab != .home)
+        .environment(\.tabShown, store.tab == .home)
       MapScreen()
         .opacity(store.tab == .map ? 1 : 0)
         .allowsHitTesting(store.tab == .map)
         .accessibilityHidden(store.tab != .map)
+        .environment(\.tabShown, store.tab == .map)
       }
       // Below the screens, not over them, so nothing hides behind it; the
       // raised Capture button still rises over their bottom edge.
@@ -50,6 +52,10 @@ struct RootView: View {
     }
     .overlay(alignment: .top) { NoticeToast() }
     .onAppear(perform: welcome)
+    // Home or the Map coming into view (chosen, or back from a sign).
+    .onChange(of: store.rootScreen, initial: true) { _, now in
+      if let now { store.saw(now) }
+    }
     // A post waiting for its poster goes once they're signed in, and a
     // post that went up shows on Home and the Map.
     .onChange(of: account.me?.handle) {
