@@ -41,7 +41,7 @@ struct SignCard: View {
 
   private var byline: some View {
     HStack(spacing: 10) {
-      Avatar(name: sign.leadFinder?.name ?? "?", color: store.color(for: sign.leadFinder?.handle))
+      Avatar(name: sign.leadFinder?.name ?? "?", color: store.color(for: sign.leadFinder?.handle), photo: store.photo(for: sign.leadFinder?.handle))
       VStack(alignment: .leading, spacing: 1) {
         Text(sign.finderNames).face(.name).foregroundStyle(Color.ink)
         Text(sign.place.label).face(.meta).foregroundStyle(Color.ink3).lineLimit(1)

@@ -13,6 +13,10 @@ struct ProfileHeader: View {
   /// No name yet: the shown words are a nudge, not a name.
   var unnamed = false
   let avatarColor: String
+  /// Their profile photo, if they have one.
+  var avatarUrl: URL?
+  /// Your own page: a tap on the avatar sets your photo.
+  var changePhoto: (() -> Void)?
   /// Their page on the website, as `roadsignmath.xyz/players/jamie`.
   var page: URL?
   /// Opens the page in the browser, or only says where it is.
@@ -27,7 +31,7 @@ struct ProfileHeader: View {
   var body: some View {
     VStack(spacing: 14) {
       VStack(spacing: 8) {
-        Avatar(name: unnamed ? "" : name, color: Color(hex: avatarColor) ?? .signGreen, size: 84)
+        avatar
         Text(name)
           .face(.title)
           .foregroundStyle(unnamed ? Color.ink3 : Color.ink)
@@ -67,6 +71,27 @@ struct ProfileHeader: View {
       }
     }
     .frame(maxWidth: .infinity)
+  }
+
+  @ViewBuilder private var avatar: some View {
+    let drawn = Avatar(name: unnamed ? "" : name, color: Color(hex: avatarColor) ?? .signGreen, size: 84, photo: avatarUrl)
+    if let changePhoto {
+      Button(action: changePhoto) {
+        drawn.overlay(alignment: .bottomTrailing) {
+          Image(systemName: "camera.fill")
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(Color.greenInk)
+            .frame(width: 28, height: 28)
+            .background(Color.card, in: Circle())
+            .overlay(Circle().stroke(Color.ruleStrong, lineWidth: 1))
+            .offset(x: 2, y: 2)
+        }
+      }
+      .buttonStyle(.plain)
+      .accessibilityLabel(avatarUrl == nil ? "Add a profile photo" : "Change your profile photo")
+    } else {
+      drawn
+    }
   }
 
   @ViewBuilder private func address(_ page: URL) -> some View {

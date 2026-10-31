@@ -196,6 +196,19 @@ final class Account {
     remember(me)
   }
 
+  /// Sets your profile photo: a square JPEG, which the server checks with
+  /// its moderator first. A refusal's message says why, for the person.
+  func setPhoto(_ jpeg: Data) async throws {
+    let me = try await authorized { try await client.setAvatar(jpeg, token: $0) }
+    remember(me)
+  }
+
+  /// Takes your profile photo down; your first letter shows again.
+  func removePhoto() async throws {
+    let me = try await authorized { try await client.removeAvatar(token: $0) }
+    remember(me)
+  }
+
   func finishSignIn() {
     signingIn = false
     step = .email

@@ -67,7 +67,7 @@ struct HomeView: View {
       Button {
         showingMe = true
       } label: {
-        Avatar(name: me.name, color: Color(hex: me.avatarColor) ?? .signGreen, size: 34)
+        Avatar(name: me.name, color: Color(hex: me.avatarColor) ?? .signGreen, size: 34, photo: me.avatarThumbUrl)
           // A badge not seen yet.
           .overlay(alignment: .topTrailing) { if !account.newBadges.isEmpty { NewDot().offset(x: 2, y: -2) } }
           .frame(width: 44, height: 44)

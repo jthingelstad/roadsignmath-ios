@@ -32,6 +32,8 @@ struct MeView: View {
   @State private var badge: EarnedBadge?
   /// A held or hidden sign tapped: only you see it, so it has no page yet.
   @State private var onlyYours: Sign?
+  /// Your avatar tapped: the profile photo's choices.
+  @State private var photo: PhotoStart?
 
   var body: some View {
     NavigationStack(path: $path) {
@@ -70,6 +72,7 @@ struct MeView: View {
         }
       }
       .sheet(isPresented: $showingSettings) { SettingsView() }
+      .profilePhoto($photo)
       .sheet(item: $badge) { badge in
         BadgeSheet(slot: BadgeSlot(badge)) { id in
           self.badge = nil
@@ -148,6 +151,7 @@ struct MeView: View {
 
   private func header(_ me: Me) -> some View {
     ProfileHeader(name: me.shownName, unnamed: me.name.isEmpty, avatarColor: me.avatarColor,
+                  avatarUrl: me.avatarUrl, changePhoto: { photo = .menu },
                   page: me.name.isEmpty ? nil : me.url, pageWords: "Your page", bio: me.bio,
                   signCount: me.signCount, states: me.states, firstYear: me.firstYear)
   }
@@ -271,8 +275,8 @@ struct MeView: View {
   }
 }
 
-/// Me's settings: your name and email, sign out, Delete my
-/// account, and the build this is.
+/// Me's settings: your profile photo, your name and email, sign out,
+/// Delete my account, and the build this is.
 private struct SettingsView: View {
   @Environment(Account.self) private var account
   @Environment(\.dismiss) private var dismiss
@@ -281,12 +285,14 @@ private struct SettingsView: View {
   @State private var confirmDelete = false
   @State private var deleting = false
   @State private var problem: String?
+  @State private var photo: PhotoStart?
 
   var body: some View {
     NavigationStack {
       Group {
         if let me = account.me { list(me) } else { ProgressView() }
       }
+      .profilePhoto($photo)
       .background(Color.ground)
       .navigationTitle("Settings")
       .navigationBarTitleDisplayMode(.inline)
@@ -306,6 +312,33 @@ private struct SettingsView: View {
 
   private func list(_ me: Me) -> some View {
     List {
+      Section {
+        HStack(spacing: 14) {
+          Avatar(name: me.name, color: Color(hex: me.avatarColor) ?? .signGreen, size: 56, photo: me.avatarThumbUrl)
+          VStack(alignment: .leading, spacing: 2) {
+            Text("Profile photo").face(.bodyBold).foregroundStyle(Color.ink)
+            Text(me.avatarUrl == nil ? "Your first letter shows until you add one." : "Everyone sees it beside your signs.")
+              .face(.meta)
+              .foregroundStyle(Color.ink2)
+              .fixedSize(horizontal: false, vertical: true)
+          }
+        }
+        .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
+        Button { photo = .library } label: {
+          Label("Choose a photo", systemImage: "photo.on.rectangle").face(.bodyBold)
+        }
+        if UIImagePickerController.isSourceTypeAvailable(.camera) {
+          Button { photo = .camera } label: {
+            Label("Take a photo", systemImage: "camera").face(.bodyBold)
+          }
+        }
+        if me.avatarUrl != nil {
+          Button(role: .destructive) { photo = .remove } label: {
+            Label("Remove photo", systemImage: "trash").face(.bodyBold).foregroundStyle(Color.warn)
+          }
+        }
+      }
       Section {
         Button {
           renaming = true
