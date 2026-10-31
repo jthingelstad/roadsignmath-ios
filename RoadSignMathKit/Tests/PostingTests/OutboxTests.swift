@@ -148,35 +148,49 @@ import Testing
     guard case .refused = sent.state else { Issue.record("not refused"); return }
   }
 
-  @Test func anUnansweredPostIsNotSentAgainOnceItsKeyLapses() async throws {
+  @Test func anUnansweredPostThatMadeItsSignIsFoundNotSentAgain() async throws {
     let fake = Fake()
     fake.failPosts([URLError(.timedOut)])
     let first = await Delivery.attempt(item, photo: Data([1]), sender: fake.sender, now: { [start] in start })
     #expect(first.unsureSince == start)
     #expect(first.isWaiting)
 
-    // Within the key's day the same key goes again: the server answers with the sign it made.
-    let soon = start.addingTimeInterval(3600)
-    let again = await Delivery.attempt(first, photo: Data([1]), sender: fake.sender, now: { soon })
-    #expect(again.posted != nil)
+    // The server made it before the connection dropped. Days later, the
+    // next try finds it on the poster's page and posts nothing.
+    fake.madeOnServer("01up1")
+    let late = start.addingTimeInterval(3 * 86400)
+    let found = await Delivery.attempt(first, photo: Data([1]), sender: fake.sender, now: { late })
+    #expect(found.posted?.slug == "ames-math")
+    #expect(fake.posts.count == 1)
+    #expect(fake.looks.map { "\($0.0) \($0.1)" } == ["zoe 01up1"])
+  }
 
-    // Past it, the post stops and says why, without posting.
-    let late = start.addingTimeInterval(Delivery.keyFresh + 60)
-    let stopped = await Delivery.attempt(first, photo: Data([1]), sender: fake.sender, now: { late })
-    #expect(stopped.state == .refused(Delivery.unsure))
+  @Test func anUnansweredPostThatMadeNothingIsSentAgain() async throws {
+    let fake = Fake()
+    fake.failPosts([URLError(.networkConnectionLost)])
+    let first = await Delivery.attempt(item, photo: Data([1]), sender: fake.sender, now: { [start] in start })
+    let late = start.addingTimeInterval(3 * 86400)
+    let again = await Delivery.attempt(first, photo: Data([1]), sender: fake.sender, now: { late })
+    #expect(again.posted != nil)
+    #expect(again.unsureSince == nil)
+    #expect(fake.looks.count == 1)
     #expect(fake.posts.count == 2)
   }
 
-  @Test func aTakenPhotoAfterAnUnansweredPostIsNotUploadedAgain() async throws {
+  @Test func aLookThatFailsWaitsAndLooksAgain() async throws {
     let fake = Fake()
-    fake.failPosts([
-      URLError(.networkConnectionLost),
-      APIError(status: 409, code: "conflict", message: "Photo 01up1 is already in another post"),
-    ])
+    fake.failPosts([URLError(.timedOut)])
+    fake.failLooks([URLError(.notConnectedToInternet)])
     let first = await Delivery.attempt(item, photo: Data([1]), sender: fake.sender, now: { [start] in start })
-    let second = await Delivery.attempt(first, photo: Data([1]), sender: fake.sender, now: { [start] in start })
-    #expect(second.state == .refused(Delivery.unsure))
-    #expect(fake.uploads.count == 1)
+    let offline = await Delivery.attempt(first, photo: Data([1]), sender: fake.sender, now: { [start] in start })
+    #expect(offline.state == .waiting(problem: Delivery.offline))
+    #expect(offline.unsureSince == start)
+    #expect(fake.posts.count == 1)
+
+    fake.madeOnServer("01up1")
+    let found = await Delivery.attempt(offline, photo: Data([1]), sender: fake.sender, now: { [start] in start })
+    #expect(found.posted != nil)
+    #expect(fake.posts.count == 1)
   }
 
   @Test func onlyAPostThatMayHaveGoneIsUnsure() async throws {
@@ -219,6 +233,10 @@ final class Fake: Sendable {
     var posts: [(SignPost, String)] = []
     var uploadErrors: [any Error] = []
     var postErrors: [any Error] = []
+    var lookErrors: [any Error] = []
+    var looks: [(String, String)] = []
+    /// Photos whose post the server made, though its answer may never have come.
+    var made: [String: SignPost] = [:]
   }
 
   private let log = Mutex(Log())
@@ -234,6 +252,12 @@ final class Fake: Sendable {
   var posts: [(SignPost, String)] { log.withLock { $0.posts } }
   func failUploads(_ errors: [any Error]) { log.withLock { $0.uploadErrors = errors } }
   func failPosts(_ errors: [any Error]) { log.withLock { $0.postErrors = errors } }
+  func failLooks(_ errors: [any Error]) { log.withLock { $0.lookErrors = errors } }
+  var looks: [(String, String)] { log.withLock { $0.looks } }
+  /// Says the last post with this photo made its sign on the server.
+  func madeOnServer(_ photoId: String) {
+    log.withLock { log in log.made[photoId] = log.posts.last { $0.0.photoIds.contains(photoId) }?.0 }
+  }
 
   var sender: OutboxSender {
     OutboxSender(
@@ -250,6 +274,14 @@ final class Fake: Sendable {
           if !log.postErrors.isEmpty { throw log.postErrors.removeFirst() }
         }
         return try self.detail(post)
+      },
+      find: { handle, photoId in
+        let post = try self.log.withLock { log in
+          log.looks.append((handle, photoId))
+          if !log.lookErrors.isEmpty { throw log.lookErrors.removeFirst() }
+          return log.made[photoId]
+        }
+        return try post.map { try self.detail($0).sign }
       })
   }
 
