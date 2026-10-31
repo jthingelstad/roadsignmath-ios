@@ -8,6 +8,9 @@ import SwiftUI
 /// one; posting it asks you to sign in.
 struct AnotherWayView: View {
   let sign: Sign
+  /// Math to start from: the player's own, from Post it's "Posted
+  /// already?", kept only if every number in it is on this sign.
+  var startingWith: String? = nil
 
   @Environment(Store.self) private var store
   @Environment(Account.self) private var account
@@ -90,6 +93,10 @@ struct AnotherWayView: View {
   private func begin(_ read: SignDetail) {
     let tiles = WayDraft.tiles(onSign: (read.sign.numbers ?? []).map(\.value))
     draft = WayDraft(tiles: tiles)
+    if let startingWith {
+      let carried = WayDraft(tiles: tiles, text: startingWith)
+      if carried.text == startingWith { draft = carried }
+    }
     #if DEBUG
       if let scripted = Script.text("RSMWay") { draft = WayDraft(tiles: tiles, text: scripted) }
       if let ids = Script.value("RSMWayAdded"), case .works(let solved) = draft.status {
