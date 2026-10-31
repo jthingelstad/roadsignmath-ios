@@ -6,10 +6,10 @@ import Foundation
 /// sign's kept numbers and goes in at most once, so a number the sign shows
 /// twice can be used twice and never a third time. The equation checker
 /// reads `text`; nothing here decides what's true.
-public struct WayDraft: Sendable, Hashable {
+public struct WayDraft: Sendable, Hashable, Codable {
   /// The keypad. There are no digits: the math uses the sign's numbers, and
   /// a number the reading missed is added on Check the numbers.
-  public enum Key: String, CaseIterable, Sendable, Hashable {
+  public enum Key: String, CaseIterable, Sendable, Hashable, Codable {
     case open = "("
     case close = ")"
     case root = "√"
@@ -46,7 +46,7 @@ public struct WayDraft: Sendable, Hashable {
     }
   }
 
-  public enum Piece: Sendable, Hashable {
+  public enum Piece: Sendable, Hashable, Codable {
     /// A tile, by its number's id, with the value the checker reads.
     case number(CheckedNumber.ID, String)
     case key(Key)

@@ -212,7 +212,10 @@ struct PostView: View {
 
   private var foundNote: String {
     guard let shot = flow.shot else { return "The day" }
-    if shot.source == .camera { return "Today" }
+    if shot.source == .camera {
+      // A draft taken on another day says so.
+      return Calendar.current.isDateInToday(shot.takenAt ?? .now) ? "Today" : "When you took it"
+    }
     return shot.file.facts.takenOn == nil ? "The day" : "From your photo"
   }
 
@@ -413,6 +416,7 @@ struct PostView: View {
         problem = "Your phone couldn’t keep this post to send. Free up some space, then try again."
         return
       }
+      flow.posted()
       flow.path.append(.posted(id))
     } catch {
       problem = Account.say(error)

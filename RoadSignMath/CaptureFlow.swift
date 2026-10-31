@@ -14,7 +14,7 @@ import UIKit
 /// back finds it behind the camera's thumbnail.
 @MainActor @Observable
 final class CaptureFlow {
-  enum Source: Hashable { case camera, library, sample }
+  typealias Source = Draft.Source
 
   /// The screens after the camera. `posted` is the moment after Post it.
   enum Stop: Hashable { case check, solve, post, posted(UUID) }
@@ -72,6 +72,11 @@ final class CaptureFlow {
   private(set) var opening = false
   /// A photo that couldn't be opened, said on the camera.
   var problem: String?
+  /// Signs saved for later, on this phone.
+  let drafts = DraftShelf()
+  /// The draft this shot was opened from: saving again updates it, and
+  /// posting it takes it off the shelf.
+  private(set) var draftID: UUID?
 
   /// Bumped by every new photo, so a slow reading of an earlier one is
   /// dropped.
@@ -93,6 +98,23 @@ final class CaptureFlow {
   /// A photo from the camera, the library or the sample: opened, shown
   /// with its numbers boxed as they're read.
   func take(_ data: Data, from source: Source, at time: Date? = nil) {
+    open(data, from: source, at: time, resuming: nil)
+  }
+
+  /// A draft picked up where it was left: its photo, its numbers as
+  /// checked (read again if it was saved before they were read) and its
+  /// math, on the screen it had got to.
+  func resume(_ saved: Draft) {
+    guard let data = drafts.photo(of: saved.id) else {
+      problem = "That draft’s photo couldn’t be opened."
+      drafts.remove(saved.id)
+      return
+    }
+    begin()
+    open(data, from: saved.source, at: saved.takenAt, resuming: saved)
+  }
+
+  private func open(_ data: Data, from source: Source, at time: Date?, resuming saved: Draft?) {
     generation += 1
     let mine = generation
     work?.cancel()
@@ -114,11 +136,17 @@ final class CaptureFlow {
       shot = Shot(
         file: file, picture: UIImage(cgImage: show), readable: read, source: source,
         takenAt: source == .camera ? (time ?? .now) : file.facts.takenAt)
-      numbers = NumberList()
-      draft = nil
+      draftID = saved?.id
+      numbers = saved?.numbers ?? NumberList()
+      draft = saved?.way
       way = nil
-      path = []
       reviewing = true
+      if saved?.numbers != nil {
+        reading = .read
+        path = draft == nil ? [.check] : [.check, .solve]
+        return
+      }
+      path = []
       reading = .reading
       do {
         let found = try await Task.detached(priority: .userInitiated) {
@@ -157,6 +185,27 @@ final class CaptureFlow {
     return UIImage(cgImage: cropped)
   }
 
+  /// Saves the shot as it stands to Drafts, for later, and goes back to the
+  /// live camera for the next sign. Saved before its reading finished, it's
+  /// read again when it's opened.
+  @discardableResult
+  func saveDraft() -> Bool {
+    guard let shot else { return false }
+    let saved = Draft(
+      id: draftID ?? UUID(), source: shot.source, takenAt: shot.takenAt,
+      numbers: reading == .reading || reading == .idle ? nil : numbers, way: draft)
+    guard drafts.save(saved, photo: draftID == nil ? shot.file.data : nil) else { return false }
+    finishPosting()
+    path = []
+    return true
+  }
+
+  /// The post is in the outbox: its draft, if it had one, is done with.
+  func posted() {
+    if let draftID { drafts.remove(draftID) }
+    draftID = nil
+  }
+
   /// The shot is posted (or on its way, in the outbox): it leaves, so
   /// Capture opens on the camera with nothing behind its thumbnail.
   func finishPosting() {
@@ -167,6 +216,7 @@ final class CaptureFlow {
     draft = nil
     way = nil
     reviewing = false
+    draftID = nil
   }
 
   /// Back to the live camera, keeping the shot behind its thumbnail.
@@ -197,12 +247,16 @@ final class CaptureFlow {
   /// taps the photo there (0...1 each way), `-RSMSolve YES` or
   /// `-RSMPost YES` the step after (`-RSMWay <math>` writes the math on
   /// Solve, or posts it from `-RSMPost`), and `-RSMLandscape YES` turns
-  /// sideways.
+  /// sideways. `-RSMSaveDraft YES` saves the shot to Drafts once it's
+  /// read (with `-RSMWay`'s math, if given), `-RSMDrafts YES` opens the
+  /// Drafts list and `-RSMDrafts open` picks up the newest draft.
   func script() {
     #if DEBUG
       guard let what = Script.value("RSMCapture") else { return }
       begin()
-      if what == "sample", let sample = SampleSign.photo() {
+      if Script.value("RSMDrafts") == "open", let newest = drafts.all.first {
+        resume(newest)
+      } else if what == "sample", let sample = SampleSign.photo() {
         take(sample.data, from: .sample)
       } else if what != "camera", let data = try? Data(contentsOf: URL(fileURLWithPath: what)) {
         take(data, from: .library)
@@ -213,6 +267,10 @@ final class CaptureFlow {
           path = [.check]
         }
         if Script.flag("RSMSolve") { path = [.check, .solve] }
+        if Script.flag("RSMSaveDraft") {
+          if let scripted = Script.text("RSMWay") { draft = WayDraft(tiles: numbers.kept, text: scripted) }
+          saveDraft()
+        }
         if Script.flag("RSMPost") {
           // With `-RSMWay`, posted as if solved: the math must work.
           if let scripted = Script.text("RSMWay"),

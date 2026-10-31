@@ -64,6 +64,7 @@ struct CheckView: View {
     .navigationTitle(wide ? "" : "Check the numbers")
     .navigationBarTitleDisplayMode(.inline)
     .toolbarBackground(Color.ground, for: .navigationBar)
+    .savesForLater()
     .toolbar {
       ToolbarItem(placement: .topBarTrailing) {
         if !flow.numbers.isEmpty {

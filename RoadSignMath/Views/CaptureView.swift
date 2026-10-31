@@ -47,6 +47,10 @@ struct CaptureScreen: View {
 /// them.
 private struct CameraView: View {
   @Environment(CaptureFlow.self) private var flow
+  @Environment(Account.self) private var account
+  @State private var showDrafts = false
+  /// Bumped by each save to Drafts, for its haptic.
+  @State private var saves = 0
   @State private var camera = Camera()
   @State private var picked: PhotosPickerItem?
   @State private var aboutPassenger = false
@@ -93,6 +97,24 @@ private struct CameraView: View {
       }
     }
     .sensoryFeedback(.success, trigger: flow.reading) { _, now in now == .read }
+    .sensoryFeedback(.success, trigger: saves)
+    .sheet(isPresented: $showDrafts) { DraftsView() }
+    .onAppear {
+      #if DEBUG
+        if Script.value("RSMDrafts") == "YES" { showDrafts = true }
+      #endif
+    }
+  }
+
+  /// "Save for later": the shot goes to Drafts, and the camera is ready
+  /// for the next sign.
+  private func saveForLater() {
+    if flow.saveDraft() {
+      saves += 1
+      account.notice = "Saved to Drafts. Solve it whenever you like."
+    } else {
+      flow.problem = "Your phone couldn’t keep this draft. Free up some space, then try again."
+    }
   }
 
   // MARK: The picture
@@ -211,7 +233,23 @@ private struct CameraView: View {
           HStack {
             RoundButton(symbol: "xmark", label: "Close the camera") { flow.close() }
             Spacer()
+            if !flow.drafts.all.isEmpty {
+              RoundButton(symbol: "tray.full", label: "Drafts, \(flow.drafts.all.count)") { showDrafts = true }
+                .overlay(alignment: .topTrailing) {
+                  Text("\(flow.drafts.all.count)")
+                    .font(Face.number.font(size: 12))
+                    .foregroundStyle(Color.ink)
+                    .padding(.horizontal, 5)
+                    .frame(minWidth: 20, minHeight: 20)
+                    .background(Color.signYellow, in: Capsule())
+                    .offset(x: 6, y: -4)
+                    .contentTransition(.numericText())
+                    .accessibilityHidden(true)
+                }
+                .transition(.scale.combined(with: .opacity))
+            }
           }
+          .animation(.snappy, value: flow.drafts.all.count)
           PassengerLabel(open: $aboutPassenger)
         }
         Spacer()
@@ -330,7 +368,25 @@ private struct CameraView: View {
         .frame(maxWidth: wide ? nil : .infinity)
 
       Group {
-        if let shot = flow.shot, !flow.reviewing {
+        if flow.reviewing, flow.shot != nil {
+          Button(action: saveForLater) {
+            Image(systemName: "tray.and.arrow.down")
+              .font(.system(size: 20, weight: .semibold))
+              .foregroundStyle(.white)
+              .frame(width: 48, height: 48)
+              .background(.white.opacity(0.14), in: Circle())
+              // The words under the circle, leaving it in line with the shutter.
+              .overlay(alignment: .bottom) {
+                Text("Save for later")
+                  .face(.tab)
+                  .foregroundStyle(.white)
+                  .fixedSize()
+                  .offset(y: 20)
+              }
+          }
+          .accessibilityLabel("Save for later")
+          .accessibilityHint("Keeps this photo in Drafts to solve another time.")
+        } else if let shot = flow.shot, !flow.reviewing {
           Button {
             flow.reviewing = true
           } label: {
