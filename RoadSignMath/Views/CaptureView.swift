@@ -18,7 +18,8 @@ struct CaptureScreen: View {
           switch stop {
           case .check: CheckView()
           case .solve: SolveView()
-          case .post: PostNext()
+          case .post: PostView()
+          case .posted(let id): PostedView(id: id)
           }
         }
     }

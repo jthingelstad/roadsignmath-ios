@@ -16,8 +16,8 @@ import UIKit
 final class CaptureFlow {
   enum Source: Hashable { case camera, library, sample }
 
-  /// The screens after the camera.
-  enum Stop: Hashable { case check, solve, post }
+  /// The screens after the camera. `posted` is the moment after Post it.
+  enum Stop: Hashable { case check, solve, post, posted(UUID) }
 
   enum Reading: Equatable {
     case idle, reading, read
@@ -157,6 +157,18 @@ final class CaptureFlow {
     return UIImage(cgImage: cropped)
   }
 
+  /// The shot is posted (or on its way, in the outbox): it leaves, so
+  /// Capture opens on the camera with nothing behind its thumbnail.
+  func finishPosting() {
+    work?.cancel()
+    shot = nil
+    reading = .idle
+    numbers = NumberList()
+    draft = nil
+    way = nil
+    reviewing = false
+  }
+
   /// Back to the live camera, keeping the shot behind its thumbnail.
   func retake() {
     reviewing = false
@@ -184,7 +196,8 @@ final class CaptureFlow {
   /// sheet, `-RSMAdd YES` the sheet for a missed number, `-RSMSpot x,y`
   /// taps the photo there (0...1 each way), `-RSMSolve YES` or
   /// `-RSMPost YES` the step after (`-RSMWay <math>` writes the math on
-  /// Solve), and `-RSMLandscape YES` turns sideways.
+  /// Solve, or posts it from `-RSMPost`), and `-RSMLandscape YES` turns
+  /// sideways.
   func script() {
     #if DEBUG
       guard let what = Script.value("RSMCapture") else { return }
@@ -200,7 +213,15 @@ final class CaptureFlow {
           path = [.check]
         }
         if Script.flag("RSMSolve") { path = [.check, .solve] }
-        if Script.flag("RSMPost") { path = [.check, .post] }
+        if Script.flag("RSMPost") {
+          // With `-RSMWay`, posted as if solved: the math must work.
+          if let scripted = Script.text("RSMWay"),
+            case .works(let solved) = WayDraft(tiles: numbers.kept, text: scripted).status
+          {
+            way = solved.canonical
+          }
+          path = [.check, .post]
+        }
       }
     #endif
   }

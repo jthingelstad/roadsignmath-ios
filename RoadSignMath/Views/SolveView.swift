@@ -11,7 +11,6 @@ struct SolveView: View {
   @Environment(\.accessibilityReduceMotion) private var still
   @State private var draft = WayDraft(tiles: [])
   @State private var askSignIn = false
-  @State private var signingIn = false
   /// Bumped by every tile and key, for the tap's haptic.
   @State private var taps = 0
 
@@ -73,21 +72,9 @@ struct SolveView: View {
     .onChange(of: works) { _, now in
       if now { AccessibilityNotification.Announcement("It works").post() }
     }
-    .alert("Sign in to post", isPresented: $askSignIn) {
-      Button("Sign in") {
-        if account.prepareSignIn() { signingIn = true }
-      }
-      Button("Not now", role: .cancel) {}
-    } message: {
-      Text("Your photo and your math wait right here while you do.")
+    .signInToPost($askSignIn, waiting: "Your photo and your math wait right here while you do.") {
+      flow.path.append(.post)
     }
-    .fullScreenCover(isPresented: $signingIn) {
-      SignInView { leaveSignIn() }
-    }
-    .onChange(of: account.step) { _, step in
-      if signingIn, step == .email, account.signedIn { leaveSignIn() }
-    }
-    .onChange(of: signingIn) { _, now in Orientation.allow(now ? .portrait : .allButUpsideDown) }
   }
 
   private var status: WayDraft.Status { draft.status }
@@ -317,13 +304,6 @@ struct SolveView: View {
   private func post(_ way: String?) {
     flow.way = way
     if account.signedIn { flow.path.append(.post) } else { askSignIn = true }
-  }
-
-  /// Closes sign-in and, once signed in, goes on to posting.
-  private func leaveSignIn() {
-    account.finishSignIn()
-    signingIn = false
-    if account.signedIn { flow.path.append(.post) }
   }
 
   /// Picks up the math where it was left, following any change to the
