@@ -89,6 +89,9 @@ final class CameraSession: NSObject, @unchecked Sendable {
   private let queue = DispatchQueue(label: "xyz.roadsignmath.camera")
   private var device: AVCaptureDevice?
   private let limit = Mutex<Double>(1)
+  /// The device's zoom factor for the main camera, the Camera app's 1x. A
+  /// triple camera counts from its ultra wide, so its 1x is about 2.
+  private let base = Mutex<Double>(1)
   private let waiting = Mutex<[Int64: CheckedContinuation<Data, any Error>]>([:])
 
   /// Whether the camera may be used, asking the first time.
@@ -125,8 +128,9 @@ final class CameraSession: NSObject, @unchecked Sendable {
   func setZoom(_ factor: Double) {
     queue.async {
       guard let device = self.device, (try? device.lockForConfiguration()) != nil else { return }
-      // The wide camera is 1 on both lenses' scale, so the factor is the Camera app's.
-      device.videoZoomFactor = min(max(factor, device.minAvailableVideoZoomFactor), device.maxAvailableVideoZoomFactor)
+      // The factor is the Camera app's; the device counts from its widest lens.
+      let wanted = factor * self.base.withLock { $0 }
+      device.videoZoomFactor = min(max(wanted, device.minAvailableVideoZoomFactor), device.maxAvailableVideoZoomFactor)
       device.unlockForConfiguration()
     }
   }
@@ -149,12 +153,13 @@ final class CameraSession: NSObject, @unchecked Sendable {
     }
   }
 
-  /// The back camera, wide plus telephoto when the phone has both, so a
-  /// far-off sign can be brought close.
+  /// The back camera, with its telephoto when the phone has one (three
+  /// cameras or two), so a far-off sign can be brought close.
   private func configure() throws -> Lens {
     if let device { return Lens(device: device, stops: stops(of: device)) }
     let found = AVCaptureDevice.DiscoverySession(
-      deviceTypes: [.builtInDualCamera, .builtInWideAngleCamera], mediaType: .video, position: .back
+      deviceTypes: [.builtInTripleCamera, .builtInDualCamera, .builtInWideAngleCamera], mediaType: .video,
+      position: .back
     ).devices.first
     guard let found else { throw Problem.noCamera }
     session.beginConfiguration()
@@ -168,13 +173,17 @@ final class CameraSession: NSObject, @unchecked Sendable {
     if output.isResponsiveCaptureSupported { output.isResponsiveCaptureEnabled = true }
     if output.isFastCapturePrioritizationSupported { output.isFastCapturePrioritizationEnabled = true }
     device = found
-    limit.withLock { $0 = min(found.maxAvailableVideoZoomFactor, 10) }
+    let main = Double(1 / found.displayVideoZoomFactorMultiplier)
+    base.withLock { $0 = main }
+    limit.withLock { $0 = min(found.maxAvailableVideoZoomFactor / main, 10) }
     return Lens(device: found, stops: stops(of: found))
   }
 
   private func stops(of device: AVCaptureDevice) -> [Double] {
-    let switches = device.virtualDeviceSwitchOverVideoZoomFactors.map { $0.doubleValue }
-    return [1] + switches.prefix(1)
+    // In the Camera app's terms: the main camera, then the first lens past it.
+    let main = base.withLock { $0 }
+    let switches = device.virtualDeviceSwitchOverVideoZoomFactors.map { $0.doubleValue / main }
+    return [1] + switches.filter { $0 > 1.01 }.prefix(1)
   }
 }
 
