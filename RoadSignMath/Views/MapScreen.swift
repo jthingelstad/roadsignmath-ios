@@ -55,6 +55,7 @@ struct MapScreen: View {
         if UserDefaults.standard.bool(forKey: "RSMMine") { mine = true }
       #endif
     }
+    .findsAnotherWay()
     .environment(\.opener, Opener(sign: { store.mapPath.append($0) }, player: { store.mapPath.append(PlayerPath.of($0)) }))
     .onChange(of: store.mapFocus) { takeFocus() }
     .onChange(of: store.pins) { takeFocus() }

@@ -10,6 +10,7 @@ struct SignCard: View {
   let open: () -> Void
 
   @Environment(Store.self) private var store
+  @Environment(\.findWay) private var findWay
   @ScaledMetric(relativeTo: .body) private var bodySize: CGFloat = 15
 
   var body: some View {
@@ -68,10 +69,23 @@ struct SignCard: View {
 
   private var actions: some View {
     HStack(spacing: 4) {
-      Text(sign.waysSoFar)
-        .face(.metaBold)
-        .foregroundStyle(Color.greenInk)
-        .padding(.leading, 16)
+      if sign.visibility == .shown, let findWay {
+        Button { findWay.open(sign) } label: {
+          Label(sign.wayCount == 0 ? "Find a way" : "Find another way", systemImage: "pencil")
+            .face(.pill)
+            .foregroundStyle(Color.greenInk)
+            .padding(.horizontal, 8)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .accessibilityValue(sign.waysSoFar)
+        .padding(.leading, 8)
+      } else {
+        Text(sign.waysSoFar)
+          .face(.metaBold)
+          .foregroundStyle(Color.greenInk)
+          .padding(.leading, 16)
+      }
       Spacer()
       // A held or hidden sign has no public page and no pin: nothing to show or share.
       if sign.visibility == .shown {

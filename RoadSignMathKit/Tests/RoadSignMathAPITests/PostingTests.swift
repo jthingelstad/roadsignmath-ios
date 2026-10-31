@@ -85,6 +85,29 @@ import Testing
     #expect(query.contains("numbers=90%2C82%2C8%2C7"))
   }
 
+  @Test func addsAWayAsItsText() async throws {
+    let stub = Stub(status: 201, body: try fixture("posted"))
+    let detail = try await stub.client.addWay("90 − 82 − 8 + 6 = 10 − 7 + 2 + 1", to: "01sign", token: "rsm_x")
+    #expect(!detail.ways.isEmpty)
+    let sent = try #require(stub.requests.first)
+    #expect(sent.method == "POST")
+    #expect(sent.path == "/api/v1/signs/01sign/ways")
+    #expect(sent.authorization == "Bearer rsm_x")
+    #expect(sent.headers["Content-Type"] == "application/json")
+    let body = try #require(sent.data)
+    let json = try #require(try JSONSerialization.jsonObject(with: body) as? [String: String])
+    #expect(json == ["text": "90 − 82 − 8 + 6 = 10 − 7 + 2 + 1"])
+  }
+
+  @Test func aWaySomeoneFoundIsAConflict() async throws {
+    let stub = Stub(status: 409, body: #"{"error":{"code":"conflict","message":"Someone already found that way"}}"#)
+    let error = await #expect(throws: APIError.self) {
+      _ = try await stub.client.addWay("7 + 12 = 19", to: "01sign", token: "rsm_x")
+    }
+    #expect(error?.code == "conflict")
+    #expect(error?.message == "Someone already found that way")
+  }
+
   @Test func aRefusalIsTheServersWords() async throws {
     let stub = Stub(status: 400, body: #"{"error":{"code":"bad_request","message":"Give your name first"}}"#)
     let post = SignPost(

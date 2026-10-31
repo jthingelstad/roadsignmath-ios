@@ -83,6 +83,18 @@ public struct WayDraft: Sendable, Hashable {
     self.tiles = tiles
   }
 
+  /// A posted sign's numbers as tiles, for finding another way: each
+  /// value as the server writes it (`7`, `0.5`), shown as it is. A value
+  /// that isn't a number is left out.
+  public static func tiles(onSign values: [String]) -> [CheckedNumber] {
+    values.filter { $0.wholeMatch(of: /-?[0-9]+(\.[0-9]+)?/) != nil }
+      .enumerated()
+      .map { index, value in
+        CheckedNumber(id: index, value: Decimal(string: value, locale: Locale(identifier: "en_US_POSIX"))!, text: value,
+                      box: nil, kept: true, reading: nil)
+      }
+  }
+
   /// A draft written from text, each number on the first unused tile of
   /// that value. Numbers no tile matches are skipped. For screenshots and
   /// tests.

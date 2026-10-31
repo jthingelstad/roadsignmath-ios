@@ -140,6 +140,14 @@ extension APIClient {
     return try await answer(to: request)
   }
 
+  /// Another way to make a sign true. The server checks the math and that
+  /// its numbers are the sign's, and says no to a way someone already
+  /// found (409). Answers with the sign, all its ways and, in `unlocked`,
+  /// the badges the way earned.
+  public func addWay(_ text: String, to signId: String, token: String) async throws -> SignDetail {
+    try await answer(to: request("POST", ["signs", signId, "ways"], body: ["text": text], token: token))
+  }
+
   /// Signs within 2 miles of a spot that share at least half of `numbers`,
   /// nearest first, each with its `miles`.
   public func similarSigns(latitude lat: Double, longitude lng: Double, numbers: [String]) async throws -> [Sign] {

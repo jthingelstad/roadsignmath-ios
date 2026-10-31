@@ -82,7 +82,7 @@ struct OutboxNotes: View {
     case .needsSignIn: "It goes once you’re signed in."
     case .posted(let sign):
       // What the post earned, said here when it went while you were away.
-      (sign.unlocked ?? []).isEmpty ? "It’s on the map." : "It’s on the map. " + PostedView.newWords(sign.unlocked ?? []) + "."
+      (sign.unlocked ?? []).isEmpty ? "It’s on the map." : "It’s on the map. " + NewBadgesCard.words(sign.unlocked ?? []) + "."
     case .held(_, let note): [note, "Only you can see it until then."].compactMap { $0 }.joined(separator: " ")
     case .refused(let message): message
     }

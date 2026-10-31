@@ -251,43 +251,7 @@ struct PostedView: View {
   /// numbers burst.
   @ViewBuilder private var newBadges: some View {
     let badges = unlocked
-    if !badges.isEmpty {
-      VStack(spacing: 12) {
-        Text(PostedView.newWords(badges))
-          .face(.section)
-          .foregroundStyle(Color.ink)
-          .multilineTextAlignment(.center)
-          .fixedSize(horizontal: false, vertical: true)
-        // Centered in a row; wrapped when there are too many for one.
-        ViewThatFits(in: .horizontal) {
-          HStack(spacing: 12) { flipping(badges) }
-          FlowLayout(spacing: 12) { flipping(badges) }
-        }
-      }
-      .padding(16)
-      .frame(maxWidth: .infinity)
-      .background(Color.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-      .overlay { RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Color.signYellow, lineWidth: 1.5) }
-      .accessibilityElement(children: .ignore)
-      .accessibilityLabel(badges.map(\.spoken).joined(separator: " "))
-      .transition(.opacity)
-    }
-  }
-
-  private func flipping(_ badges: [EarnedBadge]) -> some View {
-    ForEach(Array(badges.enumerated()), id: \.element) { index, badge in
-      BadgeArt(badge, size: 76)
-        .rotation3DEffect(.degrees(flipped || still ? 0 : -90), axis: (x: 0, y: 1, z: 0), perspective: 0.6)
-        .scaleEffect(flipped || still ? 1 : 0.7)
-        .opacity(flipped ? 1 : 0)
-        .animation(still ? .easeIn(duration: 0.2) : .spring(response: 0.55, dampingFraction: 0.6).delay(0.14 * Double(index)), value: flipped)
-    }
-  }
-
-  /// "New badge: Square Root", "New badges: Square Root and States: 3".
-  static func newWords(_ badges: [EarnedBadge]) -> String {
-    let names = badges.map(\.title).formatted(.list(type: .and))
-    return (badges.count == 1 ? "New badge: " : "New badges: ") + names
+    if !badges.isEmpty { NewBadgesCard(badges: badges, flipped: flipped) }
   }
 
   /// "Posted!" seen: Home needn't say it again, so the outbox lets it go
@@ -305,7 +269,7 @@ struct PostedView: View {
       flipped = true
       account.seeBadges(badges)
       try? await Task.sleep(for: .milliseconds(600))
-      AccessibilityNotification.Announcement(PostedView.newWords(badges)).post()
+      AccessibilityNotification.Announcement(NewBadgesCard.words(badges)).post()
     }
   }
 
@@ -362,5 +326,51 @@ private struct NumberBurst: View {
           .animation(.spring(response: 0.6, dampingFraction: 0.62).delay(0.05 * Double(index)), value: out)
       }
     }
+  }
+}
+
+/// The badges a post or a way earned: "New badge: Square Root", each one's
+/// sign flipping in once `flipped`.
+struct NewBadgesCard: View {
+  let badges: [EarnedBadge]
+  let flipped: Bool
+  @Environment(\.accessibilityReduceMotion) private var still
+
+  var body: some View {
+    VStack(spacing: 12) {
+      Text(NewBadgesCard.words(badges))
+        .face(.section)
+        .foregroundStyle(Color.ink)
+        .multilineTextAlignment(.center)
+        .fixedSize(horizontal: false, vertical: true)
+      // Centered in a row; wrapped when there are too many for one.
+      ViewThatFits(in: .horizontal) {
+        HStack(spacing: 12) { flipping }
+        FlowLayout(spacing: 12) { flipping }
+      }
+    }
+    .padding(16)
+    .frame(maxWidth: .infinity)
+    .background(Color.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    .overlay { RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Color.signYellow, lineWidth: 1.5) }
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(badges.map(\.spoken).joined(separator: " "))
+    .transition(.opacity)
+  }
+
+  private var flipping: some View {
+    ForEach(Array(badges.enumerated()), id: \.element) { index, badge in
+      BadgeArt(badge, size: 76)
+        .rotation3DEffect(.degrees(flipped || still ? 0 : -90), axis: (x: 0, y: 1, z: 0), perspective: 0.6)
+        .scaleEffect(flipped || still ? 1 : 0.7)
+        .opacity(flipped ? 1 : 0)
+        .animation(still ? .easeIn(duration: 0.2) : .spring(response: 0.55, dampingFraction: 0.6).delay(0.14 * Double(index)), value: flipped)
+    }
+  }
+
+  /// "New badge: Square Root", "New badges: Square Root and States: 3".
+  static func words(_ badges: [EarnedBadge]) -> String {
+    let names = badges.map(\.title).formatted(.list(type: .and))
+    return (badges.count == 1 ? "New badge: " : "New badges: ") + names
   }
 }

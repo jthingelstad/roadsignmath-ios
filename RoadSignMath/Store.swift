@@ -151,7 +151,31 @@ final class Store {
     if !fresh, let kept = details[id] { return kept }
     let detail = try await client.sign(id)
     details[id] = detail
+    if withNewWays[detail.sign.id] != nil { withNewWays[detail.sign.id] = detail.sign }
     return detail
+  }
+
+  /// Signs a way was just added to, as the server answered (or read again
+  /// since), for the lists the store doesn't hold (You's and a player's
+  /// timelines).
+  private(set) var withNewWays: [String: Sign] = [:]
+
+  /// A way just added: the sign as the server now has it, everywhere it's
+  /// shown, so its page lists the new way and the feeds count it.
+  func wayAdded(_ detail: SignDetail) {
+    let sign = detail.sign
+    withNewWays[sign.id] = sign
+    for key in details.keys where details[key]?.sign.id == sign.id { details[key] = detail }
+    details[sign.id] = detail
+    if let at = latest.firstIndex(where: { $0.id == sign.id }) { latest[at] = sign.keepingMiles(of: latest[at]) }
+    if let at = near.firstIndex(where: { $0.id == sign.id }) { near[at] = sign.keepingMiles(of: near[at]) }
+  }
+
+  /// A sign from a list read before a way was added to it, as it is now.
+  /// A list read since, with as many ways or more, is newer and wins.
+  func current(_ sign: Sign) -> Sign {
+    guard let added = withNewWays[sign.id], added.wayCount > sign.wayCount else { return sign }
+    return added
   }
 
   /// A sign already in hand, by id or slug, from either feed or a detail read.
@@ -224,5 +248,14 @@ enum Here {
       }
     } catch {}
     return .unavailable
+  }
+}
+
+private extension Sign {
+  /// A sign read afresh keeps how far away it was, which only Near you knows.
+  func keepingMiles(of old: Sign) -> Sign {
+    var sign = self
+    sign.miles = sign.miles ?? old.miles
+    return sign
   }
 }

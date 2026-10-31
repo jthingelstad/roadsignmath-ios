@@ -85,6 +85,7 @@ struct MeView: View {
         Text(sign.moderationNote ?? "It isn’t on the feed or the map.")
       }
     }
+    .findsAnotherWay()
     .environment(\.opener, Opener(sign: { path.append(.sign($0)) }, player: { path.append(.player($0)) }))
     .tint(.greenInk)
     .task {

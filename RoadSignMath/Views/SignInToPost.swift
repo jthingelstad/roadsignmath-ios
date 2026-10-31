@@ -15,6 +15,9 @@ private struct SignInToPost: ViewModifier {
   let waiting: String
   let post: () -> Void
   @State private var signingIn = false
+  /// The turns allowed before sign-in, put back after: Capture's own, or
+  /// upright for "Find another way".
+  @State private var turnsBefore: UIInterfaceOrientationMask?
 
   func body(content: Content) -> some View {
     content
@@ -34,7 +37,15 @@ private struct SignInToPost: ViewModifier {
       .onChange(of: account.step) { _, step in
         if signingIn, step == .email, account.signedIn { leave() }
       }
-      .onChange(of: signingIn) { _, now in Orientation.allow(now ? .portrait : .allButUpsideDown) }
+      .onChange(of: signingIn) { _, now in
+        if now {
+          turnsBefore = Orientation.allowed
+          Orientation.allow(.portrait)
+        } else {
+          Orientation.allow(turnsBefore ?? .portrait)
+          turnsBefore = nil
+        }
+      }
   }
 
   /// Closes sign-in and, once signed in, goes on to posting.

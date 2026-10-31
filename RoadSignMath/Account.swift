@@ -229,6 +229,14 @@ final class Account {
     }
   }
 
+  /// Another way on a sign. Answers with the sign, its ways and the badges
+  /// the way earned; reads you again, so You has them too.
+  func addWay(_ text: String, to signId: String) async throws -> SignDetail {
+    let detail = try await authorized { try await client.addWay(text, to: signId, token: $0) }
+    Task { await refresh() }
+    return detail
+  }
+
   /// Signs out here at once, then tells the server to end that token, so
   /// a slow answer can't sign out whoever signs in next.
   func signOut() async {
@@ -383,6 +391,9 @@ extension Account {
 /// the name field (`-RSMNameSave YES` saves it), and `-RSMMe YES` opens Me
 /// (`-RSMBadges YES` its Badges page, `-RSMBadge <id>` that badge's sheet).
 /// `-RSMUnlocked <id,id>` shows "Posted!" with those badges flipping in.
+/// `-RSMFindWay YES` with `-RSMOpen /signs/<slug>` opens "Find another way"
+/// on that sign (`-RSMWay <math>` writes it, and `-RSMWayAdded <id,id>`
+/// shows it gone on with those badges, never sent).
 /// Capture's are in `CaptureFlow.script()`. Release builds ignore them.
 enum Script {
   static func value(_ key: String) -> String? {
