@@ -31,6 +31,18 @@ The website and the server behind it are in
     build's recursion overflows 512 KB about 100 brackets deep.
   - `SignReadingEval` and `sign-reading-eval`: the number-reading spike, which
     scores `SignReading` against signs with known numbers. See `docs/SPIKE.md`.
+  - `SignCapture`: Capture's logic around `SignReading`. `NumberList`
+    is the numbers a player checks (read in reading order: rows top to
+    bottom, then left to right; every one ticked to start; fixed, unticked,
+    removed or added, up to 30 kept); `values` is what Solve may use.
+    `NumberEntry` parses a typed number with the same rules as reading.
+    `PhotoFacts` reads a photo's own day, time and place (EXIF and GPS)
+    for posting's "place from the photo". `SpotReading` reads the part of
+    a photo around a tap again, close up. `SampleSign` draws a made-up
+    gantry (EXIT 8, 82nd St, EXIT 7B, 90th St, 1 MILE) with a made-up date
+    and place, so the simulator, which has no camera, can run Capture and
+    the tests can read a sign without a real photo. Never add real photos
+    as fixtures.
   - `MathArt`: draws a way's LaTeX (the `tex` the server and `Equation`
     write) as an image with SwiftMath in Latin Modern, the look of a math
     book, and caches each picture by text, size and color so feeds scroll
@@ -64,6 +76,16 @@ The website and the server behind it are in
   `Views/SignInView.swift` is the sign-in screen (email, code, name,
   welcome), shown on first launch with "Look around first", and
   `Views/MeView.swift` is You: name, email, sign out, delete my account.
+  Capture is `CaptureFlow.swift` (the shot, its reading and the checked
+  list, shared by the screens after the camera), `Camera.swift`
+  (AVFoundation on its own queue; the preview turns with the phone through
+  the rotation coordinator) and `Views/CaptureView.swift` (camera and the
+  shot with its numbers boxed), `CheckView.swift` (Check the numbers),
+  `NumberSheet.swift` (fix or add a number) and `NextStepView.swift` (where
+  Solve and posting will go). The app stands upright except Capture, which
+  turns: Info.plist allows both landscapes and `Orientation.swift` narrows
+  the rest of the app to portrait. Capture never asks for the phone's
+  location; a library photo brings its own day and place.
   `Theme.swift` is the boards' colors and type: Overpass (bundled, SIL
   OFL, its license beside it in `Fonts/`) for words, Latin Modern for
   math.
@@ -122,8 +144,14 @@ The website and the server behind it are in
   `-RSMMine YES` (the Map's Mine chip),
   and for sign-in `-RSMSignIn <email>` (opens sign-in and sends the
   email), `-RSMCode <digits>`, `-RSMName <name>` (`-RSMNameSave YES`
-  saves it) and `-RSMMe YES` (opens You). `RSM_API` also works as a
-  default (`xcrun simctl spawn <sim> defaults write xyz.roadsignmath.app
+  saves it) and `-RSMMe YES` (opens You). Capture's: `-RSMCapture camera`
+  opens the camera, `-RSMCapture sample` shoots the sample sign and
+  `-RSMCapture <file>` takes a file on this Mac as if picked from the
+  library (the simulator reads Mac paths); then `-RSMCheck YES` (Check the
+  numbers), `-RSMFix <n>` (the nth number's sheet), `-RSMAdd YES`,
+  `-RSMSpot <x>,<y>` (a tap on the photo, 0 to 1 each way), `-RSMSolve YES`
+  or `-RSMPost YES`, and `-RSMLandscape YES` to turn sideways. `RSM_API`
+  also works as a default (`xcrun simctl spawn <sim> defaults write xyz.roadsignmath.app
   RSM_API <url>`), which a launch from `simctl` without the scheme needs.
 - Never sign in, post or report against the live API to test anything:
   `auth/start` emails a real person and `auth/verify` makes a live player.

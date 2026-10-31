@@ -3,6 +3,7 @@ import SwiftUI
 
 @main
 struct RoadSignMathApp: App {
+  @UIApplicationDelegateAdaptor(AppDelegate.self) private var delegate
   @State private var store = Store()
   @State private var account = Account(client: APIClient(base: Store.server))
   @Environment(\.scenePhase) private var phase

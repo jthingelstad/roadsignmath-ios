@@ -9,6 +9,7 @@ let package = Package(
     .library(name: "Equation", targets: ["Equation"]),
     .library(name: "MathArt", targets: ["MathArt"]),
     .library(name: "RoadSignMathAPI", targets: ["RoadSignMathAPI"]),
+    .library(name: "SignCapture", targets: ["SignCapture"]),
   ],
   dependencies: [
     // The one package from outside Apple: it typesets the math's LaTeX the
@@ -37,5 +38,10 @@ let package = Package(
     .executableTarget(name: "sign-reading-eval", dependencies: ["SignReading", "SignReadingEval"]),
     .testTarget(name: "SignReadingTests", dependencies: ["SignReading"]),
     .testTarget(name: "SignReadingEvalTests", dependencies: ["SignReadingEval"]),
+    // Capture and "Check the numbers": the checked list and its edits, a
+    // typed number, a photo's own facts, reading a spot, and the made-up
+    // sample sign the simulator and the tests use instead of a photo.
+    .target(name: "SignCapture", dependencies: ["SignReading", "Equation"]),
+    .testTarget(name: "SignCaptureTests", dependencies: ["SignCapture", "SignReading"]),
   ]
 )
