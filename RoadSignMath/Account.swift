@@ -91,9 +91,18 @@ final class Account {
 
   /// Opens the sign-in screen, at the code when an email is still waiting.
   func beginSignIn() {
-    guard !signedIn else { return }
+    if prepareSignIn() { signingIn = true }
+  }
+
+  /// Sets the sign-in screen at its first step without opening it, for a
+  /// screen that shows its own: Capture, which is already over the app,
+  /// opens sign-in over itself so the photo waits underneath. False when
+  /// already signed in.
+  @discardableResult
+  func prepareSignIn() -> Bool {
+    guard !signedIn else { return false }
     if let pending, pending.expires > .now { step = .code } else { step = .email; pending = nil }
-    signingIn = true
+    return true
   }
 
   /// Emails a link and a code. `again` keeps the earlier emails' codes
@@ -306,7 +315,8 @@ extension Account {
 /// Debug builds' launch arguments for screenshots and checks against
 /// `npm run dev`: `-RSMSignIn <email>` opens sign-in and sends the email,
 /// `-RSMCode <digits>` types into the code boxes, `-RSMName <name>` into
-/// the name field (`-RSMNameSave YES` saves it), and `-RSMMe YES` opens Me. Release builds ignore them.
+/// the name field (`-RSMNameSave YES` saves it), and `-RSMMe YES` opens Me.
+/// Capture's are in `CaptureFlow.script()`. Release builds ignore them.
 enum Script {
   static func value(_ key: String) -> String? {
     #if DEBUG
@@ -328,7 +338,7 @@ enum Script {
   }
 
   static var scripted: Bool {
-    ["RSMTab", "RSMOpen", "RSMFocus", "RSMSearch"].contains { value($0) != nil } || flag("RSMMe")
+    ["RSMTab", "RSMOpen", "RSMFocus", "RSMSearch", "RSMCapture"].contains { value($0) != nil } || flag("RSMMe")
   }
 }
 

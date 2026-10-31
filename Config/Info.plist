@@ -14,6 +14,8 @@
 		<key>UIColorName</key>
 		<string>LaunchGround</string>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>To photograph road signs and read their numbers. A photo stays on this iPhone unless you post it.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>To show the signs found nearest you. Only while Near you is open; your place is never sent with anything you post.</string>
 	<key>CFBundleURLTypes</key>

@@ -10,6 +10,8 @@
 		A5D0000000000000000000A1 /* MathArt in Frameworks */ = {isa = PBXBuildFile; productRef = A5D0000000000000000000B1 /* MathArt */; };
 		A5D0000000000000000000A2 /* RoadSignMathAPI in Frameworks */ = {isa = PBXBuildFile; productRef = A5D0000000000000000000B2 /* RoadSignMathAPI */; };
 		A5D0000000000000000000A3 /* Equation in Frameworks */ = {isa = PBXBuildFile; productRef = A5D0000000000000000000B3 /* Equation */; };
+		A5D0000000000000000000A4 /* SignReading in Frameworks */ = {isa = PBXBuildFile; productRef = A5D0000000000000000000B4 /* SignReading */; };
+		A5D0000000000000000000A5 /* SignCapture in Frameworks */ = {isa = PBXBuildFile; productRef = A5D0000000000000000000B5 /* SignCapture */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -33,6 +35,8 @@
 				A5D0000000000000000000A1 /* MathArt in Frameworks */,
 				A5D0000000000000000000A2 /* RoadSignMathAPI in Frameworks */,
 				A5D0000000000000000000A3 /* Equation in Frameworks */,
+				A5D0000000000000000000A4 /* SignReading in Frameworks */,
+				A5D0000000000000000000A5 /* SignCapture in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -80,6 +84,8 @@
 				A5D0000000000000000000B1 /* MathArt */,
 				A5D0000000000000000000B2 /* RoadSignMathAPI */,
 				A5D0000000000000000000B3 /* Equation */,
+				A5D0000000000000000000B4 /* SignReading */,
+				A5D0000000000000000000B5 /* SignCapture */,
 			);
 			productName = RoadSignMath;
 			productReference = A5D000000000000000000001 /* RoadSignMath.app */;
@@ -234,7 +240,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "Road Sign Math";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = xyz.roadsignmath.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -257,7 +263,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "Road Sign Math";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = xyz.roadsignmath.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -308,6 +314,14 @@
 		A5D0000000000000000000B3 /* Equation */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = Equation;
+		};
+		A5D0000000000000000000B4 /* SignReading */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SignReading;
+		};
+		A5D0000000000000000000B5 /* SignCapture */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SignCapture;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

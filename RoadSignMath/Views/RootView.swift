@@ -5,7 +5,7 @@ import SwiftUI
 struct RootView: View {
   @Environment(Store.self) private var store
   @Environment(Account.self) private var account
-  @State private var capturing = false
+  @State private var flow = CaptureFlow()
   /// Someone chose "Look around first" (or "Not now"): sign-in waits until
   /// they ask for it.
   @AppStorage("lookedAround") private var lookedAround = false
@@ -26,15 +26,15 @@ struct RootView: View {
       }
       // Below the screens, not over them, so nothing hides behind it; the
       // raised Capture button still rises over their bottom edge.
-      TabBar(capture: { capturing = true })
+      TabBar(capture: { flow.begin() })
         .zIndex(1)
     }
     .ignoresSafeArea(.keyboard, edges: .bottom)
     .background(Color.ground)
-    .sheet(isPresented: $capturing) {
-      CaptureSoon()
-        .presentationDetents([.medium])
-        .presentationDragIndicator(.visible)
+    .fullScreenCover(isPresented: $flow.open) {
+      CaptureScreen()
+        .environment(flow)
+        .overlay(alignment: .top) { NoticeToast() }
     }
     .fullScreenCover(isPresented: $account.signingIn) {
       SignInView(firstRun: firstRun) {
@@ -52,6 +52,7 @@ struct RootView: View {
   /// for anyone who'd rather see the signs. A sign-in left waiting for its
   /// code (the app closed while you were in Mail) picks up where it was.
   private func welcome() {
+    flow.script()
     guard !account.signedIn else { return account.resumeNaming() }
     if Script.value("RSMSignIn") != nil {
       account.useAnotherEmail()
@@ -152,54 +153,3 @@ private struct TabBar: View {
   }
 }
 
-/// What the Capture button shows until capturing arrives.
-private struct CaptureSoon: View {
-  @Environment(\.dismiss) private var dismiss
-  @Environment(Account.self) private var account
-
-  var body: some View {
-    VStack(spacing: 14) {
-      Image(systemName: "camera.viewfinder")
-        .font(.system(size: 44, weight: .semibold))
-        .foregroundStyle(Color.greenInk)
-        .symbolEffect(.bounce, options: .nonRepeating)
-        .padding(.top, 28)
-      Text("Capture is on its way").face(.title).foregroundStyle(Color.ink)
-      Text("Soon you’ll point the camera at a sign from the passenger seat, check the numbers it reads, and solve it right here.")
-        .face(.body)
-        .foregroundStyle(Color.ink2)
-        .multilineTextAlignment(.center)
-        .fixedSize(horizontal: false, vertical: true)
-      SignPlate(text: "Driving + Math = Fun", tex: "\\text{Driving} + \\text{Math} = \\text{Fun}", size: 22)
-        .padding(.top, 6)
-        .accessibilityHidden(true)
-      Spacer(minLength: 0)
-      if !account.signedIn {
-        Button {
-          dismiss()
-          account.beginSignIn()
-        } label: {
-          Text("Sign in now, so you’re ready")
-            .face(.action)
-            .foregroundStyle(Color.greenInk)
-            .frame(maxWidth: .infinity, minHeight: 44)
-        }
-        .buttonStyle(.plain)
-      }
-      Button {
-        dismiss()
-      } label: {
-        Text("Keep looking around")
-          .face(.action)
-          .frame(maxWidth: .infinity, minHeight: 50)
-      }
-      .buttonStyle(.borderedProminent)
-      .tint(.signGreen)
-      .buttonBorderShape(.roundedRectangle(radius: 14))
-    }
-    .padding(.horizontal, 24)
-    .padding(.bottom, 12)
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .background(Color.card)
-  }
-}

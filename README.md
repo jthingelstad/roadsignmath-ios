@@ -18,7 +18,14 @@ signs, newest first, each with its photo and its math drawn the way a math
 book would; a sign's own page with every way it has been solved; and a Map
 of where the signs were found. You can sign in (email, then the code or the
 link), pick the name that goes on your signs, and see yourself under You,
-where you can sign out or delete your account. Capture and posting come next.
+where you can sign out or delete your account.
+
+Capture is here too: the green camera button opens the camera, sideways or
+upright, marked "Passenger mode" as a reminder that the shot is the
+passenger's job. Take a photo, or pick one you took earlier, and every number
+it reads gets a yellow box. Check the numbers next: untick the ones you don't
+want, fix a misread one, and add one it missed by tapping the photo where it
+is or typing it. Writing the math and posting come next.
 
 `RoadSignMathKit` is a Swift package for the code that isn't a screen.
 `SignReading` reads the numbers on a photo of a sign with Apple's Vision and
@@ -28,7 +35,11 @@ is how well it does on real signs, and how to run that test again.
 `Equation` is the equation checker, the same rules as the server's: it says
 whether the math is true, what each side equals, which numbers it used, and
 writes the LaTeX the math is drawn from. It passes the server's own test
-vectors. `MathArt` draws that LaTeX with
+vectors. `SignCapture` is what Capture needs around the reading: the checked number
+list (in reading order, with fixes, removals and additions), the typed number's
+rules, a photo's own day and place from its metadata, re-reading the spot a
+player taps, and a made-up sample sign for the simulator, which has no camera.
+`MathArt` draws that LaTeX with
 [SwiftMath](https://github.com/mgriebling/SwiftMath), and
 `RoadSignMathAPI` talks to the server: the signs and the map, and signing
 in, with the token kept in the Keychain.
