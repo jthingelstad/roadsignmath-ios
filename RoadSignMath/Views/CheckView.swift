@@ -31,6 +31,8 @@ struct CheckView: View {
   @State private var askSignIn = false
   @State private var signingIn = false
   @State private var nothingThere = false
+  /// Sideways: the photo and the list side by side, the title over the list.
+  @State private var wide = false
 
   var body: some View {
     GeometryReader { geometry in
@@ -55,9 +57,12 @@ struct CheckView: View {
         }
       }
     }
+    .onGeometryChange(for: Bool.self) { $0.size.width > $0.size.height } action: { wide = $0 }
     .background(Color.ground)
     .safeAreaInset(edge: .bottom, spacing: 0) { actions }
-    .navigationTitle("Check the numbers")
+    // Sideways the bar's title would sit across the photo's edge, so the
+    // list carries it instead.
+    .navigationTitle(wide ? "" : "Check the numbers")
     .navigationBarTitleDisplayMode(.inline)
     .toolbarBackground(Color.ground, for: .navigationBar)
     .toolbar {
@@ -147,6 +152,12 @@ struct CheckView: View {
 
   private var list: some View {
     VStack(alignment: .leading, spacing: 14) {
+      if wide {
+        Text("Check the numbers")
+          .face(.screenTitle)
+          .foregroundStyle(Color.ink)
+          .accessibilityAddTraits(.isHeader)
+      }
       switch flow.reading {
       case .reading, .idle:
         HStack(spacing: 10) {
@@ -164,8 +175,13 @@ struct CheckView: View {
           title: "No numbers read",
           message: "Tap a number on the photo, or type the ones you see.")
       case .read:
+        Text("Read from the photo, top to bottom. Tap a number to fix it.")
+          .face(.meta)
+          .foregroundStyle(Color.ink3)
+          .fixedSize(horizontal: false, vertical: true)
+          .padding(.horizontal, 4)
         rows
-        Text("Untick a number to leave it out. It’s your sign: keep the ones that make the math fun.")
+        Text("Untick any number that isn’t part of the sign, like a car’s plate. It’s your sign: keep the ones that make the math fun.")
           .face(.meta)
           .foregroundStyle(Color.ink3)
           .fixedSize(horizontal: false, vertical: true)
@@ -198,7 +214,7 @@ struct CheckView: View {
     VStack(spacing: 0) {
       ForEach(Array(flow.numbers.numbers.enumerated()), id: \.element.id) { index, number in
         if index > 0 { Divider().overlay(Color.rule).padding(.leading, 16) }
-        NumberRow(number: number) {
+        NumberRow(number: number, closeUp: number.box.flatMap(flow.closeUp)) {
           withAnimation(.snappy) { flow.numbers.toggle(number.id) }
         } open: {
           focus = number.id
@@ -291,6 +307,9 @@ extension CaptureFlow.Reading {
 /// and its tick.
 private struct NumberRow: View {
   let number: CheckedNumber
+  /// The part of the photo it was read from, so an arrow read as 7 or a
+  /// car's plate shows for what it is.
+  let closeUp: UIImage?
   let toggle: () -> Void
   let open: () -> Void
   let remove: () -> Void
@@ -304,6 +323,15 @@ private struct NumberRow: View {
             .foregroundStyle(number.kept ? Color.ink : Color.ink3)
             .strikethrough(!number.kept, color: Color.ink3)
             .frame(minWidth: 52, alignment: .leading)
+          if let closeUp {
+            Image(uiImage: closeUp)
+              .resizable()
+              .aspectRatio(contentMode: .fill)
+              .frame(width: 64, height: 40)
+              .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+              .opacity(number.kept ? 1 : 0.45)
+              .accessibilityHidden(true)
+          }
           VStack(alignment: .leading, spacing: 2) {
             // The words it was read from, when there are more than the
             // number itself ("EXIT 7B", "82nd St").
@@ -313,10 +341,14 @@ private struct NumberRow: View {
                 .foregroundStyle(number.kept ? Color.ink : Color.ink3)
                 .lineLimit(2)
             }
-            Text(number.why)
-              .face(source == nil ? .body : .meta)
-              .foregroundStyle(source == nil ? Color.ink2 : Color.ink3)
-              .lineLimit(2)
+            // A number read just as the sign shows it needs no word why:
+            // the list's heading says it once.
+            if let why {
+              Text(why)
+                .face(source == nil ? .body : .meta)
+                .foregroundStyle(source == nil ? Color.ink2 : Color.ink3)
+                .lineLimit(2)
+            }
           }
           Spacer(minLength: 0)
         }
@@ -370,9 +402,14 @@ private struct NumberRow: View {
     return source
   }
 
+  private var why: String? {
+    number.isRead && !number.isFixed && number.reading?.reason == .readFromPhoto ? nil : number.why
+  }
+
   private var label: String {
     var words = number.text
     if let source { words += ", from \(source)" }
-    return words + ". " + number.why
+    if let why { words += ". " + why }
+    return words
   }
 }
