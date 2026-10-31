@@ -42,6 +42,10 @@ final class Store {
   private(set) var nearLoad: Load = .idle
   private(set) var locationDenied = false
 
+  // Popular: the most hearted signs.
+  private(set) var popular: [Sign] = []
+  private(set) var popularLoad: Load = .idle
+
   private(set) var pins: [Pin] = []
   private(set) var years: [Int] = []
   private(set) var mapLoad: Load = .idle
@@ -182,6 +186,19 @@ final class Store {
     return detail
   }
 
+  func loadPopular() async {
+    if popularLoad == .loading { return }
+    popularLoad = .loading
+    let started = Date()
+    do {
+      popular = try await read { try await self.client.popularSigns(token: $0) }
+      settleHearts(popular, readAt: started)
+      popularLoad = .loaded
+    } catch {
+      popularLoad = Self.cancelled(error) ? (popular.isEmpty ? .idle : .loaded) : (popular.isEmpty ? .failed(Self.say(error)) : .loaded)
+    }
+  }
+
   /// Signs a way was just added to, as the server answered (or read again
   /// since), for the lists the store doesn't hold (You's and a player's
   /// timelines).
@@ -196,6 +213,7 @@ final class Store {
     details[sign.id] = detail
     if let at = latest.firstIndex(where: { $0.id == sign.id }) { latest[at] = sign.keepingMiles(of: latest[at]) }
     if let at = near.firstIndex(where: { $0.id == sign.id }) { near[at] = sign.keepingMiles(of: near[at]) }
+    if let at = popular.firstIndex(where: { $0.id == sign.id }) { popular[at] = sign.keepingMiles(of: popular[at]) }
   }
 
   /// A sign from a list read before a way was added to it, or a heart
@@ -278,6 +296,7 @@ final class Store {
     Task {
       await loadLatest()
       if nearLoad == .loaded, !locationDenied { await loadNear() }
+      if popularLoad == .loaded { await loadPopular() }
     }
   }
 
@@ -323,6 +342,7 @@ final class Store {
   /// A sign already in hand, by id or slug, from either feed or a detail read.
   func knownSign(_ id: String) -> Sign? {
     details[id]?.sign ?? latest.first { $0.id == id || $0.slug == id } ?? near.first { $0.id == id || $0.slug == id }
+      ?? popular.first { $0.id == id || $0.slug == id }
       ?? details.values.first { $0.sign.slug == id }?.sign
   }
 

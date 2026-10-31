@@ -71,7 +71,8 @@ The website and the server behind it are in
     `POST /signs` a `SignPost` with its `Idempotency-Key`, `addWay` sends
     `POST /signs/{id}/ways` a way's text (201 is the sign with its ways and
     `unlocked`; 409 `conflict` is a way someone already found), and
-    `similarSigns` reads `GET /signs/similar`), hearts (`heart(_:_:token:)`
+    `similarSigns` reads `GET /signs/similar`), `popularSigns` reads
+    `GET /signs/popular` (API 1.8.0) for Home's Popular tab, hearts (`heart(_:_:token:)`
     sends `PUT` or `DELETE /signs/{id}/heart` and answers with `HeartState`;
     `hearts` and `hearted` on `Sign`; the sign reads take an optional
     token, so a signed-in read says which signs you hearted and is never
@@ -124,7 +125,10 @@ The website and the server behind it are in
   target, the project's folders synchronized, so a new Swift file needs no
   project edit. `Store.swift` holds what the screens share (signed in, its
   reads and a player's page carry your token so they say which signs you
-  hearted; a 401 there reads again without it and lets `Account` check,
+  hearted; Home's three tabs are Latest, Near you and Popular, the most
+  hearted first as the server orders them (Jamie, 2026-10-31: "all-time
+  hearts, newest breaks ties, unhearted signs last, app first"), read
+  when first chosen; a 401 there reads again without it and lets `Account` check,
   and an answer read as someone since signed out is read again;
   `Store.heart` shows a heart at once and puts it back if the server
   says no; `heartsGiven` keeps the newest word on each sign hearted on
@@ -316,6 +320,7 @@ The website and the server behind it are in
   scheme's `RSM_API` environment variable to read another, such as the live
   site (reads only). Release reads `https://roadsignmath.xyz/api/v1`. Debug
   builds also take launch arguments for screenshots: `-RSMTab map`,
+  `-RSMFeed popular` (Home on Popular),
   `-RSMOpen /signs/<slug>`, `-RSMFocus <sign id>`, `-RSMSearch <words>`,
   `-RSMMine YES` (the Map's Mine chip),
   and for sign-in `-RSMSignIn <email>` (opens sign-in and sends the

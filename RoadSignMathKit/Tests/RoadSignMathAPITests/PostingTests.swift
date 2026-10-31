@@ -70,6 +70,15 @@ import Testing
     #expect(json == [["handle": "zoe", "role": "took_photo"], ["name": "Tyler", "role": "spotted"]])
   }
 
+  @Test func asksForThePopularSigns() async throws {
+    let stub = Stub(status: 200, body: try fixture("near"))
+    let signs = try await stub.client.popularSigns(token: "rsm_p_secret")
+    #expect(!signs.isEmpty)
+    let sent = try #require(stub.requests.first)
+    #expect(sent.method == "GET")
+    #expect(sent.path == "/api/v1/signs/popular")
+  }
+
   @Test func asksForSimilarSigns() async throws {
     let stub = Stub(status: 200, body: try fixture("near"))
     let signs = try await stub.client.similarSigns(latitude: 44.857, longitude: -93.29, numbers: ["90", "82", "8", "7"])
