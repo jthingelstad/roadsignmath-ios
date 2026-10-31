@@ -56,7 +56,10 @@ The website and the server behind it are in
   - `RoadSignMathAPI`: the client for the server's `/api/v1` and its
     models: the reads (latest, sign, map pins) and the account
     (`auth/start`, `auth/verify` with a code or the email's link,
-    `auth/signout`, `GET`/`PATCH`/`DELETE /me`, the token as a Bearer
+    `auth/signout`, `GET`/`PATCH`/`DELETE /me`, `PUT`/`DELETE /me/avatar`
+    (API 1.7.0: `setAvatar` sends the photo's bytes and answers with `Me`;
+    a 422 `refused` carries the moderator's reason, for the player;
+    `avatarUrl` and `avatarThumbUrl` on `Player` and `Me`), the token as a Bearer
     header, which `player(_:token:)` also sends so your own page carries
     your held and hidden signs), and posting (`Posting.swift`:
     `uploadPhoto` sends `POST /photos` the photo's bytes, `postSign` sends
@@ -122,9 +125,21 @@ The website and the server behind it are in
   your first sign), your signs as Home's timeline (the same cards, newest
   posted first) or a grid of photos (a tap opens the sign; held or hidden
   ones only you see say why instead), a warm empty state that opens Capture, and the settings
-  sheet (name, email, sign out, delete my account, and the build at
-  the bottom). Under the profile is the Badges row (shown with none earned
-  too, so "See all" says how to earn the first): the newest six earned,
+  sheet (profile photo, name, email, sign out, delete my account, and the build at
+  the bottom). The profile photo (`Views/ProfilePhoto.swift`): "Choose a
+  photo" (PhotosPicker), "Take a photo" (UIKit's camera picker, front
+  first; hidden where there's no camera) and "Remove photo", from
+  settings or a tap on your own avatar on You (the camera badge), then
+  `PhotoCropView`, a square you drag and pinch seen through the circle
+  it shows in, sent as a 1024-pixel JPEG by `Account.setPhoto` with a
+  plain call ("Try again" on a failure, the server's words when the
+  moderator refuses). `Store.showPhoto(of:)` puts it on your cards at
+  once, since `/players` may be cached. `Avatar` (`Views/Bits.swift`)
+  draws a player's photo over their letter once it's read (through
+  `Photos.shared`, at the size shown), wherever the app draws one: the
+  Home header, cards, the sign page, Post it's finders, You and player
+  pages; `Store.photo(for:)` finds a finder's by handle in `/players`.
+  Under the profile is the Badges row (shown with none earned too, so "See all" says how to earn the first): the newest six earned,
   a red dot on any not seen on this phone, and "See all", the shelves
   (`Views/BadgesView.swift`: five shelves, earned in color with the step,
   the day and the sign, a tap opens that sign; not earned faded with how,
@@ -249,7 +264,10 @@ The website and the server behind it are in
   and for sign-in `-RSMSignIn <email>` (opens sign-in and sends the
   email), `-RSMCode <digits>`, `-RSMName <name>` (`-RSMNameSave YES`
   saves it) and `-RSMMe YES` (opens You; `-RSMLook photos` shows the
-  grid, `-RSMSettings YES` opens its settings). Capture's: `-RSMCapture camera`
+  grid, `-RSMSettings YES` opens its settings, `-RSMPhoto menu` the
+  profile photo's choices, and `-RSMPhoto <file>` squares up a file on
+  this Mac as if picked; `-RSMPhotoSave YES` then sends it, so only
+  ever against `npm run dev`). Capture's: `-RSMCapture camera`
   opens the camera, `-RSMCapture sample` shoots the sample sign and
   `-RSMCapture <file>` takes a file on this Mac as if picked from the
   library (the simulator reads Mac paths); then `-RSMCheck YES` (Check the

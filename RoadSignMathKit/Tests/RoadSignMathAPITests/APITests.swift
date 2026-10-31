@@ -59,6 +59,8 @@ import Testing
     let players: Players = try APIClient.answer(fixture("players"), status: 200)
     #expect(players.players.map(\.handle).sorted() == ["jamie", "tammy", "tyler"])
     #expect(players.players.allSatisfy { $0.avatarColor.hasPrefix("#") })
+    // A profile photo where one's set, the letter otherwise.
+    #expect(players.players.filter { $0.avatarThumbUrl != nil }.map(\.handle) == ["tyler"])
     let near: Near = try APIClient.answer(fixture("near"), status: 200)
     #expect(near.signs.first?.miles == 0.5)
   }

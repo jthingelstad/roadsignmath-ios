@@ -1,11 +1,17 @@
 import RoadSignMathAPI
 import SwiftUI
 
-/// A player's initial on their colour.
+/// A player's initial on their colour, or their profile photo once it's read.
 struct Avatar: View {
   let name: String
   var color: Color = .signGreen
   var size: CGFloat = 34
+  /// Their profile photo, drawn over the letter once it's read.
+  var photo: URL? = nil
+
+  /// The photo read for a URL, kept with it so a reused view never shows another's.
+  @State private var read: (url: URL, image: UIImage)?
+  @Environment(\.displayScale) private var scale
 
   var body: some View {
     Group {
@@ -20,14 +26,36 @@ struct Avatar: View {
     .foregroundStyle(.white)
     .frame(width: size, height: size)
     .background(color, in: Circle())
+    .overlay {
+      if let photo, let shown = Photos.shared.kept(photo, pixels: pixels) ?? (read?.url == photo ? read?.image : nil) {
+        Image(uiImage: shown)
+          .resizable()
+          .scaledToFill()
+          .frame(width: size, height: size)
+          .clipShape(Circle())
+          .transition(.opacity)
+      }
+    }
+    .task(id: photo) {
+      guard let photo, Photos.shared.kept(photo, pixels: pixels) == nil else { return }
+      guard let image = await Photos.shared.image(photo, pixels: pixels) else { return }
+      withAnimation(.easeOut(duration: 0.2)) { read = (photo, image) }
+    }
     .accessibilityHidden(true)
   }
+
+  private var pixels: Int { Int((size * scale).rounded(.up)) }
 }
 
 extension Store {
   /// A finder's colour, from their player page, else the sign's green.
   func color(for handle: String?) -> Color {
     handle.flatMap { players[$0] }.flatMap { Color(hex: $0.avatarColor) } ?? .signGreen
+  }
+
+  /// A finder's profile photo (the small one), from their player page.
+  func photo(for handle: String?) -> URL? {
+    handle.flatMap { players[$0] }?.avatarThumbUrl
   }
 }
 

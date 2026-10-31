@@ -67,7 +67,7 @@ struct PlayerView: View {
   private func page(_ player: Player) -> some View {
     ScrollView {
       VStack(spacing: 20) {
-        ProfileHeader(name: player.name, avatarColor: player.avatarColor, page: player.url, linked: true,
+        ProfileHeader(name: player.name, avatarColor: player.avatarColor, avatarUrl: player.avatarUrl, page: player.url, linked: true,
                       pageWords: "\(player.name)’s page", bio: player.bio,
                       signCount: player.signCount, states: player.states, firstYear: player.firstYear)
         if let badges = player.badges, !badges.isEmpty {

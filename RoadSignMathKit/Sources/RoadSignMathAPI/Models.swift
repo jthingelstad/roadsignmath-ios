@@ -164,6 +164,10 @@ public struct Player: Codable, Sendable, Hashable, Identifiable {
   public var name: String
   /// "#006348"
   public var avatarColor: String
+  /// Since API 1.7.0: their profile photo, 512 pixels square, and the
+  /// same at 160 for small faces. Nil when they show their first letter.
+  public var avatarUrl: URL?
+  public var avatarThumbUrl: URL?
   public var bio: String?
   public var url: URL
   public var signCount: Int

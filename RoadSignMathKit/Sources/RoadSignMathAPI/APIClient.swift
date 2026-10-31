@@ -88,6 +88,23 @@ public struct APIClient: Sendable {
     try await send("PATCH", ["me"], body: ["name": name], token: token)
   }
 
+  /// Sets your profile photo: a JPEG, PNG or WebP of at most 4 MB, cropped
+  /// square before it's sent (the server crops from the middle otherwise).
+  /// The server's moderator looks first: a photo it won't show is a 422
+  /// whose message says why, for you to read.
+  public func setAvatar(_ photo: Data, type: String = "image/jpeg", token: String) async throws -> Me {
+    var request = request("PUT", ["me", "avatar"], token: token)
+    request.setValue(type, forHTTPHeaderField: "Content-Type")
+    request.httpBody = photo
+    let (data, status) = try await perform(request)
+    return try APIClient.answer(data, status: status)
+  }
+
+  /// Takes your profile photo down; your first letter shows again.
+  public func removeAvatar(token: String) async throws -> Me {
+    try await send("DELETE", ["me", "avatar"], token: token)
+  }
+
   /// Deletes your account and everything it made. It can't be undone.
   public func deleteMe(token: String) async throws {
     try await sendEmpty("DELETE", ["me"], token: token)

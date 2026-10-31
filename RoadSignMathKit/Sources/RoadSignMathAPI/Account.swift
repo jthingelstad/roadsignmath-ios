@@ -36,6 +36,10 @@ public struct Me: Codable, Sendable, Hashable {
   public var name: String
   /// "#006348"
   public var avatarColor: String
+  /// Since API 1.7.0: your profile photo, 512 pixels square, and the same
+  /// at 160. Nil when you show your first letter.
+  public var avatarUrl: URL?
+  public var avatarThumbUrl: URL?
   public var bio: String?
   public var url: URL
   public var signCount: Int
@@ -48,11 +52,14 @@ public struct Me: Codable, Sendable, Hashable {
   /// Nil from an older server, or a `Me` saved before it.
   public var badges: [EarnedBadge]?
 
-  public init(handle: String, name: String, avatarColor: String, bio: String? = nil, url: URL, signCount: Int = 0,
-              states: [String] = [], firstYear: Int? = nil, email: String, needsName: Bool, badges: [EarnedBadge]? = nil) {
+  public init(handle: String, name: String, avatarColor: String, avatarUrl: URL? = nil, avatarThumbUrl: URL? = nil,
+              bio: String? = nil, url: URL, signCount: Int = 0, states: [String] = [], firstYear: Int? = nil,
+              email: String, needsName: Bool, badges: [EarnedBadge]? = nil) {
     self.handle = handle
     self.name = name
     self.avatarColor = avatarColor
+    self.avatarUrl = avatarUrl
+    self.avatarThumbUrl = avatarThumbUrl
     self.bio = bio
     self.url = url
     self.signCount = signCount

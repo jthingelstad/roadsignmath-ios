@@ -107,7 +107,7 @@ struct SignView: View {
 
   private func byline(_ sign: Sign) -> some View {
     HStack(spacing: 10) {
-      Avatar(name: sign.leadFinder?.name ?? "?", color: store.color(for: sign.leadFinder?.handle), size: 38)
+      Avatar(name: sign.leadFinder?.name ?? "?", color: store.color(for: sign.leadFinder?.handle), size: 38, photo: store.photo(for: sign.leadFinder?.handle))
       VStack(alignment: .leading, spacing: 2) {
         Text(sign.finderNames).face(.nameLarge).foregroundStyle(Color.ink)
         Text("\(sign.foundLong)\(String.dot)\(sign.place.label)")

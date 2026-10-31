@@ -227,13 +227,13 @@ struct PostView: View {
           // Before you've a name, the one you're typing below.
           let yours = me.needsName ? trimmedName : me.name
           FinderRow(
-            avatar: Avatar(name: yours.isEmpty ? "?" : yours, color: Color(hex: me.avatarColor) ?? .signGreen, size: 32),
+            avatar: Avatar(name: yours.isEmpty ? "?" : yours, color: Color(hex: me.avatarColor) ?? .signGreen, size: 32, photo: me.avatarThumbUrl),
             name: yours.isEmpty ? "You" : "\(yours) (you)",
             role: spotters.isEmpty ? "Found it" : "Took the photo")
         }
         ForEach(Array(spotters.enumerated()), id: \.offset) { index, spotter in
           FinderRow(
-            avatar: Avatar(name: spotter.hasPrefix("@") ? String(spotter.dropFirst()) : spotter, color: store.color(for: handle(spotter)), size: 32),
+            avatar: Avatar(name: spotter.hasPrefix("@") ? String(spotter.dropFirst()) : spotter, color: store.color(for: handle(spotter)), size: 32, photo: store.photo(for: handle(spotter))),
             name: spotter, role: "Spotted it",
             remove: { withAnimation(.snappy) { _ = spotters.remove(at: index) } })
         }

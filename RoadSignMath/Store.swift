@@ -146,6 +146,15 @@ final class Store {
     }
   }
 
+  /// Your new (or removed) profile photo, on your cards at once: the
+  /// players list may be cached a while yet.
+  func showPhoto(of me: Me) {
+    guard var player = players[me.handle] else { return }
+    player.avatarUrl = me.avatarUrl
+    player.avatarThumbUrl = me.avatarThumbUrl
+    players[me.handle] = player
+  }
+
   /// A sign with its ways, kept once read.
   func detail(_ id: String, fresh: Bool = false) async throws -> SignDetail {
     if !fresh, let kept = details[id] { return kept }

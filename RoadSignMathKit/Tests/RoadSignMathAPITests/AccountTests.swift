@@ -30,6 +30,29 @@ import Testing
     #expect(me.signCount == 3)
     #expect(me.states == ["MN", "IA"])
     #expect(me.bio == "Driving + Math = Fun.")
+    #expect(me.avatarThumbUrl?.absoluteString == "https://roadsignmath.xyz/p/01k8zq3v0000000000000000aa/thumb.jpg")
+    // Before 1.7.0, or no photo: the letter.
+    let signedIn: SignedIn = try APIClient.answer(fixture("signed-in"), status: 200)
+    #expect(signedIn.me.avatarUrl == nil)
+  }
+
+  @Test func setsAndRemovesTheProfilePhoto() async throws {
+    let stub = Stub(status: 200, body: String(decoding: try fixture("me"), as: UTF8.self))
+    let jpeg = Data([0xFF, 0xD8, 0xFF, 0xE0, 1, 2, 3])
+    let me = try await stub.client.setAvatar(jpeg, token: "rsm_x")
+    _ = try await stub.client.removeAvatar(token: "rsm_x")
+    #expect(me.avatarUrl != nil)
+    #expect(stub.requests.map(\.method) == ["PUT", "DELETE"])
+    #expect(stub.requests.allSatisfy { $0.path == "/api/v1/me/avatar" && $0.authorization == "Bearer rsm_x" })
+    #expect(stub.requests[0].data == jpeg)
+    #expect(stub.requests[0].headers["Content-Type"] == "image/jpeg")
+  }
+
+  @Test func aRefusedPhotoSaysWhy() async throws {
+    let stub = Stub(status: 422, body: #"{"error":{"code":"refused","message":"That one can't be your photo."}}"#)
+    let error = await #expect(throws: APIError.self) { try await stub.client.setAvatar(Data([1]), token: "rsm_x") }
+    #expect(error?.code == "refused")
+    #expect(error?.message == "That one can't be your photo.")
   }
 
   @Test func aWrongCodeIsUnauthorized() throws {
