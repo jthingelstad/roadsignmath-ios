@@ -23,6 +23,8 @@ final class Camera {
   private(set) var stops: [Double] = [1]
 
   let session = CameraSession()
+  /// Counts starts and stops, so a start that finishes after a stop is dropped.
+  private var generation = 0
   /// The preview, which knows how the phone is turned.
   weak var preview: PreviewView?
 
@@ -38,8 +40,11 @@ final class Camera {
       return
     }
     state = .starting
+    generation += 1
+    let mine = generation
     do {
       let lens = try await session.start()
+      guard mine == generation else { return }
       stops = lens.stops
       // The device keeps its zoom across stops; start it back at 1 so the
       // view and the button agree.
@@ -48,13 +53,14 @@ final class Camera {
       state = .running
       preview?.attach(session.session, device: lens.device)
     } catch CameraSession.Problem.noCamera {
-      state = .none
+      if mine == generation { state = .none }
     } catch {
-      state = .failed
+      if mine == generation { state = .failed }
     }
   }
 
   func stop() {
+    generation += 1
     session.stop()
     if state == .running || state == .starting { state = .idle }
   }
