@@ -13,6 +13,7 @@ struct SignView: View {
   @State private var failed: String?
   @State private var showNumbers = false
   @Environment(\.opener) private var opener
+  @Environment(\.findWay) private var findWay
 
   private var sign: Sign? { detail?.sign ?? store.knownSign(id) }
 
@@ -42,12 +43,17 @@ struct SignView: View {
     }
     .task { await load() }
     .refreshable { await load(fresh: true) }
+    // A way just added from here goes on the list at once.
+    .onChange(of: store.details[id]) { _, now in if let now { detail = now } }
   }
 
   private func load(fresh: Bool = false) async {
     do {
       detail = try await store.detail(id, fresh: fresh)
       failed = nil
+      #if DEBUG
+        if !fresh, Script.flag("RSMFindWay"), let findWay, let sign = detail?.sign { findWay.open(sign) }
+      #endif
     } catch {
       if !Store.cancelled(error) { failed = Store.say(error) }
     }
@@ -66,7 +72,7 @@ struct SignView: View {
             Text(caption).face(.body).foregroundStyle(Color.ink2).lineSpacing(3)
           }
           ways(sign)
-          if let numbers = sign.numbers, !numbers.isEmpty { numbersBlock(numbers) }
+          wayAndNumbers(sign)
           if sign.place.lat != nil, sign.place.lng != nil { MiniMap(sign: sign) }
         }
         .padding(.horizontal, 16)
@@ -160,34 +166,57 @@ struct SignView: View {
     }
   }
 
-  private func numbersBlock(_ numbers: [SignNumber]) -> some View {
-    VStack(alignment: .leading, spacing: 10) {
-      Button {
-        withAnimation(.snappy) { showNumbers.toggle() }
-      } label: {
-        HStack {
-          Text("The numbers on the sign").face(.action)
-          Spacer()
-          Image(systemName: "chevron.down")
-            .rotationEffect(.degrees(showNumbers ? 180 : 0))
-        }
-        .foregroundStyle(Color.ink)
-        .padding(.horizontal, 14)
-        .frame(minHeight: 46)
-        .overlay { RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.ruleStrong, lineWidth: 1.5) }
-        .contentShape(Rectangle())
-      }
-      .buttonStyle(.plain)
-      .sensoryFeedback(.selection, trigger: showNumbers)
-      .accessibilityValue(showNumbers ? "Shown" : "Hidden")
-
-      if showNumbers {
-        FlowLayout(spacing: 6) {
-          ForEach(Array(numbers.enumerated()), id: \.offset) { _, number in
-            NumberChip(number: number)
+  /// The boards' pair under the ways: "Find another way", and the
+  /// numbers on the sign, shown on a tap.
+  @ViewBuilder private func wayAndNumbers(_ sign: Sign) -> some View {
+    let numbers = sign.numbers ?? []
+    let canFind = sign.visibility == .shown && findWay != nil && !numbers.isEmpty
+    if canFind || !numbers.isEmpty {
+      VStack(alignment: .leading, spacing: 10) {
+        HStack(spacing: 8) {
+          if canFind, let findWay {
+            Button { findWay.open(sign) } label: {
+              Label(sign.wayCount == 0 ? "Find a way" : "Find another way", systemImage: "pencil")
+                .face(.action)
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity, minHeight: 46)
+                .background(Color.signGreen, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
+            .buttonStyle(CardPress())
+          }
+          if !numbers.isEmpty {
+            Button {
+              withAnimation(.snappy) { showNumbers.toggle() }
+            } label: {
+              HStack(spacing: 6) {
+                Text(canFind ? "The numbers" : "The numbers on the sign").face(.action)
+                if !canFind { Spacer() }
+                Image(systemName: "chevron.down")
+                  .font(.system(size: 13, weight: .bold))
+                  .rotationEffect(.degrees(showNumbers ? 180 : 0))
+              }
+              .foregroundStyle(Color.ink)
+              .padding(.horizontal, 14)
+              .frame(minHeight: 46)
+              .overlay { RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.ruleStrong, lineWidth: 1.5) }
+              .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .sensoryFeedback(.selection, trigger: showNumbers)
+            .accessibilityLabel("The numbers on the sign")
+            .accessibilityValue(showNumbers ? "Shown" : "Hidden")
           }
         }
-        .transition(.opacity.combined(with: .move(edge: .top)))
+        .fixedSize(horizontal: false, vertical: true)
+
+        if showNumbers {
+          FlowLayout(spacing: 6) {
+            ForEach(Array(numbers.enumerated()), id: \.offset) { _, number in
+              NumberChip(number: number)
+            }
+          }
+          .transition(.opacity.combined(with: .move(edge: .top)))
+        }
       }
     }
   }

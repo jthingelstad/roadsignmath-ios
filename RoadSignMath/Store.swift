@@ -154,6 +154,16 @@ final class Store {
     return detail
   }
 
+  /// A way just added: the sign as the server now has it, everywhere it's
+  /// shown, so its page lists the new way and the feeds count it.
+  func wayAdded(_ detail: SignDetail) {
+    let sign = detail.sign
+    for key in details.keys where details[key]?.sign.id == sign.id { details[key] = detail }
+    details[sign.id] = detail
+    if let at = latest.firstIndex(where: { $0.id == sign.id }) { latest[at] = sign.keepingMiles(of: latest[at]) }
+    if let at = near.firstIndex(where: { $0.id == sign.id }) { near[at] = sign.keepingMiles(of: near[at]) }
+  }
+
   /// A sign already in hand, by id or slug, from either feed or a detail read.
   func knownSign(_ id: String) -> Sign? {
     details[id]?.sign ?? latest.first { $0.id == id || $0.slug == id } ?? near.first { $0.id == id || $0.slug == id }
@@ -224,5 +234,14 @@ enum Here {
       }
     } catch {}
     return .unavailable
+  }
+}
+
+private extension Sign {
+  /// A sign read afresh keeps how far away it was, which only Near you knows.
+  func keepingMiles(of old: Sign) -> Sign {
+    var sign = self
+    sign.miles = sign.miles ?? old.miles
+    return sign
   }
 }

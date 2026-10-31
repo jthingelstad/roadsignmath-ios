@@ -46,6 +46,8 @@ The website and the server behind it are in
     number goes in once, so a number shown twice goes in twice) and keys,
     the text the checker reads, the LaTeX to draw with a box where the next
     piece goes, and a status from the checker's own answer.
+    `WayDraft.tiles(onSign:)` makes the tiles from a posted sign's numbers,
+    for "Find another way".
   - `MathArt`: draws a way's LaTeX (the `tex` the server and `Equation`
     write) as an image with SwiftMath in Latin Modern, the look of a math
     book, and caches each picture by text, size and color so feeds scroll
@@ -58,7 +60,9 @@ The website and the server behind it are in
     header, which `player(_:token:)` also sends so your own page carries
     your held and hidden signs), and posting (`Posting.swift`:
     `uploadPhoto` sends `POST /photos` the photo's bytes, `postSign` sends
-    `POST /signs` a `SignPost` with its `Idempotency-Key`, and
+    `POST /signs` a `SignPost` with its `Idempotency-Key`, `addWay` sends
+    `POST /signs/{id}/ways` a way's text (201 is the sign with its ways and
+    `unlocked`; 409 `conflict` is a way someone already found), and
     `similarSigns` reads `GET /signs/similar`), and badges (API 1.6.0,
     `Badges.swift`: `badges()` reads the `GET /badges` catalog, secret
     ones only an id and shelf; `badges` on `Player` and `Me`; `unlocked`
@@ -153,24 +157,32 @@ The website and the server behind it are in
   shot with its numbers boxed), `CheckView.swift` (Check the numbers),
   `NumberSheet.swift` (fix or add a number), `SolveView.swift` (Solve: the
   math on a sign of its own, the numbers as tiles that check off, an
-  operator keypad with no digits, and a live "It works"; `WayDraft` in
-  `SignCapture` is the math being written and asks `Equation` whether it's
-  true), then posting: `PostView.swift` (Post it: name it, the place from
+  operator keypad with no digits, and a live "It works"; the board,
+  reading, tiles and keypad are `WayEditor.swift`, which "Find another
+  way" shares; `WayDraft` in `SignCapture` is the math being written and
+  asks `Equation` whether it's true), then posting: `PostView.swift` (Post it: name it, the place from
   the photo's own GPS reverse-geocoded to a town, or, when the photo has
   none, "Where was it?", a town search; the day found; who found it and
   who spotted it; your name if you've none yet; and "Posted already?",
   the signs nearby with the same numbers), `PostedView.swift` (the post
   on its way, then "Posted!" with its numbers bursting out and any new
   badge flipping in with a heavy tap, "New badge: Square Root", or why it
-  waits, is held or was refused), `Places.swift` (MapKit's reverse
+  waits, is held or was refused; `NewBadgesCard` is that card, which
+  "Find another way" shares), `Places.swift` (MapKit's reverse
   geocode and town search; never the phone's own location),
   `Outbox.swift` (the queue on the phone: it sends one post at a time,
   sleeps until the next is due, tries again at once when the network
   comes back or the app opens, and bumps `postedCount` so Home and the
   Map read again) and `Views/OutboxNotes.swift` (Home's word about a post
   waiting, posted while you were away, held or refused).
-  `Views/SignInToPost.swift` is the "Sign in to post" alert and sign-in
-  sheet that Check and Solve share. The app stands upright except Capture, which
+  `Views/AnotherWayView.swift` is "Find another way": from a Home card or
+  the sign page (the `findWay` environment, set by `.findsAnotherWay()` on
+  each tab's stack), a sheet with the sign, its ways so far and Solve's
+  editor on the sign's numbers; a way someone found already reads as
+  taken, and a new one goes on through `Account.addWay`, updates the sign
+  everywhere (`Store.wayAdded`) and shows "Another way!" with any badge
+  it earned. `Views/SignInToPost.swift` is the "Sign in to post" alert
+  and sign-in sheet that Check, Solve and "Find another way" share. The app stands upright except Capture, which
   turns: Info.plist allows both landscapes and `Orientation.swift` narrows
   the rest of the app to portrait. Capture never asks for the phone's
   location; a library photo brings its own day and place.
@@ -255,7 +267,11 @@ The website and the server behind it are in
   `-RSMBadges YES` opens You's shelves, `-RSMBadge <id>` opens that
   badge's sheet over them, and `-RSMUnlocked <id,id>` shows Posted! for
   the sample sign as if its post had unlocked those badges (made from the
-  catalog, a stepped one at its first step; nothing is sent). To see the
+  catalog, a stepped one at its first step; nothing is sent).
+  `-RSMFindWay YES` with `-RSMOpen /signs/<slug>` opens "Find another
+  way" on that sign; `-RSMWay <math>` writes the way there too, and
+  `-RSMWayAdded <id,id>` shows it gone on with those badges (nothing is
+  sent). To see the
   You dot, write the seen record into the app's container plist
   (`$(xcrun simctl get_app_container <sim> xyz.roadsignmath.app
   data)/Library/Preferences/xyz.roadsignmath.app.plist`, key

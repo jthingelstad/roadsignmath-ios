@@ -15,6 +15,17 @@ import Testing
     tiles.first { $0.valueText == value }!.id
   }
 
+  @Test func aPostedSignsNumbersAreTiles() {
+    let tiles = WayDraft.tiles(onSign: ["90", "82", "8", "7", "0.5", "7", "EXIT"])
+    #expect(tiles.map(\.text) == ["90", "82", "8", "7", "0.5", "7"])
+    #expect(tiles.map(\.valueText) == ["90", "82", "8", "7", "0.5", "7"])
+    #expect(Set(tiles.map(\.id)).count == tiles.count)
+    // A number the sign shows twice goes in twice.
+    let draft = WayDraft(tiles: tiles, text: "(90 − 82) × 7 = 7 × 8")
+    #expect(draft.usedCount == 5)
+    #expect(draft.status.works)
+  }
+
   @Test func tilesGoInOnceAndComeBackOut() {
     var draft = WayDraft(tiles: sample)
     let ninety = tile("90", in: sample)
