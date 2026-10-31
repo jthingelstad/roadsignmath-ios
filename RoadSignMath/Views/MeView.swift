@@ -6,7 +6,7 @@ import SwiftUI
 /// settings (passenger mode, your name and email, sign out, Delete my
 /// account, and the build).
 struct MeView: View {
-  enum Look: Hashable { case photos, math }
+  enum Look: Hashable { case timeline, photos }
 
   enum Load: Equatable {
     case loading, loaded
@@ -17,8 +17,8 @@ struct MeView: View {
   @Environment(CaptureFlow.self) private var flow
   @Environment(Store.self) private var store
   @Environment(\.dismiss) private var dismiss
-  @Environment(\.dynamicTypeSize) private var typeSize
-  @State private var look = Look.photos
+  @State private var look = Look.timeline
+  @Namespace private var zoom
   @State private var signs: [Sign] = []
   @State private var load = Load.loading
   @State private var showingSettings = Script.flag("RSMSettings")
@@ -52,7 +52,9 @@ struct MeView: View {
           Button("Done") { dismiss() }.face(.action)
         }
       }
-      .navigationDestination(for: String.self) { id in SignView(id: id) }
+      .navigationDestination(for: String.self) { id in
+        SignView(id: id).navigationTransition(.zoom(sourceID: id, in: zoom))
+      }
       .sheet(isPresented: $showingSettings) { SettingsView() }
       .alert(
         "Only you can see this one", isPresented: Binding(get: { onlyYours != nil }, set: { if !$0 { onlyYours = nil } }),
@@ -81,7 +83,8 @@ struct MeView: View {
     do {
       let mine = try await account.mySigns()
       withAnimation(.smooth) {
-        signs = mine
+        // Newest posted first, as Home lists everyone's (Jamie, 2026-10-30).
+        signs = mine.sorted { ($0.postedAt, $0.id) > ($1.postedAt, $1.id) }
         load = .loaded
       }
     } catch {
@@ -89,7 +92,7 @@ struct MeView: View {
     }
     await fresh.value
     #if DEBUG
-      if Script.value("RSMLook") == "math" { look = .math }
+      if Script.value("RSMLook") == "photos" { look = .photos }
     #endif
   }
 
@@ -111,8 +114,8 @@ struct MeView: View {
           } else {
             looks
             switch look {
+            case .timeline: timeline
             case .photos: grid
-            case .math: mathList
             }
           }
         }
@@ -165,11 +168,11 @@ struct MeView: View {
     .frame(maxWidth: .infinity)
   }
 
-  /// Photos or Math, as the boards draw the switch.
+  /// Your signs as Home's timeline, or as a grid of photos.
   private var looks: some View {
     HStack(spacing: 8) {
+      Pill(label: "Signs", chosen: look == .timeline) { withAnimation(.snappy) { look = .timeline } }
       Pill(label: "Photos", chosen: look == .photos) { withAnimation(.snappy) { look = .photos } }
-      Pill(label: "Math", chosen: look == .math) { withAnimation(.snappy) { look = .math } }
       Spacer()
     }
     .padding(.horizontal, 16)
@@ -203,61 +206,14 @@ struct MeView: View {
     .transition(.opacity)
   }
 
-  private var mathList: some View {
+  /// Home's timeline, only your signs: the same cards, the math on each.
+  private var timeline: some View {
     LazyVStack(spacing: 10) {
       ForEach(signs) { sign in
-        Button { open(sign) } label: {
-          VStack(alignment: .leading, spacing: 8) {
-            if let way = sign.firstWay {
-              SignPlate(text: way.text, tex: way.tex, size: 19)
-            } else {
-              Text("Not solved yet")
-                .face(.bodyBold)
-                .foregroundStyle(Color.ink3)
-                .frame(maxWidth: .infinity, minHeight: 50)
-                .overlay {
-                  RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(Color.ruleStrong, style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
-                }
-            }
-            // At the largest sizes the date goes under the place, so
-            // neither is cut short.
-            if typeSize.isAccessibilitySize {
-              VStack(alignment: .leading, spacing: 1) {
-                Text(sign.title).face(.name).foregroundStyle(Color.ink)
-                Text(sign.place.label).face(.meta).foregroundStyle(Color.ink3)
-                HStack(spacing: 8) {
-                  Text(sign.foundShort).face(.meta).foregroundStyle(Color.ink3)
-                  OnlyYou(sign: sign, inline: true)
-                }
-              }
-              .frame(maxWidth: .infinity, alignment: .leading)
-              .padding(.horizontal, 4)
-            } else {
-              HStack(alignment: .firstTextBaseline, spacing: 8) {
-                VStack(alignment: .leading, spacing: 1) {
-                  Text(sign.title).face(.name).foregroundStyle(Color.ink).lineLimit(2)
-                  Text(sign.place.label).face(.meta).foregroundStyle(Color.ink3).lineLimit(1)
-                }
-                Spacer(minLength: 8)
-                OnlyYou(sign: sign, inline: true)
-                Text(sign.foundShort).face(.meta).foregroundStyle(Color.ink3).fixedSize()
-              }
-              .padding(.horizontal, 4)
-            }
-          }
-          .padding(12)
-          .background(Color.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-          .overlay { RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Color.rule, lineWidth: 1) }
-          .contentShape(Rectangle())
-        }
-        .buttonStyle(CardPress())
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Self.spoken(sign, math: true))
-        .accessibilityAddTraits(.isButton)
+        SignCard(sign: sign, zoom: zoom) { open(sign) }
+          .overlay(alignment: .topTrailing) { OnlyYou(sign: sign) }
       }
     }
-    .padding(.horizontal, 16)
     .transition(.opacity)
   }
 
@@ -316,9 +272,8 @@ struct MeView: View {
     if sign.visibility == .shown { path.append(sign.id) } else { onlyYours = sign }
   }
 
-  static func spoken(_ sign: Sign, math: Bool = false) -> String {
+  static func spoken(_ sign: Sign) -> String {
     var words = sign.title + ", " + sign.place.label
-    if math { words += ". " + (sign.firstWay?.text ?? "Not solved yet") }
     if sign.visibility != .shown { words += ". Only you can see it" }
     return words
   }
