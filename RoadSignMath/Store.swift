@@ -171,12 +171,14 @@ final class Store {
   }
 
   /// A roadsignmath.xyz link the app was opened with: a sign's page opens
-  /// that sign; anything else opens Home.
+  /// that sign, a player's page that player; anything else opens Home.
   func open(_ url: URL) {
     let parts = url.pathComponents.filter { $0 != "/" }
     tab = .home
     if parts.count == 2, parts[0] == "signs", !parts[1].isEmpty {
       homePath = [parts[1]]
+    } else if parts.count == 2, parts[0] == "players", !parts[1].isEmpty {
+      homePath = [PlayerPath.of(parts[1])]
     }
   }
 

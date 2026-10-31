@@ -43,10 +43,15 @@ struct HomeView: View {
       .navigationBarTitleDisplayMode(.inline)
       .toolbarBackground(Color.card, for: .navigationBar)
       .navigationDestination(for: String.self) { id in
-        SignView(id: id)
-          .navigationTransition(.zoom(sourceID: id, in: zoom))
+        if let handle = PlayerPath.handle(id) {
+          PlayerView(handle: handle)
+        } else {
+          SignView(id: id)
+            .navigationTransition(.zoom(sourceID: id, in: zoom))
+        }
       }
     }
+    .environment(\.opener, Opener(sign: { store.homePath.append($0) }, player: { store.homePath.append(PlayerPath.of($0)) }))
     .task { if store.latestLoad == .idle { await store.loadLatest() } }
     .sheet(isPresented: $showingMe) { MeView() }
     .sensoryFeedback(.selection, trigger: which)

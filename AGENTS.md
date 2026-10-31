@@ -132,9 +132,15 @@ The website and the server behind it are in
   the first time a player's badges are read, the ones already earned
   arrive seen, so there's no fanfare on day one; the You avatar on Home
   carries the dot too. Opening the shelves or a Posted! card sees them.
-  Other players: tap a sign's finder for `Views/PlayerSheet.swift`, their
-  signs, states, year and earned badges only (never a count or the ones
-  not earned), with their page on the website. It reads `GET /me` and your own
+  Other players: tap a sign's finder for their page
+  (`Views/PlayerView.swift`), pushed in whichever tab you're in: You's
+  shape (`Views/Profile.swift` holds the header and the Signs or Photos
+  view both share), their bio, earned badges only (never a count or the
+  ones not earned), and their page on the website. Each tab's stack hands
+  its screens an `Opener` (environment) that pushes a sign or a player;
+  Home and the Map put a player on their stack of sign ids as `@handle`,
+  and a `roadsignmath.xyz/players/<handle>` link (`-RSMOpen
+  /players/jamie`) opens one. You reads `GET /me` and your own
   `GET /players/{handle}` with your token, which carries your held and
   hidden signs. `Preferences.swift` holds `BuildInfo`, the stamped
   version, build and commit. Capture always shows "Passenger mode": a

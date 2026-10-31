@@ -6,12 +6,11 @@ import SwiftUI
 /// sign; the gear opens settings (your name and email, sign out, Delete
 /// my account, and the build).
 struct MeView: View {
-  enum Look: Hashable { case timeline, photos }
-
-  /// Where You goes: a sign, or your badges' shelves.
+  /// Where You goes: a sign, your badges' shelves, or a finder's page.
   enum Route: Hashable {
     case sign(String)
     case badges
+    case player(String)
   }
 
   enum Load: Equatable {
@@ -23,7 +22,7 @@ struct MeView: View {
   @Environment(CaptureFlow.self) private var flow
   @Environment(Store.self) private var store
   @Environment(\.dismiss) private var dismiss
-  @State private var look = Look.timeline
+  @State private var look = ProfileSigns.Look.timeline
   @Namespace private var zoom
   @State private var signs: [Sign] = []
   @State private var load = Load.loading
@@ -66,6 +65,8 @@ struct MeView: View {
           SignView(id: id).navigationTransition(.zoom(sourceID: id, in: zoom))
         case .badges:
           BadgesView(earned: account.me?.badges ?? []) { path.append(.sign($0)) }
+        case .player(let handle):
+          PlayerView(handle: handle)
         }
       }
       .sheet(isPresented: $showingSettings) { SettingsView() }
@@ -84,6 +85,7 @@ struct MeView: View {
         Text(sign.moderationNote ?? "It isn’t on the feed or the map.")
       }
     }
+    .environment(\.opener, Opener(sign: { path.append(.sign($0)) }, player: { path.append(.player($0)) }))
     .tint(.greenInk)
     .task {
       // Opened while signed out (the token ended a moment ago): nothing to show.
@@ -102,8 +104,7 @@ struct MeView: View {
     do {
       let mine = try await account.mySigns()
       withAnimation(.smooth) {
-        // Newest posted first, as Home lists everyone's (Jamie, 2026-10-30).
-        signs = mine.sorted { ($0.postedAt, $0.id) > ($1.postedAt, $1.id) }
+        signs = ProfileSigns.newestFirst(mine)
         load = .loaded
       }
     } catch {
@@ -134,11 +135,7 @@ struct MeView: View {
           if signs.isEmpty {
             firstSign
           } else {
-            looks
-            switch look {
-            case .timeline: timeline
-            case .photos: grid
-            }
+            ProfileSigns(signs: signs, look: $look, zoom: zoom, whose: "your", open: open)
           }
         }
       }
@@ -149,45 +146,9 @@ struct MeView: View {
   }
 
   private func header(_ me: Me) -> some View {
-    VStack(spacing: 14) {
-      VStack(spacing: 8) {
-        Avatar(name: me.name, color: Color(hex: me.avatarColor) ?? .signGreen, size: 84)
-        Text(me.shownName)
-          .face(.title)
-          .foregroundStyle(me.name.isEmpty ? Color.ink3 : Color.ink)
-          .multilineTextAlignment(.center)
-          .accessibilityAddTraits(.isHeader)
-        if !me.name.isEmpty {
-          Text(Self.address(me.url))
-            .face(.meta)
-            .foregroundStyle(Color.ink3)
-            .accessibilityLabel("Your page: \(Self.address(me.url))")
-        }
-      }
-      HStack(spacing: 10) {
-        Stat(value: "\(me.signCount)", label: me.signCount == 1 ? "sign" : "signs")
-        Stat(value: "\(me.states.count)", label: me.states.count == 1 ? "state" : "states")
-        Stat(value: me.firstYear.map(String.init) ?? "–", label: "first sign")
-          .accessibilityLabel(me.firstYear.map { "First sign in \($0)" } ?? "No first sign yet")
-      }
-      .padding(.horizontal, 16)
-      if !me.states.isEmpty {
-        FlowLayout(spacing: 6) {
-          ForEach(me.states, id: \.self) { state in
-            Text(state)
-              .face(.pill)
-              .foregroundStyle(Color.greenInk)
-              .padding(.horizontal, 10)
-              .frame(minHeight: 28)
-              .background(Color.wayGround, in: Capsule())
-          }
-        }
-        .padding(.horizontal, 16)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("States: " + me.states.joined(separator: ", "))
-      }
-    }
-    .frame(maxWidth: .infinity)
+    ProfileHeader(name: me.shownName, unnamed: me.name.isEmpty, avatarColor: me.avatarColor,
+                  page: me.name.isEmpty ? nil : me.url, pageWords: "Your page", bio: me.bio,
+                  signCount: me.signCount, states: me.states, firstYear: me.firstYear)
   }
 
   /// Your newest few badges, a dot on any not seen yet, and "See all" for
@@ -241,55 +202,6 @@ struct MeView: View {
 
   /// How many of your newest badges the row shows.
   static let newestBadges = 6
-
-  /// Your signs as Home's timeline, or as a grid of photos.
-  private var looks: some View {
-    HStack(spacing: 8) {
-      Pill(label: "Signs", chosen: look == .timeline) { withAnimation(.snappy) { look = .timeline } }
-      Pill(label: "Photos", chosen: look == .photos) { withAnimation(.snappy) { look = .photos } }
-      Spacer()
-    }
-    .padding(.horizontal, 16)
-    .accessibilityElement(children: .contain)
-    .accessibilityLabel("Show your signs as")
-  }
-
-  private var grid: some View {
-    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 3), spacing: 3) {
-      ForEach(signs) { sign in
-        Button { open(sign) } label: {
-          Color.photoGround
-            .aspectRatio(1, contentMode: .fit)
-            .overlay {
-              if let photo = sign.photos.first {
-                PhotoView(url: photo.thumbUrl, alt: photo.alt, pixels: 480)
-              }
-            }
-            .clipped()
-            .overlay(alignment: .topLeading) { OnlyYou(sign: sign) }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(CardPress())
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Self.spoken(sign))
-        .accessibilityAddTraits(.isButton)
-      }
-    }
-    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-    .padding(.horizontal, 16)
-    .transition(.opacity)
-  }
-
-  /// Home's timeline, only your signs: the same cards, the math on each.
-  private var timeline: some View {
-    LazyVStack(spacing: 10) {
-      ForEach(signs) { sign in
-        SignCard(sign: sign, zoom: zoom) { open(sign) }
-          .overlay(alignment: .topTrailing) { OnlyYou(sign: sign) }
-      }
-    }
-    .transition(.opacity)
-  }
 
   /// No signs yet: where the first one comes from.
   private var firstSign: some View {
@@ -346,17 +258,6 @@ struct MeView: View {
     if sign.visibility == .shown { path.append(.sign(sign.id)) } else { onlyYours = sign }
   }
 
-  static func spoken(_ sign: Sign) -> String {
-    var words = sign.title + ", " + sign.place.label
-    if sign.visibility != .shown { words += ". Only you can see it" }
-    return words
-  }
-
-  /// "roadsignmath.xyz/players/jamie"
-  static func address(_ url: URL) -> String {
-    (url.host() ?? "") + (url.port.map { ":\($0)" } ?? "") + url.path()
-  }
-
   /// What deleting takes with it, in this player's numbers.
   static func deleteWords(_ me: Me) -> String {
     let signs: String
@@ -366,45 +267,6 @@ struct MeView: View {
     default: signs = "the \(me.signCount) signs you posted (with every way found on them), the ways you found on other signs"
     }
     return "This deletes your account and everything it made: \(signs), your name on signs other people posted, and your email. It can’t be undone."
-  }
-}
-
-/// One of the three numbers under your name.
-private struct Stat: View {
-  let value: String
-  let label: String
-
-  var body: some View {
-    VStack(spacing: 2) {
-      Text(value)
-        .font(Face.number.font(size: 24))
-        .foregroundStyle(Color.ink)
-        .contentTransition(.numericText())
-        .animation(.snappy, value: value)
-      Text(label).face(.meta).foregroundStyle(Color.ink3)
-    }
-    .frame(maxWidth: .infinity, minHeight: 68)
-    .background(Color.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-    .overlay { RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.rule, lineWidth: 1) }
-    .accessibilityElement(children: .combine)
-  }
-}
-
-/// A held or hidden sign's mark: only you see it.
-private struct OnlyYou: View {
-  let sign: Sign
-  var inline = false
-
-  var body: some View {
-    if sign.visibility != .shown {
-      Image(systemName: "eye.slash.fill")
-        .font(.system(size: 11, weight: .bold))
-        .foregroundStyle(inline ? Color.ink3 : .white)
-        .padding(inline ? 0 : 6)
-        .background(inline ? .clear : .black.opacity(0.6), in: Circle())
-        .padding(inline ? 0 : 6)
-        .accessibilityHidden(true)
-    }
   }
 }
 
@@ -570,7 +432,7 @@ private struct RenameView: View {
           .onChange(of: name) { _, now in if now.count > 40 { name = String(now.prefix(40)) } }
         Group {
           if first, let handle = Handle.preview(for: trimmed), let me = account.me {
-            Text("Your page will be at \(Text(MeView.address(me.url.deletingLastPathComponent().appending(path: handle))).bold()), and that address stays for good.")
+            Text("Your page will be at \(Text(ProfileHeader.address(me.url.deletingLastPathComponent().appending(path: handle))).bold()), and that address stays for good.")
           } else if first {
             Text("Your first name also makes your page’s address, which stays for good.")
           } else {
