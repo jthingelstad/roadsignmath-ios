@@ -8,7 +8,10 @@ import SwiftUI
 /// nearest it.
 struct MapScreen: View {
   @Environment(Store.self) private var store
+  @Environment(Account.self) private var account
   @State private var year: Int?
+  /// Only the signs you found.
+  @State private var mine = false
   @State private var query = ""
   @State private var selected: String?
   /// Several signs at one spot, chosen from a cluster that can't split.
@@ -46,10 +49,9 @@ struct MapScreen: View {
       #if DEBUG
         // For screenshots: `-RSMSearch <words>` as a launch argument.
         if query.isEmpty, let words = UserDefaults.standard.string(forKey: "RSMSearch") { query = words }
+        // `-RSMMine YES`: only your signs.
+        if UserDefaults.standard.bool(forKey: "RSMMine") { mine = true }
       #endif
-    }
-    .onChange(of: query.isEmpty) { _, empty in
-      if !empty { Task { await store.loadEverySign() } }
     }
     .onChange(of: store.mapFocus) { takeFocus() }
     .onChange(of: store.pins) { takeFocus() }
@@ -58,6 +60,9 @@ struct MapScreen: View {
     }
     .sensoryFeedback(.selection, trigger: selected)
     .sensoryFeedback(.selection, trigger: year)
+    .sensoryFeedback(.selection, trigger: mine)
+    // Signed out with Mine chosen: back to every sign.
+    .onChange(of: mineCount) { _, count in if count == 0 { mine = false } }
   }
 
   /// "Show on the map" from a sign: choose its pin and fly to it.
@@ -65,6 +70,7 @@ struct MapScreen: View {
     guard let id = store.mapFocus, let pin = store.pins.first(where: { $0.id == id }) else { return }
     store.mapFocus = nil
     year = nil
+    mine = false
     query = ""
     focus = MapFocus(id: pin.id)
   }
@@ -73,18 +79,35 @@ struct MapScreen: View {
 
   private var shown: [Pin] {
     store.pins.filter { pin in
-      (year == nil || pin.year == year) && matches(pin)
+      (year == nil || pin.year == year) && (!mine || isMine(pin)) && matches(pin)
     }
   }
 
+  /// Your handle, when you're signed in and have a name.
+  private var handle: String? { account.signedIn ? account.me?.handle : nil }
+
+  private func isMine(_ pin: Pin) -> Bool {
+    guard let handle else { return false }
+    return pin.finders?.contains { $0.handle == handle } ?? false
+  }
+
+  /// How many signs on the map are yours: the Mine chip shows once you
+  /// have one.
+  private var mineCount: Int { handle == nil ? 0 : store.pins.count(where: isMine) }
+
+  /// A search reads the pins themselves (title, place, state, finders and
+  /// numbers); the math is matched too for signs already read for a feed
+  /// or a page, which costs nothing more.
   private func matches(_ pin: Pin) -> Bool {
     let words = query.split(separator: " ").map { String($0) }
     guard !words.isEmpty else { return true }
-    var hay = [pin.title, pin.state ?? "", stateName(pin.state)]
+    var hay = [pin.title, pin.placeLabel ?? "", pin.state ?? "", stateName(pin.state)]
+    hay += pin.finders?.map(\.name) ?? []
+    hay += pin.numbers ?? []
     if let sign = store.knownSign(pin.id) {
-      hay.append(sign.place.label)
-      hay += sign.finders.map(\.name)
-      hay += sign.numbers?.map(\.value) ?? []
+      if pin.placeLabel == nil { hay.append(sign.place.label) }
+      if pin.finders == nil { hay += sign.finders.map(\.name) }
+      if pin.numbers == nil { hay += sign.numbers?.map(\.value) ?? [] }
       if let way = sign.firstWay { hay.append(way.text) }
     }
     let text = hay.joined(separator: " ")
@@ -129,8 +152,14 @@ struct MapScreen: View {
 
       ScrollView(.horizontal) {
         HStack(spacing: 6) {
-          Pill(label: store.pins.isEmpty ? "All" : "All \(store.pins.count)", chosen: year == nil, floating: true) {
-            withAnimation(.snappy) { year = nil }
+          Pill(label: store.pins.isEmpty ? "All" : "All \(store.pins.count)", chosen: year == nil && !mine, floating: true) {
+            withAnimation(.snappy) { year = nil; mine = false }
+          }
+          if mineCount > 0 {
+            Pill(label: "Mine \(mineCount)", chosen: mine, floating: true) {
+              withAnimation(.snappy) { mine.toggle() }
+            }
+            .accessibilityLabel("Mine, \(mineCount) \(mineCount == 1 ? "sign" : "signs")")
           }
           ForEach(store.years.sorted(by: >), id: \.self) { y in
             Pill(label: String(y), chosen: year == y, floating: true) {
@@ -272,7 +301,9 @@ struct MapScreen: View {
 
   private func countLine(_ pins: [Pin]) -> String {
     let states = Set(pins.compactMap(\.state)).count
-    let signs = pins.count == 1 ? "One sign" : "\(pins.count) signs"
+    let signs = mine
+      ? (pins.count == 1 ? "One of your signs" : "\(pins.count) of your signs")
+      : (pins.count == 1 ? "One sign" : "\(pins.count) signs")
     let where_ = states == 0 ? "" : states == 1 ? " in one state" : " in \(states) states"
     return signs + where_ + (year.map { " from \($0)" } ?? "")
   }

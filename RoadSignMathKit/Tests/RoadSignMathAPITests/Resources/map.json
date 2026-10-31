@@ -9,7 +9,24 @@
       "lng": -93.29,
       "approximate": true,
       "state": "MN",
+      "place_label": "I-35W at 82nd Street, Bloomington, Minnesota",
       "found_on": "2025-09-01",
+      "numbers": [
+        "2",
+        "6",
+        "10",
+        "8",
+        "82",
+        "1",
+        "7",
+        "90"
+      ],
+      "finders": [
+        {
+          "name": "Tyler",
+          "handle": "tyler"
+        }
+      ],
       "thumb_url": "https://roadsignmath.xyz/p/01k43vjqp8x8n82dwwwbbwgwhp/thumb.jpg"
     },
     {
@@ -21,7 +38,22 @@
       "lng": -73.171,
       "approximate": true,
       "state": "VT",
+      "place_label": "On the way to the Burlington airport, Vermont",
       "found_on": "2025-08-06",
+      "numbers": [
+        "8",
+        "25",
+        "1",
+        "3",
+        "3",
+        "4"
+      ],
+      "finders": [
+        {
+          "name": "Jamie",
+          "handle": "jamie"
+        }
+      ],
       "thumb_url": "https://roadsignmath.xyz/p/01k210tthg8vkb04prekftccdy/thumb.jpg"
     },
     {
@@ -33,7 +65,25 @@
       "lng": -93.271,
       "approximate": true,
       "state": "MN",
+      "place_label": "I-35W south at Highway 62, Minneapolis, Minnesota",
       "found_on": "2025-06-19",
+      "numbers": [
+        "2",
+        "6",
+        "10",
+        "3",
+        "7",
+        "35",
+        "11",
+        "62",
+        "12"
+      ],
+      "finders": [
+        {
+          "name": "Tyler",
+          "handle": "tyler"
+        }
+      ],
       "thumb_url": "https://roadsignmath.xyz/p/01jy5k00r8ratxsmx5k1xjzang/thumb.jpg"
     },
     {
@@ -45,7 +95,19 @@
       "lng": -93.421,
       "approximate": true,
       "state": "MN",
+      "place_label": "I-35 near Twin Lakes, Minnesota",
       "found_on": "2023-10-22",
+      "numbers": [
+        "2",
+        "5",
+        "1"
+      ],
+      "finders": [
+        {
+          "name": "Jamie",
+          "handle": "jamie"
+        }
+      ],
       "thumb_url": "https://roadsignmath.xyz/p/01hdchr6p06aae2deqcwz3exds/thumb.jpg"
     },
     {
@@ -57,7 +119,20 @@
       "lng": -93.201,
       "approximate": true,
       "state": "IA",
+      "place_label": "I-35 toward Mason City, Iowa",
       "found_on": "2023-10-22",
+      "numbers": [
+        "105",
+        "5",
+        "36",
+        "136"
+      ],
+      "finders": [
+        {
+          "name": "Jamie",
+          "handle": "jamie"
+        }
+      ],
       "thumb_url": "https://roadsignmath.xyz/p/01hdchp0c011t2xpa0z44yy3vf/thumb.jpg"
     },
     {
@@ -69,7 +144,19 @@
       "lng": -93.529,
       "approximate": true,
       "state": "MO",
+      "place_label": "Near Iconium, Missouri",
       "found_on": "2023-10-22",
+      "numbers": [
+        "7",
+        "19",
+        "12"
+      ],
+      "finders": [
+        {
+          "name": "Jamie",
+          "handle": "jamie"
+        }
+      ],
       "thumb_url": "https://roadsignmath.xyz/p/01hdc8pc8rr4gry8ap0zbmewvn/thumb.jpg"
     },
     {
@@ -81,7 +168,19 @@
       "lng": -93.704,
       "approximate": true,
       "state": "MO",
+      "place_label": "Near Osceola, Missouri",
       "found_on": "2023-10-22",
+      "numbers": [
+        "5",
+        "1",
+        "6"
+      ],
+      "finders": [
+        {
+          "name": "Jamie",
+          "handle": "jamie"
+        }
+      ],
       "thumb_url": "https://roadsignmath.xyz/p/01hdc8mjn0hnm4c0b9jmq03d1q/thumb.jpg"
     },
     {
@@ -93,7 +192,19 @@
       "lng": -93.41,
       "approximate": true,
       "state": "MO",
+      "place_label": "Near Bolivar, Missouri",
       "found_on": "2023-10-22",
+      "numbers": [
+        "10",
+        "4",
+        "12"
+      ],
+      "finders": [
+        {
+          "name": "Jamie",
+          "handle": "jamie"
+        }
+      ],
       "thumb_url": "https://roadsignmath.xyz/p/01hdc8k0v863pabcfsr7vcj146/thumb.jpg"
     },
     {
@@ -105,7 +216,19 @@
       "lng": -94.808,
       "approximate": true,
       "state": "MN",
+      "place_label": "I-94 east near Melrose, Minnesota",
       "found_on": "2023-10-21",
+      "numbers": [
+        "3",
+        "33",
+        "99"
+      ],
+      "finders": [
+        {
+          "name": "Jamie",
+          "handle": "jamie"
+        }
+      ],
       "thumb_url": "https://roadsignmath.xyz/p/01hd94y3xrdh12e8fav5pvjhme/thumb.jpg"
     },
     {
@@ -117,7 +240,20 @@
       "lng": -93.577,
       "approximate": true,
       "state": "MO",
+      "place_label": "Near Fair Play, Missouri",
       "found_on": "2023-10-19",
+      "numbers": [
+        "4",
+        "83",
+        "3",
+        "6"
+      ],
+      "finders": [
+        {
+          "name": "Jamie",
+          "handle": "jamie"
+        }
+      ],
       "thumb_url": "https://roadsignmath.xyz/p/01hd4qt93021hxcxag61r5m9vn/thumb.jpg"
     },
     {
@@ -129,7 +265,19 @@
       "lng": -93.151,
       "approximate": true,
       "state": "MO",
+      "place_label": "Near Fair Grove, Missouri",
       "found_on": "2023-10-19",
+      "numbers": [
+        "13",
+        "4",
+        "11"
+      ],
+      "finders": [
+        {
+          "name": "Jamie",
+          "handle": "jamie"
+        }
+      ],
       "thumb_url": "https://roadsignmath.xyz/p/01hd4qae882vkqf26yn3yceftw/thumb.jpg"
     },
     {
@@ -141,7 +289,19 @@
       "lng": -73.785,
       "approximate": true,
       "state": "NY",
+      "place_label": "On the way to Saratoga, New York",
       "found_on": "2021-08-05",
+      "numbers": [
+        "14",
+        "24",
+        "10"
+      ],
+      "finders": [
+        {
+          "name": "Jamie",
+          "handle": "jamie"
+        }
+      ],
       "thumb_url": "https://roadsignmath.xyz/p/01fcaaxe40ghgw17w2r4ax0ryk/thumb.jpg"
     },
     {
@@ -153,7 +313,19 @@
       "lng": -73.703,
       "approximate": true,
       "state": "NY",
+      "place_label": "Exit 11 to East Greenbush, New York",
       "found_on": "2021-08-04",
+      "numbers": [
+        "11",
+        "9",
+        "20"
+      ],
+      "finders": [
+        {
+          "name": "Jamie",
+          "handle": "jamie"
+        }
+      ],
       "thumb_url": "https://roadsignmath.xyz/p/01fc7rgq40nag9eq75qnggjwmj/thumb.jpg"
     },
     {
@@ -165,7 +337,19 @@
       "lng": -74.487,
       "approximate": true,
       "state": "NY",
+      "place_label": "Near Wurtsboro, New York",
       "found_on": "2021-08-02",
+      "numbers": [
+        "1",
+        "12",
+        "13"
+      ],
+      "finders": [
+        {
+          "name": "Jamie",
+          "handle": "jamie"
+        }
+      ],
       "thumb_url": "https://roadsignmath.xyz/p/01fc2kq9405wmt1nzp1nx0qkke/thumb.jpg"
     },
     {
@@ -177,7 +361,22 @@
       "lng": null,
       "approximate": true,
       "state": null,
+      "place_label": "Along I-80/I-90 East",
       "found_on": "2021-07-31",
+      "numbers": [
+        "70",
+        "65",
+        "13",
+        "45",
+        "80",
+        "90"
+      ],
+      "finders": [
+        {
+          "name": "Jamie",
+          "handle": "jamie"
+        }
+      ],
       "thumb_url": "https://roadsignmath.xyz/p/01fbxexv407yjnex6kmdd2xyas/thumb.jpg"
     },
     {
@@ -189,7 +388,22 @@
       "lng": -112.06,
       "approximate": true,
       "state": "AZ",
+      "place_label": "Loop 101, Phoenix, Arizona",
       "found_on": "2021-03-04",
+      "numbers": [
+        "7",
+        "1",
+        "7",
+        "2",
+        "19",
+        "3"
+      ],
+      "finders": [
+        {
+          "name": "Tammy",
+          "handle": "tammy"
+        }
+      ],
       "thumb_url": "https://roadsignmath.xyz/p/01ezxx4kr0b9zsne32jsw811xt/thumb.jpg"
     }
   ],

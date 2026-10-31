@@ -40,6 +40,17 @@ import Testing
     #expect(map.pins.count == 16)
     #expect(map.years == [2021, 2023, 2025])
     #expect(map.pins.allSatisfy { $0.year != nil })
+    let pin = try #require(map.pins.first { $0.slug == "i-35w-at-82nd-street" })
+    #expect(pin.placeLabel == "I-35W at 82nd Street, Bloomington, Minnesota")
+    #expect(pin.numbers?.contains("82") == true)
+    #expect(pin.finders == [PinFinder(name: "Tyler", handle: "tyler")])
+  }
+
+  @Test func readsAnOlderServersPins() throws {
+    let old = #"{"pins":[{"id":"a","slug":"a","title":"A","url":"https://example.com/signs/a","lat":null,"lng":null,"approximate":false,"state":null,"found_on":"2025-01-02","thumb_url":null}],"years":[2025]}"#
+    let map: MapPins = try APIClient.answer(Data(old.utf8), status: 200)
+    #expect(map.pins.first?.placeLabel == nil)
+    #expect(map.pins.first?.finders == nil)
   }
 
   @Test func readsPlayersAndNear() throws {

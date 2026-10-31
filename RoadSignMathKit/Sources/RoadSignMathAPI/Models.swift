@@ -132,6 +132,20 @@ public struct Pin: Codable, Sendable, Hashable, Identifiable {
   public var state: String?
   public var foundOn: String
   public var thumbUrl: URL?
+  /// Since API 1.4.0, enough to search the map without reading every
+  /// sign: where it was (the sign's `place.label`), its checked numbers in
+  /// the sign's order, and who found it. Optional, so an older server's
+  /// pins still read.
+  public var placeLabel: String?
+  public var numbers: [String]?
+  public var finders: [PinFinder]?
+}
+
+/// A finder on a pin: the name shown, and the handle when the finder has
+/// an account (the signs from before the app have names only).
+public struct PinFinder: Codable, Sendable, Hashable {
+  public var name: String
+  public var handle: String?
 }
 
 public struct MapPins: Codable, Sendable, Hashable {
