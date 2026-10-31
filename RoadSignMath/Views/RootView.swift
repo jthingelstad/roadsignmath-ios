@@ -58,6 +58,8 @@ struct RootView: View {
         await store.loadLatest()
         await store.loadMap()
       }
+      // A post can earn a badge; reading you again puts its dot on Home.
+      Task { await account.refresh() }
     }
   }
 
