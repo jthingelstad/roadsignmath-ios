@@ -196,7 +196,8 @@ final class CaptureFlow {
   /// sheet, `-RSMAdd YES` the sheet for a missed number, `-RSMSpot x,y`
   /// taps the photo there (0...1 each way), `-RSMSolve YES` or
   /// `-RSMPost YES` the step after (`-RSMWay <math>` writes the math on
-  /// Solve), and `-RSMLandscape YES` turns sideways.
+  /// Solve, or posts it from `-RSMPost`), and `-RSMLandscape YES` turns
+  /// sideways.
   func script() {
     #if DEBUG
       guard let what = Script.value("RSMCapture") else { return }
@@ -212,7 +213,15 @@ final class CaptureFlow {
           path = [.check]
         }
         if Script.flag("RSMSolve") { path = [.check, .solve] }
-        if Script.flag("RSMPost") { path = [.check, .post] }
+        if Script.flag("RSMPost") {
+          // With `-RSMWay`, posted as if solved: the math must work.
+          if let scripted = Script.text("RSMWay"),
+            case .works(let solved) = WayDraft(tiles: numbers.kept, text: scripted).status
+          {
+            way = solved.canonical
+          }
+          path = [.check, .post]
+        }
       }
     #endif
   }

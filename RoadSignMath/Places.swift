@@ -28,19 +28,38 @@ enum Places {
     let label = label(item) ?? [completion.title, completion.subtitle].filter { !$0.isEmpty }.joined(separator: ", ")
     guard !label.isEmpty else { return nil }
     return PostPlace(
-      label: String(label.prefix(APIClient.placeMax)), state: state(item, label),
+      label: clip(label), state: state(item, label),
       lat: coordinate.latitude, lng: coordinate.longitude, approximate: true)
   }
 
+  /// `Ames, IA`. A town search fills `cityWithContext`; a reverse geocode
+  /// leaves it empty, and its `cityName` is the postal city (Minneapolis
+  /// for a spot in Bloomington), so the town there is the placemark's
+  /// locality, with the state or country after it.
   private static func label(_ item: MKMapItem) -> String? {
-    let label = item.addressRepresentations?.cityWithContext(.short) ?? item.addressRepresentations?.cityName ?? item.name
-    return label.map { String($0.prefix(APIClient.placeMax)) }
+    let address = item.addressRepresentations
+    if let context = address?.cityWithContext(.short), !context.isEmpty { return clip(context) }
+    let town = [named(item).town, address?.cityName, item.name].compactMap { $0 }.first { !$0.isEmpty }
+    guard let town else { return nil }
+    let after = address?.region == .unitedStates ? named(item).area : address?.regionName
+    return clip([town, after].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: ", "))
   }
+
+  private static func clip(_ label: String) -> String { String(label.prefix(APIClient.placeMax)) }
 
   /// The two-letter state, for places in the US.
   private static func state(_ item: MKMapItem, _ label: String) -> String? {
     guard item.addressRepresentations?.region == .unitedStates else { return nil }
+    if let area = named(item).area, PostParts.state(in: area) == area { return area }
     return PostParts.state(in: label)
+  }
+
+  /// The town (Bloomington) and state (MN) as the placemark names them.
+  /// `placemark` is deprecated in iOS 26, but nothing that replaces it
+  /// names the town itself rather than the postal city.
+  private static func named(_ item: MKMapItem) -> (town: String?, area: String?) {
+    let placemark = item.placemark
+    return (placemark.locality, placemark.administrativeArea)
   }
 }
 

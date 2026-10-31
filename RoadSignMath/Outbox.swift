@@ -41,7 +41,7 @@ final class Outbox {
       Task { @MainActor in self?.connection(satisfied) }
     }
     monitor.start(queue: DispatchQueue(label: "xyz.roadsignmath.outbox.network"))
-    kick()
+    wakeUp()
   }
 
   // MARK: What the screens show
@@ -109,8 +109,10 @@ final class Outbox {
     kick()
   }
 
-  /// The app came to the front: anything due goes.
+  /// The app opened or came to the front: anything due goes, and so does
+  /// whatever was waiting for a connection, which may well be back.
   func wakeUp() {
+    tryOffline()
     kick()
   }
 
@@ -120,14 +122,18 @@ final class Outbox {
     let back = satisfied && !online
     online = satisfied
     guard back else { return }
-    // Back online: what was waiting for a connection goes now, not at the
-    // end of its backoff.
+    tryOffline()
+    kick()
+  }
+
+  /// What was waiting for a connection goes now, not at the end of its
+  /// backoff.
+  private func tryOffline() {
     for index in items.indices {
       if case .waiting(let problem) = items[index].state, problem == Delivery.offline {
         items[index].nextTry = .now
       }
     }
-    kick()
   }
 
   /// Sends whatever is due, one post at a time, then sleeps until the next

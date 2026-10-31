@@ -5,15 +5,19 @@ import SwiftUI
 struct ShotStrip: View {
   @Environment(CaptureFlow.self) private var flow
   var height: CGFloat = 150
+  /// The whole photo at its own shape, for a short screen, where a strip
+  /// as wide as the screen would cut through the sign.
+  var whole = false
 
   var body: some View {
     if let shot = flow.shot {
       Image(uiImage: shot.picture)
         .resizable()
-        .aspectRatio(contentMode: .fill)
-        .frame(maxWidth: .infinity)
+        .aspectRatio(contentMode: whole ? .fit : .fill)
+        .frame(maxWidth: whole ? nil : .infinity)
         .frame(height: height)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .frame(maxWidth: .infinity)
         .accessibilityLabel("Your photo of the sign")
     }
   }

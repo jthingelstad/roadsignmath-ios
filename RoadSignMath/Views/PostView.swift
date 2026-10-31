@@ -36,6 +36,7 @@ struct PostView: View {
   @Environment(Account.self) private var account
   @Environment(Store.self) private var store
   @Environment(Outbox.self) private var outbox
+  @Environment(\.verticalSizeClass) private var height
   @State private var title = ""
   @State private var place = Where.finding
   @State private var foundOn = Date.now
@@ -48,6 +49,7 @@ struct PostView: View {
   @State private var problem: String?
   @State private var started = false
   @State private var autoPosted = false
+  @State private var scroll = ScrollPosition(edge: .top)
   @FocusState private var field: Field?
 
   enum Field: Hashable { case title, spotter, name }
@@ -67,6 +69,7 @@ struct PostView: View {
       .frame(maxWidth: 640)
       .frame(maxWidth: .infinity)
     }
+    .scrollPosition($scroll)
     .scrollDismissesKeyboard(.interactively)
     .background(Color.ground)
     .safeAreaInset(edge: .bottom, spacing: 0) { actions }
@@ -92,7 +95,7 @@ struct PostView: View {
 
   private var top: some View {
     VStack(alignment: .leading, spacing: 12) {
-      ShotStrip(height: 170)
+      ShotStrip(height: height == .compact ? 130 : 170, whole: height == .compact)
       if let way = flow.way {
         SignPlate(text: way, tex: nil, size: 22, large: true)
           .accessibilityLabel("The math: \(way)")
@@ -221,9 +224,11 @@ struct PostView: View {
     Part(title: "Who found it") {
       VStack(alignment: .leading, spacing: 10) {
         if let me = account.me {
+          // Before you've a name, the one you're typing below.
+          let yours = me.needsName ? trimmedName : me.name
           FinderRow(
-            avatar: Avatar(name: me.shownName, color: Color(hex: me.avatarColor) ?? .signGreen, size: 32),
-            name: me.name.isEmpty ? "You" : "\(me.name) (you)",
+            avatar: Avatar(name: yours.isEmpty ? "?" : yours, color: Color(hex: me.avatarColor) ?? .signGreen, size: 32),
+            name: yours.isEmpty ? "You" : "\(yours) (you)",
             role: spotters.isEmpty ? "Found it" : "Took the photo")
         }
         ForEach(Array(spotters.enumerated()), id: \.offset) { index, spotter in
@@ -461,13 +466,20 @@ struct PostView: View {
     } catch {
       if !Store.cancelled(error) { similar = .failed }
     }
+    #if DEBUG
+      if Script.flag("RSMScrollEnd") {
+        try? await Task.sleep(for: .milliseconds(300))
+        withAnimation { scroll.scrollTo(edge: .bottom) }
+      }
+    #endif
   }
 
   /// Debug builds' launch arguments for screenshots: `-RSMTitle <name>`,
   /// `-RSMSpotted <a,b>`, `-RSMSayWhere YES` (opens the town search, with
   /// `-RSMTown <words>` typed), `-RSMPostName <name>` and `-RSMPostIt YES`
   /// (posts once the form is ready; `-RSMTownPick YES` picks the town
-  /// search's first answer).
+  /// search's first answer), and `-RSMScrollEnd YES` scrolls to the
+  /// bottom once "Posted already?" has its answer.
   private func script() {
     #if DEBUG
       if let text = Script.text("RSMTitle") { title = text }
@@ -589,7 +601,7 @@ private struct SimilarRow: View {
       }
       VStack(alignment: .leading, spacing: 2) {
         Text(sign.title).face(.name).foregroundStyle(Color.ink).lineLimit(2)
-        Text([sign.milesText, sign.finderNames].compactMap { $0 }.joined(separator: .dot))
+        Text(Self.nearby(sign))
           .face(.meta).foregroundStyle(Color.ink3).lineLimit(1)
       }
       Spacer(minLength: 0)
@@ -598,6 +610,14 @@ private struct SimilarRow: View {
     .background(Color.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     .overlay { RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.signYellow, lineWidth: 1.5) }
     .accessibilityElement(children: .combine)
+  }
+
+  /// "Right here, found by Tyler", "0.4 mi away, found by Jamie".
+  static func nearby(_ sign: Sign) -> String {
+    let found = "found by \(sign.finderNames)"
+    guard let miles = sign.miles else { return "Found by \(sign.finderNames)" }
+    if miles < 0.1 { return "Right here, \(found)" }
+    return "\(sign.milesText ?? "") away, \(found)"
   }
 }
 

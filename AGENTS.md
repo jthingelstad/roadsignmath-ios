@@ -56,7 +56,10 @@ The website and the server behind it are in
     (`auth/start`, `auth/verify` with a code or the email's link,
     `auth/signout`, `GET`/`PATCH`/`DELETE /me`, the token as a Bearer
     header, which `player(_:token:)` also sends so your own page carries
-    your held and hidden signs). `SignInLink` reads the email's link, `Handle.preview` ports
+    your held and hidden signs), and posting (`Posting.swift`:
+    `uploadPhoto` sends `POST /photos` the photo's bytes, `postSign` sends
+    `POST /signs` a `SignPost` with its `Idempotency-Key`, and
+    `similarSigns` reads `GET /signs/similar`). `SignInLink` reads the email's link, `Handle.preview` ports
     the server's handle slug so the name step can show the address a name
     makes, and `TokenStore` keeps the token: `KeychainTokenStore` (this
     device only, after first unlock, one item per server address) and
@@ -64,6 +67,24 @@ The website and the server behind it are in
     the server's contract and check each request against a stub
     `URLProtocol`, never a server. The Keychain test needs an app's
     entitlements, so a plain `swift test` on a Mac skips it.
+  - `Posting`: what posting needs off the screen. `OutboxItem` is one
+    post on its way (its own `Idempotency-Key`, its upload, its state:
+    waiting with a reason, needs sign-in, posted, held with the
+    moderator's note, or refused in the server's words), and
+    `Delivery.attempt` takes it one step: upload the photo (again if the
+    upload is 20 hours old or the server lost it), then post with the
+    same key, so a retry is one sign. No connection waits ("Waiting for a
+    connection. It'll post on its own."), a busy server backs off (5 s to
+    30 min), a rate limit waits an hour, a 401 waits for sign-in, any
+    other 4xx is a refusal. `OutboxFolder` keeps the queue and its photos
+    in Application Support (`Outbox/`, not backed up), so a post survives
+    a relaunch. `PostParts` makes the upload (JPEG, upright, no metadata,
+    under 4 MB), the numbers (with their text, why and box), the finders
+    (none when you found it alone, so the server names you; with others,
+    you took the photo and they spotted it, an `@handle` that matches a
+    player linking to them), the state from a place, and the title
+    suggestion ("Ames Math"). Its tests drive the outbox with a fake
+    sender, never a server.
 - `RoadSignMath.xcodeproj` and `RoadSignMath/`: the app. SwiftUI, one
   target, the project's folders synchronized, so a new Swift file needs no
   project edit. `Store.swift` holds what the screens share; `Views/` holds
@@ -98,7 +119,21 @@ The website and the server behind it are in
   math on a sign of its own, the numbers as tiles that check off, an
   operator keypad with no digits, and a live "It works"; `WayDraft` in
   `SignCapture` is the math being written and asks `Equation` whether it's
-  true) and `PostNext.swift` (where posting will go). The app stands upright except Capture, which
+  true), then posting: `PostView.swift` (Post it: name it, the place from
+  the photo's own GPS reverse-geocoded to a town, or, when the photo has
+  none, "Where was it?", a town search; the day found; who found it and
+  who spotted it; your name if you've none yet; and "Posted already?",
+  the signs nearby with the same numbers), `PostedView.swift` (the post
+  on its way, then "Posted!" with its numbers bursting out, or why it
+  waits, is held or was refused), `Places.swift` (MapKit's reverse
+  geocode and town search; never the phone's own location),
+  `Outbox.swift` (the queue on the phone: it sends one post at a time,
+  sleeps until the next is due, tries again at once when the network
+  comes back or the app opens, and bumps `postedCount` so Home and the
+  Map read again) and `Views/OutboxNotes.swift` (Home's word about a post
+  waiting, posted while you were away, held or refused).
+  `Views/SignInToPost.swift` is the "Sign in to post" alert and sign-in
+  sheet that Check and Solve share. The app stands upright except Capture, which
   turns: Info.plist allows both landscapes and `Orientation.swift` narrows
   the rest of the app to portrait. Capture never asks for the phone's
   location; a library photo brings its own day and place.
@@ -172,7 +207,17 @@ The website and the server behind it are in
   numbers), `-RSMFix <n>` (the nth number's sheet), `-RSMAdd YES`,
   `-RSMSpot <x>,<y>` (a tap on the photo, 0 to 1 each way), `-RSMSolve YES`
   (with `-RSMWay <math>` to write the math, its numbers taken from the
-  tiles) or `-RSMPost YES`, and `-RSMLandscape YES` to turn sideways. `RSM_API`
+  tiles) or `-RSMPost YES` (`-RSMWay` there posts the math as solved),
+  and `-RSMLandscape YES` to turn sideways. On Post it: `-RSMTitle
+  <name>`, `-RSMSpotted <a,b>`, `-RSMPostName <name>`, `-RSMSayWhere YES`
+  (the town search, `-RSMTown <words>` typed in it, `-RSMTownPick YES`
+  picks the first), `-RSMScrollEnd YES` (to the bottom once "Posted
+  already?" has its answer), `-RSMPostIt YES` (posts once the form is
+  ready) and `-RSMOffline YES` (every send fails as if offline, for the
+  waiting screens; a simulator can't drop its network). The token lives
+  in the Keychain, which an unsigned simulator build can't write, so for
+  anything across relaunches (a post waiting in the outbox) build signed
+  for the simulator as for the email's link below. `RSM_API`
   also works as a default (`xcrun simctl spawn <sim> defaults write xyz.roadsignmath.app
   RSM_API <url>`), which a launch from `simctl` without the scheme needs.
 - Never sign in, post or report against the live API to test anything:
