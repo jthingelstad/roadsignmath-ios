@@ -27,7 +27,7 @@ final class Camera {
   weak var preview: PreviewView?
 
   func start() async {
-    guard state == .idle || state == .failed else { return }
+    guard state == .idle || state == .failed || state == .denied else { return }
     // No camera (the simulator): say so without asking for one.
     guard AVCaptureDevice.default(for: .video) != nil else {
       state = .none

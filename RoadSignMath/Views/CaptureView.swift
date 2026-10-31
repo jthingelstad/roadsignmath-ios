@@ -51,6 +51,7 @@ private struct CameraView: View {
   @State private var blink = false
   @State private var pinchFrom: Double?
   @Environment(\.openURL) private var openURL
+  @Environment(\.scenePhase) private var phase
 
   var body: some View {
     GeometryReader { geometry in
@@ -73,6 +74,10 @@ private struct CameraView: View {
       await camera.start()
     }
     .onDisappear { camera.stop() }
+    .onChange(of: phase) { _, now in
+      // Back from Settings with the camera turned on: ask again.
+      if now == .active, camera.state == .denied { Task { await camera.start() } }
+    }
     .onChange(of: picked) { _, item in
       guard let item else { return }
       picked = nil
