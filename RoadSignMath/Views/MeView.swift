@@ -34,6 +34,11 @@ struct MeView: View {
   @State private var onlyYours: Sign?
   /// Your avatar tapped: the profile photo's choices.
   @State private var photo: PhotoStart?
+  /// Badges earned while you were away (not seen on this phone yet), on a
+  /// card at the top that flips them in once You has read you afresh.
+  @State private var arrived: [EarnedBadge] = []
+  @State private var flipped = false
+  @Environment(\.accessibilityReduceMotion) private var still
 
   var body: some View {
     NavigationStack(path: $path) {
@@ -100,6 +105,7 @@ struct MeView: View {
     // A sign's mini-map moves to the Map tab underneath; get out of its way.
     .onChange(of: store.tab) { dismiss() }
     .sensoryFeedback(.selection, trigger: look)
+    .sensoryFeedback(.impact(weight: .heavy), trigger: flipped) { _, now in now }
   }
 
   private func reload() async {
@@ -118,6 +124,21 @@ struct MeView: View {
     #if DEBUG
       if Script.value("RSMLook") == "photos" { look = .photos }
     #endif
+    await welcomeBack()
+  }
+
+  /// Badges earned since you last looked (a way someone found on your
+  /// sign, a badge the server grew, a post that went up while you were
+  /// away) flip in, as on "Posted!", then count as seen. Once a visit.
+  private func welcomeBack() async {
+    let new = account.newBadges
+    guard arrived.isEmpty, !new.isEmpty else { return }
+    withAnimation(.smooth) { arrived = Badges.newest(new) }
+    try? await Task.sleep(for: .milliseconds(still ? 300 : 650))
+    flipped = true
+    account.seeBadges(arrived)
+    try? await Task.sleep(for: .milliseconds(600))
+    AccessibilityNotification.Announcement(NewBadgesCard.words(arrived)).post()
   }
 
   // MARK: The page
@@ -126,6 +147,10 @@ struct MeView: View {
     ScrollView {
       VStack(spacing: 20) {
         header(me)
+        if !arrived.isEmpty {
+          NewBadgesCard(badges: arrived, flipped: flipped)
+            .padding(.horizontal, 16)
+        }
         // Shown with none earned too, so the shelves say how to earn the
         // first; a server before 1.6.0 sends no badges at all.
         if let badges = me.badges { badgesRow(badges) }

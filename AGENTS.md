@@ -150,7 +150,10 @@ The website and the server behind it are in
   Seen badges live on the phone (UserDefaults, per server and handle):
   the first time a player's badges are read, the ones already earned
   arrive seen, so there's no fanfare on day one; the You avatar on Home
-  carries the dot too. Opening the shelves or a Posted! card sees them.
+  carries the dot too. Opening the shelves or a Posted! card sees them,
+  and so does opening You: any badges not seen on this phone (earned
+  on the website, or while the app was away) flip in on a
+  `NewBadgesCard` under the profile with a heavy tap, then count as seen.
   Other players: tap a sign's finder for their page
   (`Views/PlayerView.swift`), pushed in whichever tab you're in: You's
   shape (`Views/Profile.swift` holds the header and the Signs or Photos
@@ -290,11 +293,12 @@ The website and the server behind it are in
   way" on that sign; `-RSMWay <math>` writes the way there too, and
   `-RSMWayAdded <id,id>` shows it gone on with those badges (nothing is
   sent). To see the
-  You dot, write the seen record into the app's container plist
-  (`$(xcrun simctl get_app_container <sim> xyz.roadsignmath.app
-  data)/Library/Preferences/xyz.roadsignmath.app.plist`, key
-  `account:<api>:badgesSeen:<handle>`, JSON `{"keys":[...]}`);
-  `simctl spawn defaults write` doesn't reach it. The token lives
+  You dot or the flip on You, write the seen record with `xcrun simctl
+  spawn <sim> defaults write "$(xcrun simctl get_app_container <sim>
+  xyz.roadsignmath.app data)/Library/Preferences/xyz.roadsignmath.app"
+  'account:<api>:badgesSeen:<handle>' -data <hex of JSON {"keys":[...]}>`
+  (the full container path, without `.plist`), with the app quit. Editing
+  the plist file directly doesn't stick: cfprefsd writes its own copy back. The token lives
   in the Keychain, which an unsigned simulator build can't write, so for
   anything across relaunches (a post waiting in the outbox) build signed
   for the simulator as for the email's link below. `RSM_API`
