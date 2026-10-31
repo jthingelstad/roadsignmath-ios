@@ -1,39 +1,8 @@
 import SignCapture
 import SwiftUI
 
-/// Where "Solve it" goes until the equation editor (step 2.4) is built: the
-/// checked numbers as the Solve board's tiles, and a plain word that
-/// writing the math comes next.
-struct SolveNext: View {
-  @Environment(CaptureFlow.self) private var flow
-
-  var body: some View {
-    ScrollView {
-      VStack(alignment: .leading, spacing: 18) {
-        ShotStrip()
-        VStack(alignment: .leading, spacing: 10) {
-          Text("Your numbers").face(.section).foregroundStyle(Color.ink)
-          NumberTiles(numbers: flow.numbers.kept)
-        }
-        Text("It just has to be true. Using every number is the fun part, not a requirement.")
-          .face(.body)
-          .foregroundStyle(Color.ink2)
-          .fixedSize(horizontal: false, vertical: true)
-        Coming(
-          title: "Writing the math comes next",
-          message: "The equation editor is the next part of the app being built. Your photo and these numbers are ready for it.")
-      }
-      .padding(16)
-    }
-    .background(Color.ground)
-    .navigationTitle("Solve it")
-    .navigationBarTitleDisplayMode(.inline)
-    .toolbarBackground(Color.ground, for: .navigationBar)
-  }
-}
-
-/// Where "Post unsolved" goes until posting (step 2.5) is built: what the
-/// post will carry, so it's clear nothing is lost.
+/// Where "Post it" and "Post unsolved" go until posting (step 2.5) is
+/// built: what the post will carry, so it's clear nothing is lost.
 struct PostNext: View {
   @Environment(CaptureFlow.self) private var flow
 
@@ -41,6 +10,9 @@ struct PostNext: View {
     ScrollView {
       VStack(alignment: .leading, spacing: 18) {
         ShotStrip()
+        if let way = flow.way {
+          SignPlate(text: way, tex: nil, size: 24, large: true)
+        }
         VStack(alignment: .leading, spacing: 10) {
           Text("The numbers").face(.section).foregroundStyle(Color.ink)
           NumberTiles(numbers: flow.numbers.kept)
@@ -51,10 +23,12 @@ struct PostNext: View {
             Fact(symbol: shot.file.facts.hasPlace ? "mappin.and.ellipse" : "mappin.slash", text: place(shot))
           }
         }
-        Text("Posted unsolved, someone else can find the math.")
-          .face(.body)
-          .foregroundStyle(Color.ink2)
-          .fixedSize(horizontal: false, vertical: true)
+        if flow.way == nil {
+          Text("Posted unsolved, someone else can find the math.")
+            .face(.body)
+            .foregroundStyle(Color.ink2)
+            .fixedSize(horizontal: false, vertical: true)
+        }
         Coming(
           title: "Posting comes next",
           message: "Sending a sign to the feed and the map is the next part of the app being built. Nothing has been posted.")
@@ -62,7 +36,7 @@ struct PostNext: View {
       .padding(16)
     }
     .background(Color.ground)
-    .navigationTitle("Post unsolved")
+    .navigationTitle(flow.way == nil ? "Post unsolved" : "Post it")
     .navigationBarTitleDisplayMode(.inline)
     .toolbarBackground(Color.ground, for: .navigationBar)
   }
@@ -81,9 +55,10 @@ struct PostNext: View {
   }
 }
 
-/// The shot, small, at the top of the step after Check.
-private struct ShotStrip: View {
+/// The shot, small, at the top of the steps after Check.
+struct ShotStrip: View {
   @Environment(CaptureFlow.self) private var flow
+  var height: CGFloat = 150
 
   var body: some View {
     if let shot = flow.shot {
@@ -91,14 +66,14 @@ private struct ShotStrip: View {
         .resizable()
         .aspectRatio(contentMode: .fill)
         .frame(maxWidth: .infinity)
-        .frame(height: 150)
+        .frame(height: height)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .accessibilityLabel("Your photo of the sign")
     }
   }
 }
 
-/// The Solve board's number tiles: white, a green edge, a tick.
+/// The kept numbers as tiles: white, a green edge, a tick.
 struct NumberTiles: View {
   let numbers: [CheckedNumber]
 

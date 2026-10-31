@@ -17,7 +17,7 @@ struct CaptureScreen: View {
         .navigationDestination(for: CaptureFlow.Stop.self) { stop in
           switch stop {
           case .check: CheckView()
-          case .solve: SolveNext()
+          case .solve: SolveView()
           case .post: PostNext()
           }
         }
