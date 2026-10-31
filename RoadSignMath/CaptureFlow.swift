@@ -41,7 +41,10 @@ final class CaptureFlow {
     var foundOn: String? {
       if source != .camera, let day = file.facts.takenOn { return day }
       guard let takenAt else { return nil }
-      let parts = Calendar.current.dateComponents([.year, .month, .day], from: takenAt)
+      // Gregorian whatever the phone's calendar, in the phone's time zone.
+      var calendar = Calendar(identifier: .gregorian)
+      calendar.timeZone = .current
+      let parts = calendar.dateComponents([.year, .month, .day], from: takenAt)
       guard let year = parts.year, let month = parts.month, let day = parts.day else { return nil }
       return String(format: "%04d-%02d-%02d", year, month, day)
     }

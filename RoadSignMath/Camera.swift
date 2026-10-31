@@ -41,7 +41,10 @@ final class Camera {
     do {
       let lens = try await session.start()
       stops = lens.stops
+      // The device keeps its zoom across stops; start it back at 1 so the
+      // view and the button agree.
       zoom = 1
+      session.setZoom(1)
       state = .running
       preview?.attach(session.session, device: lens.device)
     } catch CameraSession.Problem.noCamera {
