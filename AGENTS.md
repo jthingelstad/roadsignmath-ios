@@ -66,7 +66,11 @@ The website and the server behind it are in
     `POST /signs` a `SignPost` with its `Idempotency-Key`, `addWay` sends
     `POST /signs/{id}/ways` a way's text (201 is the sign with its ways and
     `unlocked`; 409 `conflict` is a way someone already found), and
-    `similarSigns` reads `GET /signs/similar`), and badges (API 1.6.0,
+    `similarSigns` reads `GET /signs/similar`), hearts (`heart(_:_:token:)`
+    sends `PUT` or `DELETE /signs/{id}/heart` and answers with `HeartState`;
+    `hearts` and `hearted` on `Sign`; the sign reads take an optional
+    token, so a signed-in read says which signs you hearted and is never
+    cached for anyone else), and badges (API 1.6.0,
     `Badges.swift`: `badges()` reads the `GET /badges` catalog, secret
     ones only an id and shelf; `badges` on `Player` and `Me`; `unlocked`
     on a post's answer; `Badges.shelves` puts the catalog and the earned
@@ -108,7 +112,12 @@ The website and the server behind it are in
     none. Its tests drive the outbox with a fake sender, never a server.
 - `RoadSignMath.xcodeproj` and `RoadSignMath/`: the app. SwiftUI, one
   target, the project's folders synchronized, so a new Swift file needs no
-  project edit. `Store.swift` holds what the screens share; `Views/` holds
+  project edit. `Store.swift` holds what the screens share (signed in, its
+  reads and a player's page carry your token so they say which signs you
+  hearted; a 401 there reads again without it and lets `Account` check;
+  `Store.heart` shows a heart at once and puts it back if the server
+  says no, and `current(_:)` lays hearts given and ways added over signs
+  read before them); `Views/` holds
   Home (the feed), the sign page, the Map (MapKit through
   `UIViewRepresentable`, since SwiftUI's `Map` can't cluster pins; its
   search reads the pins' own place, finders and numbers, from API 1.4.0,
@@ -196,8 +205,16 @@ The website and the server behind it are in
   editor on the sign's numbers; a way someone found already reads as
   taken, and a new one goes on through `Account.addWay`, updates the sign
   everywhere (`Store.wayAdded`) and shows "Another way!" with any badge
-  it earned. `Views/SignInToPost.swift` is the "Sign in to post" alert
-  and sign-in sheet that Check, Solve and "Find another way" share. The app stands upright except Capture, which
+  it earned. `Views/HeartButton.swift` is a sign's heart and count, on
+  Home's cards and beside the finder on the sign page: a tap gives your
+  heart with a burst of little hearts (`HeartBurst`, skipped with Reduce
+  Motion) and a firm haptic, as the website's kudos button does; another
+  takes it back with a light one; signed out it asks "Sign in to heart
+  it"; a failure says so in the notice toast. The count is the website's
+  and the app's hearts together, hidden when there are none.
+  `Views/SignInToPost.swift` is the "Sign in to post" alert
+  and sign-in sheet that Check, Solve and "Find another way" share
+  (`signInFirst` asks the same in its own words, for hearts). The app stands upright except Capture, which
   turns: Info.plist allows both landscapes and `Orientation.swift` narrows
   the rest of the app to portrait. Capture never asks for the phone's
   location; a library photo brings its own day and place.
@@ -286,6 +303,10 @@ The website and the server behind it are in
   badge's sheet over them, and `-RSMUnlocked <id,id>` shows Posted! for
   the sample sign as if its post had unlocked those badges (made from the
   catalog, a stepped one at its first step; nothing is sent).
+  `-RSMHeart YES` with `-RSMOpen /signs/<slug>` taps the sign page's
+  heart two seconds after it opens (`-RSMHeart twice` takes it back after);
+  `npm run dev` has hearts off (no counts, and a heart answers 503), so
+  seeing one go on needs a dev server given the tests' fake Tinylytics.
   `-RSMFindWay YES` with `-RSMOpen /signs/<slug>` opens "Find another
   way" on that sign; `-RSMWay <math>` writes the way there too, and
   `-RSMWayAdded <id,id>` shows it gone on with those badges (nothing is

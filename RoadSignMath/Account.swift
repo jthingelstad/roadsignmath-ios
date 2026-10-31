@@ -250,6 +250,22 @@ final class Account {
     return detail
   }
 
+  /// The token for reads, so they say which signs you hearted. Nil when
+  /// signed out.
+  var readToken: String? { token }
+
+  /// A read sent with `token` was refused: ask who you are, which signs
+  /// out with a word why if the token has ended.
+  func readRefused(_ token: String) {
+    guard self.token == token else { return }
+    Task { await refresh() }
+  }
+
+  /// Hearts a sign, or takes your heart back.
+  func heart(_ signId: String, _ on: Bool) async throws -> HeartState {
+    try await authorized { try await client.heart(signId, on, token: $0) }
+  }
+
   /// Signs out here at once, then tells the server to end that token, so
   /// a slow answer can't sign out whoever signs in next.
   func signOut() async {

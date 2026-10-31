@@ -4,10 +4,20 @@ import SwiftUI
 /// One sign in the feed: who found it and where, the photo, the math on
 /// its green plate, then the title and caption.
 struct SignCard: View {
-  let sign: Sign
+  private let read: Sign
   var showMiles = false
   let zoom: Namespace.ID
   let open: () -> Void
+
+  init(sign: Sign, showMiles: Bool = false, zoom: Namespace.ID, open: @escaping () -> Void) {
+    read = sign
+    self.showMiles = showMiles
+    self.zoom = zoom
+    self.open = open
+  }
+
+  /// The sign as it is now: with a way or a heart just given.
+  private var sign: Sign { store.current(read) }
 
   @Environment(Store.self) private var store
   @Environment(\.findWay) private var findWay
@@ -31,7 +41,7 @@ struct SignCard: View {
       .accessibilityElement(children: .combine)
       .accessibilityHint("Opens the sign")
 
-      actions
+      actions.zIndex(1)
       words
     }
     .background(Color.card)
@@ -100,6 +110,7 @@ struct SignCard: View {
   }
 
   @ViewBuilder private var publicActions: some View {
+    HeartButton(sign: sign)
     if sign.place.lat != nil {
       Button { store.showOnMap(sign) } label: {
         Image(systemName: "mappin.and.ellipse")
