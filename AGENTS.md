@@ -204,7 +204,9 @@ The website and the server behind it are in
   the photo's own GPS reverse-geocoded to a town, or, when the photo has
   none, "Where was it?", a town search; the day found; who found it and
   who spotted it; your name if you've none yet; and "Posted already?",
-  the signs nearby with the same numbers), `PostedView.swift` (the post
+  the signs nearby with the same numbers, each with "Find another way",
+  which starts from the player's own math when its numbers are all on
+  that sign), `PostedView.swift` (the post
   on its way, then "Posted!" with its numbers bursting out and any new
   badge flipping in with a heavy tap, "New badge: Square Root", or why it
   waits, is held or was refused; `NewBadgesCard` is that card, which
@@ -348,7 +350,8 @@ The website and the server behind it are in
   `npm run dev` has hearts off (no counts, and a heart answers 503), so
   seeing one go on needs a dev server given the tests' fake Tinylytics.
   `-RSMFindWay YES` with `-RSMOpen /signs/<slug>` opens "Find another
-  way" on that sign; `-RSMWay <math>` writes the way there too, and
+  way" on that sign (on Post it, on the first sign "Posted already?"
+  finds); `-RSMWay <math>` writes the way there too, and
   `-RSMWayAdded <id,id>` shows it gone on with those badges (nothing is
   sent). To see the
   You dot or the flip on You, write the seen record with `xcrun simctl

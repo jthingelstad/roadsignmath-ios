@@ -45,6 +45,8 @@ struct PostView: View {
   @State private var similar = Similar.waiting
   @State private var name = ""
   @State private var sayingWhere = false
+  /// "Posted already?": the sign nearby to find another way on.
+  @State private var anotherWay: Sign?
   @State private var posting = false
   @State private var problem: String?
   @State private var started = false
@@ -78,6 +80,9 @@ struct PostView: View {
     .toolbarBackground(Color.ground, for: .navigationBar)
     .sheet(isPresented: $sayingWhere) {
       SayWhere { picked in place = .picked(picked) }
+    }
+    .sheet(item: $anotherWay) { sign in
+      AnotherWayView(sign: sign, startingWith: flow.draft.flatMap { $0.isEmpty ? nil : $0.text })
     }
     .task { await start() }
     .task(id: place.place) { await checkSimilar() }
@@ -344,8 +349,10 @@ struct PostView: View {
         VStack(alignment: .leading, spacing: 10) {
           Text(signs.count == 1 ? "This sign nearby has the same numbers:" : "These signs nearby have the same numbers:")
             .face(.body).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true)
-          ForEach(signs.prefix(3)) { sign in SimilarRow(sign: sign) }
-          Text("If it’s the same sign, you can still post yours. Finding another way to a posted sign comes soon.")
+          ForEach(signs.prefix(3)) { sign in
+            SimilarRow(sign: sign, findWay: sign.visibility == .shown ? { anotherWay = sign } : nil)
+          }
+          Text("If it’s the same sign, put your math on it as another way. You can still post yours too.")
             .face(.meta).foregroundStyle(Color.ink3).fixedSize(horizontal: false, vertical: true)
         }
       }
@@ -470,6 +477,9 @@ struct PostView: View {
     do {
       let signs = try await store.client.similarSigns(latitude: lat, longitude: lng, numbers: numbers)
       similar = signs.isEmpty ? .none : .found(signs)
+      #if DEBUG
+        if Script.flag("RSMFindWay"), let first = signs.first { anotherWay = first }
+      #endif
     } catch {
       if !Store.cancelled(error) { similar = .failed }
     }
@@ -598,25 +608,40 @@ private struct FinderRow: View {
 /// A sign nearby with the same numbers: its photo, name and how far.
 private struct SimilarRow: View {
   let sign: Sign
+  /// Opens "Find another way" on it; nil for a sign that isn't shown.
+  let findWay: (() -> Void)?
 
   var body: some View {
-    HStack(spacing: 12) {
-      if let photo = sign.photos.first {
-        PhotoView(url: photo.thumbUrl, alt: photo.alt, pixels: 160)
-          .frame(width: 56, height: 56)
-          .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    VStack(alignment: .leading, spacing: 4) {
+      HStack(spacing: 12) {
+        if let photo = sign.photos.first {
+          PhotoView(url: photo.thumbUrl, alt: photo.alt, pixels: 160)
+            .frame(width: 56, height: 56)
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
+        VStack(alignment: .leading, spacing: 2) {
+          Text(sign.title).face(.name).foregroundStyle(Color.ink).lineLimit(2)
+          Text(Self.nearby(sign))
+            .face(.meta).foregroundStyle(Color.ink3).lineLimit(1)
+        }
+        Spacer(minLength: 0)
       }
-      VStack(alignment: .leading, spacing: 2) {
-        Text(sign.title).face(.name).foregroundStyle(Color.ink).lineLimit(2)
-        Text(Self.nearby(sign))
-          .face(.meta).foregroundStyle(Color.ink3).lineLimit(1)
+      .accessibilityElement(children: .combine)
+      if let findWay {
+        Button(action: findWay) {
+          Label(sign.wayCount == 0 ? "Find a way" : "Find another way", systemImage: "pencil")
+            .face(.pill)
+            .foregroundStyle(Color.greenInk)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .accessibilityValue(sign.waysSoFar)
+        .accessibilityHint("Puts your math on this sign.")
       }
-      Spacer(minLength: 0)
     }
     .padding(10)
     .background(Color.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     .overlay { RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.signYellow, lineWidth: 1.5) }
-    .accessibilityElement(children: .combine)
   }
 
   /// "Right here, found by Tyler", "0.4 mi away, found by Jamie".
