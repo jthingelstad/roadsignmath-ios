@@ -151,11 +151,13 @@ final class Store {
     if !fresh, let kept = details[id] { return kept }
     let detail = try await client.sign(id)
     details[id] = detail
+    if withNewWays[detail.sign.id] != nil { withNewWays[detail.sign.id] = detail.sign }
     return detail
   }
 
-  /// Signs a way was just added to, as the server answered, for the lists
-  /// the store doesn't hold (You's and a player's timelines).
+  /// Signs a way was just added to, as the server answered (or read again
+  /// since), for the lists the store doesn't hold (You's and a player's
+  /// timelines).
   private(set) var withNewWays: [String: Sign] = [:]
 
   /// A way just added: the sign as the server now has it, everywhere it's
@@ -170,7 +172,11 @@ final class Store {
   }
 
   /// A sign from a list read before a way was added to it, as it is now.
-  func current(_ sign: Sign) -> Sign { withNewWays[sign.id] ?? sign }
+  /// A list read since, with as many ways or more, is newer and wins.
+  func current(_ sign: Sign) -> Sign {
+    guard let added = withNewWays[sign.id], added.wayCount > sign.wayCount else { return sign }
+    return added
+  }
 
   /// A sign already in hand, by id or slug, from either feed or a detail read.
   func knownSign(_ id: String) -> Sign? {
