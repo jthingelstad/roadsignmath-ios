@@ -121,7 +121,9 @@ struct MeView: View {
     ScrollView {
       VStack(spacing: 20) {
         header(me)
-        if let badges = me.badges, !badges.isEmpty { badgesRow(badges) }
+        // Shown with none earned too, so the shelves say how to earn the
+        // first; a server before 1.6.0 sends no badges at all.
+        if let badges = me.badges { badgesRow(badges) }
         switch load {
         case .loading where signs.isEmpty:
           placeholder
@@ -210,23 +212,30 @@ struct MeView: View {
         .accessibilityLabel("See all your badges")
       }
       .padding(.horizontal, 16)
-      ScrollView(.horizontal) {
-        HStack(alignment: .top, spacing: 10) {
-          ForEach(Badges.newest(badges).prefix(MeView.newestBadges), id: \.self) { earned in
-            Button {
-              badge = earned
-            } label: {
-              BadgeTile(badge: earned, new: fresh.contains(SeenBadges.key(earned)))
+      if badges.isEmpty {
+        Text("None yet. See all shows how each one is earned.")
+          .face(.body)
+          .foregroundStyle(Color.ink3)
+          .padding(.horizontal, 16)
+      } else {
+        ScrollView(.horizontal) {
+          HStack(alignment: .top, spacing: 10) {
+            ForEach(Badges.newest(badges).prefix(MeView.newestBadges), id: \.self) { earned in
+              Button {
+                badge = earned
+              } label: {
+                BadgeTile(badge: earned, new: fresh.contains(SeenBadges.key(earned)))
+              }
+              .buttonStyle(CardPress())
+              .accessibilityElement(children: .ignore)
+              .accessibilityLabel((fresh.contains(SeenBadges.key(earned)) ? "New: " : "") + earned.spoken)
+              .accessibilityAddTraits(.isButton)
             }
-            .buttonStyle(CardPress())
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel((fresh.contains(SeenBadges.key(earned)) ? "New: " : "") + earned.spoken)
-            .accessibilityAddTraits(.isButton)
           }
+          .padding(.horizontal, 16)
         }
-        .padding(.horizontal, 16)
+        .scrollIndicators(.hidden)
       }
-      .scrollIndicators(.hidden)
     }
   }
 

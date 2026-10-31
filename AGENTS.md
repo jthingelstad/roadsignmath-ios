@@ -119,7 +119,8 @@ The website and the server behind it are in
   posted first) or a grid of photos (a tap opens the sign; held or hidden
   ones only you see say why instead), a warm empty state that opens Capture, and the settings
   sheet (name, email, sign out, delete my account, and the build at
-  the bottom). Under the profile is the Badges row: the newest six earned,
+  the bottom). Under the profile is the Badges row (shown with none earned
+  too, so "See all" says how to earn the first): the newest six earned,
   a red dot on any not seen on this phone, and "See all", the shelves
   (`Views/BadgesView.swift`: five shelves, earned in color with the step,
   the day and the sign, a tap opens that sign; not earned faded with how,
