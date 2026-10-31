@@ -31,6 +31,8 @@ struct RootView: View {
     }
     .ignoresSafeArea(.keyboard, edges: .bottom)
     .background(Color.ground)
+    // Me's "Open the camera" starts Capture from its sheet.
+    .environment(flow)
     .fullScreenCover(isPresented: $flow.open) {
       CaptureScreen()
         .environment(flow)

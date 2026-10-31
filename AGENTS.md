@@ -55,7 +55,8 @@ The website and the server behind it are in
     models: the reads (latest, sign, map pins) and the account
     (`auth/start`, `auth/verify` with a code or the email's link,
     `auth/signout`, `GET`/`PATCH`/`DELETE /me`, the token as a Bearer
-    header). `SignInLink` reads the email's link, `Handle.preview` ports
+    header, which `player(_:token:)` also sends so your own page carries
+    your held and hidden signs). `SignInLink` reads the email's link, `Handle.preview` ports
     the server's handle slug so the name step can show the address a name
     makes, and `TokenStore` keeps the token: `KeychainTokenStore` (this
     device only, after first unlock, one item per server address) and
@@ -78,7 +79,16 @@ The website and the server behind it are in
   reinstalling the app signs out, since the Keychain outlives the app).
   `Views/SignInView.swift` is the sign-in screen (email, code, name,
   welcome), shown on first launch with "Look around first", and
-  `Views/MeView.swift` is You: name, email, sign out, delete my account.
+  `Views/MeView.swift` is You: your profile (signs, states, the year of
+  your first sign), your signs as Photos or Math (each way drawn by
+  `MathArt`, a tap opens the sign; held or hidden ones only you see say
+  why instead), a warm empty state that opens Capture, and the settings
+  sheet (passenger mode, name, email, sign out, delete my account, and
+  the build at the bottom). It reads `GET /me` and your own
+  `GET /players/{handle}` with your token, which carries your held and
+  hidden signs. `Preferences.swift` is what the phone remembers
+  (passenger mode, on unless turned off: a label on Capture, never a
+  lock) and `BuildInfo`, the stamped version, build and commit.
   Capture is `CaptureFlow.swift` (the shot, its reading and the checked
   list, shared by the screens after the camera), `Camera.swift`
   (AVFoundation on its own queue; the preview turns with the phone through
@@ -154,7 +164,8 @@ The website and the server behind it are in
   `-RSMMine YES` (the Map's Mine chip),
   and for sign-in `-RSMSignIn <email>` (opens sign-in and sends the
   email), `-RSMCode <digits>`, `-RSMName <name>` (`-RSMNameSave YES`
-  saves it) and `-RSMMe YES` (opens You). Capture's: `-RSMCapture camera`
+  saves it) and `-RSMMe YES` (opens You; `-RSMLook math` shows the Math
+  list, `-RSMSettings YES` opens its settings). Capture's: `-RSMCapture camera`
   opens the camera, `-RSMCapture sample` shoots the sample sign and
   `-RSMCapture <file>` takes a file on this Mac as if picked from the
   library (the simulator reads Mac paths); then `-RSMCheck YES` (Check the

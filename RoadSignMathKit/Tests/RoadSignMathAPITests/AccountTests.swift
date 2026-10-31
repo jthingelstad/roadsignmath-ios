@@ -71,6 +71,19 @@ import Testing
     #expect(stub.requests[1].body == ["name": "Zoë"])
   }
 
+  @Test func readsYourSignsWithYourToken() async throws {
+    let stub = Stub(status: 200, body: String(decoding: try fixture("player"), as: UTF8.self))
+    let player = try await stub.client.player("zoe-quinn", token: "rsm_x")
+    _ = try await stub.client.player("zoe-quinn")
+    #expect(stub.requests.map(\.path) == ["/api/v1/players/zoe-quinn", "/api/v1/players/zoe-quinn"])
+    #expect(stub.requests.map(\.authorization) == ["Bearer rsm_x", nil])
+    let signs = try #require(player.signs)
+    #expect(signs.map(\.visibility) == [.shown, .held])
+    #expect(signs[0].firstWay != nil)
+    #expect(signs[1].firstWay == nil)
+    #expect(signs[1].moderationNote == "Held for a second look.")
+  }
+
   @Test func deletesAndSignsOutWithNoBody() async throws {
     let stub = Stub(status: 204, body: "")
     try await stub.client.deleteMe(token: "rsm_x")

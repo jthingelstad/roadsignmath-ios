@@ -47,6 +47,7 @@ private struct CameraView: View {
   @State private var camera = Camera()
   @State private var picked: PhotosPickerItem?
   @State private var aboutPassenger = false
+  @AppStorage(Preferences.passengerMode) private var passengerMode = true
   @State private var shooting = false
   @State private var blink = false
   @State private var pinchFrom: Double?
@@ -209,7 +210,7 @@ private struct CameraView: View {
             RoundButton(symbol: "xmark", label: "Close the camera") { flow.close() }
             Spacer()
           }
-          PassengerLabel(open: $aboutPassenger)
+          if passengerMode { PassengerLabel(open: $aboutPassenger) }
         }
         Spacer()
       }

@@ -1,12 +1,386 @@
 import RoadSignMathAPI
 import SwiftUI
 
-/// You, the beginnings of the boards' Me screen: your name and page, your
-/// email (only you see it), sign out, and Delete my account. Your signs,
-/// passenger mode and the rest come with the full Me screen.
+/// The boards' Me: you, your signs and where they took you, then your
+/// signs as photos or as their math. A tap opens a sign; the gear opens
+/// settings (passenger mode, your name and email, sign out, Delete my
+/// account, and the build).
 struct MeView: View {
+  enum Look: Hashable { case photos, math }
+
+  enum Load: Equatable {
+    case loading, loaded
+    case failed(String)
+  }
+
+  @Environment(Account.self) private var account
+  @Environment(CaptureFlow.self) private var flow
+  @Environment(\.dismiss) private var dismiss
+  @Environment(\.dynamicTypeSize) private var typeSize
+  @State private var look = Look.photos
+  @State private var signs: [Sign] = []
+  @State private var load = Load.loading
+  @State private var showingSettings = Script.flag("RSMSettings")
+  @State private var path: [String] = []
+  /// A held or hidden sign tapped: only you see it, so it has no page yet.
+  @State private var onlyYours: Sign?
+
+  var body: some View {
+    NavigationStack(path: $path) {
+      Group {
+        if let me = account.me {
+          page(me)
+        } else {
+          ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+      }
+      .background(Color.ground)
+      .navigationTitle("You")
+      .navigationBarTitleDisplayMode(.inline)
+      .toolbarBackground(Color.ground, for: .navigationBar)
+      .toolbar {
+        ToolbarItem(placement: .topBarLeading) {
+          Button {
+            showingSettings = true
+          } label: {
+            Image(systemName: "gearshape")
+          }
+          .accessibilityLabel("Settings")
+        }
+        ToolbarItem(placement: .confirmationAction) {
+          Button("Done") { dismiss() }.face(.action)
+        }
+      }
+      .navigationDestination(for: String.self) { id in SignView(id: id) }
+      .sheet(isPresented: $showingSettings) { SettingsView() }
+      .alert(
+        "Only you can see this one", isPresented: Binding(get: { onlyYours != nil }, set: { if !$0 { onlyYours = nil } }),
+        presenting: onlyYours
+      ) { _ in
+        Button("OK", role: .cancel) {}
+      } message: { sign in
+        Text(sign.moderationNote ?? "It isn’t on the feed or the map.")
+      }
+    }
+    .tint(.greenInk)
+    .task {
+      // Opened while signed out (the token ended a moment ago): nothing to show.
+      guard account.signedIn else { return dismiss() }
+      await reload()
+    }
+    .onChange(of: account.signedIn) { _, now in if !now { dismiss() } }
+    .sensoryFeedback(.selection, trigger: look)
+  }
+
+  private func reload() async {
+    async let fresh: Void = account.refresh()
+    do {
+      let mine = try await account.mySigns()
+      withAnimation(.smooth) {
+        signs = mine
+        load = .loaded
+      }
+    } catch {
+      if account.signedIn, signs.isEmpty { load = .failed(Account.say(error)) }
+    }
+    await fresh
+    #if DEBUG
+      if Script.value("RSMLook") == "math" { look = .math }
+    #endif
+  }
+
+  // MARK: The page
+
+  private func page(_ me: Me) -> some View {
+    ScrollView {
+      VStack(spacing: 20) {
+        header(me)
+        switch load {
+        case .loading where signs.isEmpty:
+          placeholder
+        case .failed(let why):
+          Notice(symbol: "wifi.exclamationmark", title: "Your signs didn’t load", message: why,
+                 action: ("Try again", { load = .loading; Task { await reload() } }))
+        default:
+          if signs.isEmpty {
+            firstSign
+          } else {
+            looks
+            switch look {
+            case .photos: grid
+            case .math: mathList
+            }
+          }
+        }
+      }
+      .padding(.top, 8)
+      .padding(.bottom, 32)
+    }
+    .refreshable { await reload() }
+  }
+
+  private func header(_ me: Me) -> some View {
+    VStack(spacing: 14) {
+      VStack(spacing: 8) {
+        Avatar(name: me.name, color: Color(hex: me.avatarColor) ?? .signGreen, size: 84)
+        Text(me.shownName)
+          .face(.title)
+          .foregroundStyle(me.name.isEmpty ? Color.ink3 : Color.ink)
+          .multilineTextAlignment(.center)
+          .accessibilityAddTraits(.isHeader)
+        if !me.name.isEmpty {
+          Text(Self.address(me.url))
+            .face(.meta)
+            .foregroundStyle(Color.ink3)
+            .accessibilityLabel("Your page: \(Self.address(me.url))")
+        }
+      }
+      HStack(spacing: 10) {
+        Stat(value: "\(me.signCount)", label: me.signCount == 1 ? "sign" : "signs")
+        Stat(value: "\(me.states.count)", label: me.states.count == 1 ? "state" : "states")
+        Stat(value: me.firstYear.map(String.init) ?? "–", label: "first sign")
+          .accessibilityLabel(me.firstYear.map { "First sign in \($0)" } ?? "No first sign yet")
+      }
+      .padding(.horizontal, 16)
+      if !me.states.isEmpty {
+        FlowLayout(spacing: 6) {
+          ForEach(me.states, id: \.self) { state in
+            Text(state)
+              .face(.pill)
+              .foregroundStyle(Color.greenInk)
+              .padding(.horizontal, 10)
+              .frame(minHeight: 28)
+              .background(Color.wayGround, in: Capsule())
+          }
+        }
+        .padding(.horizontal, 16)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("States: " + me.states.joined(separator: ", "))
+      }
+    }
+    .frame(maxWidth: .infinity)
+  }
+
+  /// Photos or Math, as the boards draw the switch.
+  private var looks: some View {
+    HStack(spacing: 8) {
+      Pill(label: "Photos", chosen: look == .photos) { withAnimation(.snappy) { look = .photos } }
+      Pill(label: "Math", chosen: look == .math) { withAnimation(.snappy) { look = .math } }
+      Spacer()
+    }
+    .padding(.horizontal, 16)
+    .accessibilityElement(children: .contain)
+    .accessibilityLabel("Show your signs as")
+  }
+
+  private var grid: some View {
+    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 3), spacing: 3) {
+      ForEach(signs) { sign in
+        Button { open(sign) } label: {
+          Color.photoGround
+            .aspectRatio(1, contentMode: .fit)
+            .overlay {
+              if let photo = sign.photos.first {
+                PhotoView(url: photo.thumbUrl, alt: photo.alt, pixels: 480)
+              }
+            }
+            .clipped()
+            .overlay(alignment: .topLeading) { OnlyYou(sign: sign) }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(CardPress())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Self.spoken(sign))
+        .accessibilityAddTraits(.isButton)
+      }
+    }
+    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    .padding(.horizontal, 16)
+    .transition(.opacity)
+  }
+
+  private var mathList: some View {
+    LazyVStack(spacing: 10) {
+      ForEach(signs) { sign in
+        Button { open(sign) } label: {
+          VStack(alignment: .leading, spacing: 8) {
+            if let way = sign.firstWay {
+              SignPlate(text: way.text, tex: way.tex, size: 19)
+            } else {
+              Text("Not solved yet")
+                .face(.bodyBold)
+                .foregroundStyle(Color.ink3)
+                .frame(maxWidth: .infinity, minHeight: 50)
+                .overlay {
+                  RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(Color.ruleStrong, style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
+                }
+            }
+            // At the largest sizes the date goes under the place, so
+            // neither is cut short.
+            if typeSize.isAccessibilitySize {
+              VStack(alignment: .leading, spacing: 1) {
+                Text(sign.title).face(.name).foregroundStyle(Color.ink)
+                Text(sign.place.label).face(.meta).foregroundStyle(Color.ink3)
+                HStack(spacing: 8) {
+                  Text(sign.foundShort).face(.meta).foregroundStyle(Color.ink3)
+                  OnlyYou(sign: sign, inline: true)
+                }
+              }
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .padding(.horizontal, 4)
+            } else {
+              HStack(alignment: .firstTextBaseline, spacing: 8) {
+                VStack(alignment: .leading, spacing: 1) {
+                  Text(sign.title).face(.name).foregroundStyle(Color.ink).lineLimit(2)
+                  Text(sign.place.label).face(.meta).foregroundStyle(Color.ink3).lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                OnlyYou(sign: sign, inline: true)
+                Text(sign.foundShort).face(.meta).foregroundStyle(Color.ink3).fixedSize()
+              }
+              .padding(.horizontal, 4)
+            }
+          }
+          .padding(12)
+          .background(Color.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+          .overlay { RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Color.rule, lineWidth: 1) }
+          .contentShape(Rectangle())
+        }
+        .buttonStyle(CardPress())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Self.spoken(sign, math: true))
+        .accessibilityAddTraits(.isButton)
+      }
+    }
+    .padding(.horizontal, 16)
+    .transition(.opacity)
+  }
+
+  /// No signs yet: where the first one comes from.
+  private var firstSign: some View {
+    VStack(spacing: 14) {
+      SignPlate(text: "you + a sign = ?", tex: nil, size: 22, large: true)
+        .frame(maxWidth: 260)
+        .rotationEffect(.degrees(-2))
+        .accessibilityHidden(true)
+      Text("Your first sign is out there")
+        .face(.section)
+        .foregroundStyle(Color.ink)
+        .accessibilityAddTraits(.isHeader)
+      Text("Next time you’re the passenger, watch for a sign whose numbers can make a true equation. Snap it, and it lands here.")
+        .face(.body)
+        .foregroundStyle(Color.ink2)
+        .multilineTextAlignment(.center)
+        .fixedSize(horizontal: false, vertical: true)
+      Button {
+        dismiss()
+        Task {
+          // Let the sheet go before Capture covers the screen.
+          try? await Task.sleep(for: .milliseconds(450))
+          flow.begin()
+        }
+      } label: {
+        Label("Open the camera", systemImage: "camera.fill")
+          .face(.button)
+          .foregroundStyle(.white)
+          .padding(.horizontal, 22)
+          .frame(minHeight: 50)
+          .background(Color.signGreen, in: Capsule())
+      }
+      .buttonStyle(CardPress())
+      .padding(.top, 4)
+    }
+    .padding(24)
+    .frame(maxWidth: .infinity)
+    .background(Color.card, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    .overlay { RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(Color.rule, lineWidth: 1) }
+    .padding(.horizontal, 16)
+  }
+
+  private var placeholder: some View {
+    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 3), spacing: 3) {
+      ForEach(0..<6, id: \.self) { _ in Color.photoGround.aspectRatio(1, contentMode: .fit) }
+    }
+    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    .padding(.horizontal, 16)
+    .modifier(Shimmer())
+    .accessibilityLabel("Loading your signs")
+  }
+
+  private func open(_ sign: Sign) {
+    if sign.visibility == .shown { path.append(sign.id) } else { onlyYours = sign }
+  }
+
+  static func spoken(_ sign: Sign, math: Bool = false) -> String {
+    var words = sign.title + ", " + sign.place.label
+    if math { words += ". " + (sign.firstWay?.text ?? "Not solved yet") }
+    if sign.visibility != .shown { words += ". Only you can see it" }
+    return words
+  }
+
+  /// "roadsignmath.xyz/players/jamie"
+  static func address(_ url: URL) -> String {
+    (url.host() ?? "") + (url.port.map { ":\($0)" } ?? "") + url.path()
+  }
+
+  /// What deleting takes with it, in this player's numbers.
+  static func deleteWords(_ me: Me) -> String {
+    let signs: String
+    switch me.signCount {
+    case 0: signs = "the ways you found"
+    case 1: signs = "the sign you posted (with every way found on it), the ways you found on other signs"
+    default: signs = "the \(me.signCount) signs you posted (with every way found on them), the ways you found on other signs"
+    }
+    return "This deletes your account and everything it made: \(signs), your name on signs other people posted, and your email. It can’t be undone."
+  }
+}
+
+/// One of the three numbers under your name.
+private struct Stat: View {
+  let value: String
+  let label: String
+
+  var body: some View {
+    VStack(spacing: 2) {
+      Text(value)
+        .font(Face.number.font(size: 24))
+        .foregroundStyle(Color.ink)
+        .contentTransition(.numericText())
+        .animation(.snappy, value: value)
+      Text(label).face(.meta).foregroundStyle(Color.ink3)
+    }
+    .frame(maxWidth: .infinity, minHeight: 68)
+    .background(Color.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    .overlay { RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.rule, lineWidth: 1) }
+    .accessibilityElement(children: .combine)
+  }
+}
+
+/// A held or hidden sign's mark: only you see it.
+private struct OnlyYou: View {
+  let sign: Sign
+  var inline = false
+
+  var body: some View {
+    if sign.visibility != .shown {
+      Image(systemName: "eye.slash.fill")
+        .font(.system(size: 11, weight: .bold))
+        .foregroundStyle(inline ? Color.ink3 : .white)
+        .padding(inline ? 0 : 6)
+        .background(inline ? .clear : .black.opacity(0.6), in: Circle())
+        .padding(inline ? 0 : 6)
+        .accessibilityHidden(true)
+    }
+  }
+}
+
+/// Me's settings: passenger mode, your name and email, sign out, Delete my
+/// account, and the build this is.
+private struct SettingsView: View {
   @Environment(Account.self) private var account
   @Environment(\.dismiss) private var dismiss
+  @AppStorage(Preferences.passengerMode) private var passengerMode = true
   @State private var renaming = false
   @State private var confirmSignOut = false
   @State private var confirmDelete = false
@@ -16,14 +390,10 @@ struct MeView: View {
   var body: some View {
     NavigationStack {
       Group {
-        if let me = account.me {
-          list(me)
-        } else {
-          ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
+        if let me = account.me { list(me) } else { ProgressView() }
       }
       .background(Color.ground)
-      .navigationTitle("You")
+      .navigationTitle("Settings")
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
         ToolbarItem(placement: .confirmationAction) {
@@ -35,20 +405,24 @@ struct MeView: View {
           .presentationDetents([.medium, .large])
       }
     }
-    .task {
-      // Opened while signed out (the token ended a moment ago): nothing to show.
-      guard account.signedIn else { return dismiss() }
-      await account.refresh()
-    }
+    .tint(.greenInk)
     .onChange(of: account.signedIn) { _, now in if !now { dismiss() } }
   }
 
   private func list(_ me: Me) -> some View {
     List {
       Section {
-        header(me)
-          .listRowBackground(Color.clear)
-          .listRowInsets(EdgeInsets())
+        Toggle(isOn: $passengerMode) {
+          Label {
+            Text("Passenger mode").face(.bodyBold).foregroundStyle(Color.ink)
+          } icon: {
+            Image(systemName: "steeringwheel").foregroundStyle(Color.greenInk)
+          }
+        }
+        .tint(.signGreen)
+      } footer: {
+        Text("Shows “Passenger mode” on the camera: a reminder that Road Sign Math is for the passenger seat. It never stops you taking a photo.")
+          .face(.meta)
       }
       Section {
         Button {
@@ -88,51 +462,26 @@ struct MeView: View {
           Button("Delete my account", role: .destructive, action: delete)
           Button("Keep it", role: .cancel) {}
         } message: {
-          Text(Self.deleteWords(me))
+          Text(MeView.deleteWords(me))
         }
       } footer: {
-        if let problem {
-          ProblemLine(text: problem)
-        } else {
-          Text("Deletes your account and everything you posted. It can’t be undone.").face(.meta)
+        VStack(alignment: .leading, spacing: 18) {
+          if let problem {
+            ProblemLine(text: problem)
+          } else {
+            Text("Deletes your account and everything you posted. It can’t be undone.").face(.meta)
+          }
+          // The build, for a tester to name when something's off.
+          Text(BuildInfo.line)
+            .face(.meta)
+            .foregroundStyle(Color.ink3)
+            .textSelection(.enabled)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityLabel("Version \(BuildInfo.version), build \(BuildInfo.build)")
         }
       }
     }
     .scrollContentBackground(.hidden)
-    .tint(.greenInk)
-  }
-
-  private func header(_ me: Me) -> some View {
-    VStack(spacing: 10) {
-      Avatar(name: me.name, color: Color(hex: me.avatarColor) ?? .signGreen, size: 76)
-      Text(me.shownName)
-        .face(.title)
-        .foregroundStyle(me.name.isEmpty ? Color.ink3 : Color.ink)
-        .accessibilityAddTraits(.isHeader)
-      if !me.name.isEmpty {
-        Text(Self.address(me.url))
-          .face(.meta)
-          .foregroundStyle(Color.ink3)
-          .accessibilityLabel("Your page: \(Self.address(me.url))")
-      }
-      HStack(spacing: 28) {
-        stat("\(me.signCount)", me.signCount == 1 ? "sign" : "signs")
-        stat("\(me.states.count)", me.states.count == 1 ? "state" : "states")
-        stat(me.firstYear.map(String.init) ?? "–", "first sign")
-          .accessibilityLabel(me.firstYear.map { "First sign in \($0)" } ?? "No first sign yet")
-      }
-      .padding(.top, 4)
-    }
-    .frame(maxWidth: .infinity)
-    .padding(.vertical, 12)
-  }
-
-  private func stat(_ value: String, _ label: String) -> some View {
-    VStack(spacing: 0) {
-      Text(value).face(.number).foregroundStyle(Color.ink)
-      Text(label).face(.meta).foregroundStyle(Color.ink3)
-    }
-    .accessibilityElement(children: .combine)
   }
 
   private func row(_ label: String, _ value: String, chevron: Bool = false, nudge: Bool = false) -> some View {
@@ -153,22 +502,6 @@ struct MeView: View {
     }
     .frame(minHeight: 32)
     .accessibilityElement(children: .combine)
-  }
-
-  /// "roadsignmath.xyz/players/jamie"
-  static func address(_ url: URL) -> String {
-    (url.host() ?? "") + (url.port.map { ":\($0)" } ?? "") + url.path()
-  }
-
-  /// What deleting takes with it, in this player's numbers.
-  static func deleteWords(_ me: Me) -> String {
-    let signs: String
-    switch me.signCount {
-    case 0: signs = "the ways you found"
-    case 1: signs = "the sign you posted (with every way found on it), the ways you found on other signs"
-    default: signs = "the \(me.signCount) signs you posted (with every way found on them), the ways you found on other signs"
-    }
-    return "This deletes your account and everything it made: \(signs), your name on signs other people posted, and your email. It can’t be undone."
   }
 
   private func delete() {

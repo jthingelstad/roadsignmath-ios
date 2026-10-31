@@ -212,6 +212,18 @@ final class Account {
     if let me = try? await authorized({ try await client.me(token: $0) }) { remember(me) }
   }
 
+  /// Your signs, newest first: the ones you found, and the ones only you
+  /// see (held or hidden), since the read carries your token.
+  func mySigns() async throws -> [Sign] {
+    guard let handle = me?.handle else { return [] }
+    do {
+      return try await authorized { try await client.player(handle, token: $0) }.signs ?? []
+    } catch let error as APIError where error.status == 404 {
+      // A player the server doesn't list yet has no signs to show.
+      return []
+    }
+  }
+
   /// Signs out here at once, then tells the server to end that token, so
   /// a slow answer can't sign out whoever signs in next.
   func signOut() async {
