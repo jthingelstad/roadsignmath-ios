@@ -227,9 +227,13 @@ The website and the server behind it are in
   screen in the site's analytics each time it comes into view, as a page
   load would: a sign page (`/signs/<slug>`), a player's (`/players/<handle>`),
   You (`/you`) and Capture (`/capture`); `RootView` counts Home (`/`) and
-  the Map (`/map`) when chosen or come back to. `Store.views` sends them,
-  with nothing about who looked, and the app sends any waiting as it goes
-  to the background. Counts are never per person.
+  the Map (`/map`) when chosen or come back to. Home and the Map stay
+  mounted side by side, so `tabShown` (environment) tells a page kept on
+  a hidden tab when its tab is back, and it counts again. `Store.views`
+  sends them, with nothing about who looked, and the app sends any
+  waiting as it goes to the background (`BackgroundSend`: if the
+  system's few seconds run out first, the send is cancelled and they
+  wait for the next batch). Counts are never per person.
   `Views/SignInToPost.swift` is the "Sign in to post" alert
   and sign-in sheet that Check, Solve and "Find another way" share
   (`signInFirst` asks the same in its own words, for hearts). The app stands upright except Capture, which

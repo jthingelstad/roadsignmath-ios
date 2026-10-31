@@ -42,11 +42,8 @@ struct RoadSignMathApp: App {
           // Views still waiting go before the app sleeps, given the few
           // seconds the system allows to send them.
           if now == .background {
-            let asked = UIApplication.shared.beginBackgroundTask(withName: "Screen views")
-            Task {
-              await store.views.sendNow()
-              UIApplication.shared.endBackgroundTask(asked)
-            }
+            let store = store
+            BackgroundSend().start { await store.views.sendNow() }
           }
         }
     }
@@ -58,5 +55,32 @@ struct RoadSignMathApp: App {
     } else {
       store.open(url)
     }
+  }
+}
+
+/// Work given the few seconds the system allows after the app goes to the
+/// background. When they run out first, the work is cancelled (views not
+/// sent wait for the next batch) and the time is handed back, once, so
+/// the system suspends the app instead of ending it.
+@MainActor
+private final class BackgroundSend {
+  private var asked = UIBackgroundTaskIdentifier.invalid
+  private var work: Task<Void, Never>?
+
+  func start(_ job: @escaping @MainActor () async -> Void) {
+    asked = UIApplication.shared.beginBackgroundTask(withName: "Screen views") { [self] in
+      work?.cancel()
+      end()
+    }
+    work = Task { [self] in
+      await job()
+      end()
+    }
+  }
+
+  private func end() {
+    guard asked != .invalid else { return }
+    UIApplication.shared.endBackgroundTask(asked)
+    asked = .invalid
   }
 }

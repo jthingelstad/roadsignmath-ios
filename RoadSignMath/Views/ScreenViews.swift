@@ -8,8 +8,16 @@ extension View {
   func countsView(_ path: String?) -> some View { modifier(CountsView(path: path)) }
 }
 
+extension EnvironmentValues {
+  /// Whether this screen's tab is the one showing. Home and the Map stay
+  /// mounted side by side, so a page kept on a hidden tab never
+  /// disappears; this tells it when it's back in view.
+  @Entry var tabShown = true
+}
+
 private struct CountsView: ViewModifier {
   @Environment(Store.self) private var store
+  @Environment(\.tabShown) private var tabShown
   let path: String?
   @State private var showing = false
   @State private var counted = false
@@ -23,10 +31,16 @@ private struct CountsView: ViewModifier {
       }
       .onDisappear { showing = false }
       .onChange(of: path) { count() }
+      .onChange(of: tabShown) { _, now in
+        if now {
+          counted = false
+          count()
+        }
+      }
   }
 
   private func count() {
-    guard showing, !counted, let path else { return }
+    guard showing, tabShown, !counted, let path else { return }
     counted = true
     store.saw(path)
   }

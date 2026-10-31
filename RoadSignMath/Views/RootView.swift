@@ -21,10 +21,12 @@ struct RootView: View {
         .opacity(store.tab == .home ? 1 : 0)
         .allowsHitTesting(store.tab == .home)
         .accessibilityHidden(store.tab != .home)
+        .environment(\.tabShown, store.tab == .home)
       MapScreen()
         .opacity(store.tab == .map ? 1 : 0)
         .allowsHitTesting(store.tab == .map)
         .accessibilityHidden(store.tab != .map)
+        .environment(\.tabShown, store.tab == .map)
       }
       // Below the screens, not over them, so nothing hides behind it; the
       // raised Capture button still rises over their bottom edge.
