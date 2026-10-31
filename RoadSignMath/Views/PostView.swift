@@ -409,7 +409,10 @@ struct PostView: View {
         title: trimmedTitle, numbers: PostParts.numbers(flow.numbers.kept), place: where_, foundOn: day(foundOn),
         finders: PostParts.finders(poster: handle, spotters: spotters, players: Set(store.players.keys)),
         way: flow.way)
-      let id = try outbox.add(post, photo: photo, picture: shot.picture, handle: handle)
+      guard let id = try? outbox.add(post, photo: photo, picture: shot.picture, handle: handle) else {
+        problem = "Your phone couldn’t keep this post to send. Free up some space, then try again."
+        return
+      }
       flow.path.append(.posted(id))
     } catch {
       problem = Account.say(error)

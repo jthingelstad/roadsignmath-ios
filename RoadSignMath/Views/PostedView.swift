@@ -232,9 +232,13 @@ struct PostedView: View {
 
   private var numbers: [String] { item.map { Array($0.post.numbers.prefix(10).map(\.value)) } ?? [] }
 
+  /// "Posted!" seen: Home needn't say it again, so the outbox lets it go
+  /// (the screen keeps its copy).
   private func celebrate() {
     guard !burst else { return }
     burst = true
+    last = outbox.item(id) ?? last
+    outbox.acknowledge(id)
   }
 
   // MARK: Leaving

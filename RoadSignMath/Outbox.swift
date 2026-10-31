@@ -65,14 +65,22 @@ final class Outbox {
 
   // MARK: Posting
 
-  /// Puts a post in the outbox and starts sending it. Throws only when the
-  /// photo can't be kept on the phone.
+  /// Puts a post in the outbox and starts sending it. Throws, leaving the
+  /// outbox as it was, when the post can't be kept on the phone (its photo
+  /// or the list), since the screens after promise it's kept.
   func add(_ post: SignPost, photo: Data, picture: UIImage?, handle: String) throws -> UUID {
     let item = OutboxItem(handle: handle, post: post)
-    if let folder { try folder.savePhoto(photo, for: item.id) }
+    if let folder {
+      try folder.savePhoto(photo, for: item.id)
+      do {
+        try folder.save(items + [item])
+      } catch {
+        folder.removePhoto(item.id)
+        throw error
+      }
+    }
     pictures[item.id] = picture
     items.append(item)
-    save()
     kick()
     return item.id
   }
