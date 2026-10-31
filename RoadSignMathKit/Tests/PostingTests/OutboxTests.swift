@@ -148,6 +148,52 @@ import Testing
     guard case .refused = sent.state else { Issue.record("not refused"); return }
   }
 
+  @Test func anUnansweredPostIsNotSentAgainOnceItsKeyLapses() async throws {
+    let fake = Fake()
+    fake.failPosts([URLError(.timedOut)])
+    let first = await Delivery.attempt(item, photo: Data([1]), sender: fake.sender, now: { [start] in start })
+    #expect(first.unsureSince == start)
+    #expect(first.isWaiting)
+
+    // Within the key's day the same key goes again: the server answers with the sign it made.
+    let soon = start.addingTimeInterval(3600)
+    let again = await Delivery.attempt(first, photo: Data([1]), sender: fake.sender, now: { soon })
+    #expect(again.posted != nil)
+
+    // Past it, the post stops and says why, without posting.
+    let late = start.addingTimeInterval(Delivery.keyFresh + 60)
+    let stopped = await Delivery.attempt(first, photo: Data([1]), sender: fake.sender, now: { late })
+    #expect(stopped.state == .refused(Delivery.unsure))
+    #expect(fake.posts.count == 2)
+  }
+
+  @Test func aTakenPhotoAfterAnUnansweredPostIsNotUploadedAgain() async throws {
+    let fake = Fake()
+    fake.failPosts([
+      URLError(.networkConnectionLost),
+      APIError(status: 409, code: "conflict", message: "Photo 01up1 is already in another post"),
+    ])
+    let first = await Delivery.attempt(item, photo: Data([1]), sender: fake.sender, now: { [start] in start })
+    let second = await Delivery.attempt(first, photo: Data([1]), sender: fake.sender, now: { [start] in start })
+    #expect(second.state == .refused(Delivery.unsure))
+    #expect(fake.uploads.count == 1)
+  }
+
+  @Test func onlyAPostThatMayHaveGoneIsUnsure() async throws {
+    #expect(Delivery.Outcome.unanswered(URLError(.timedOut)))
+    #expect(Delivery.Outcome.unanswered(APIError(status: 504, code: "http_504", message: "Gateway Timeout")))
+    #expect(Delivery.Outcome.unanswered(DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "cut off"))))
+    #expect(!Delivery.Outcome.unanswered(URLError(.notConnectedToInternet)))
+    #expect(!Delivery.Outcome.unanswered(APIError(status: 503, code: "unavailable", message: "Our moderator couldn’t look just now.")))
+    #expect(!Delivery.Outcome.unanswered(APIError(status: 400, code: "bad_request", message: "no")))
+
+    // Offline for days never stops a post: it never left the phone.
+    let fake = Fake()
+    fake.failPosts([URLError(.notConnectedToInternet)])
+    let first = await Delivery.attempt(item, photo: Data([1]), sender: fake.sender, now: { [start] in start })
+    #expect(first.unsureSince == nil)
+  }
+
   @Test func theFolderKeepsPostsAndPhotos() throws {
     let url = FileManager.default.temporaryDirectory.appendingPathComponent("outbox-\(UUID().uuidString)")
     defer { try? FileManager.default.removeItem(at: url) }

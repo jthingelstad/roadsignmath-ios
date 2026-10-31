@@ -102,6 +102,9 @@ final class Outbox {
   /// Try a refused or waiting post again, now.
   func retry(_ id: UUID) {
     guard let index = items.firstIndex(where: { $0.id == id }), items[index].posted == nil else { return }
+    // The player's own call: after "This one may have posted already",
+    // they've looked and it isn't there.
+    items[index].unsureSince = nil
     items[index].retry()
     save()
     kick()

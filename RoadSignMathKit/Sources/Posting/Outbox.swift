@@ -35,6 +35,10 @@ public struct OutboxItem: Codable, Sendable, Hashable, Identifiable {
   public var attempts: Int
   public var nextTry: Date
   public let createdAt: Date
+  /// When a try first went to the server and no answer came back, so the
+  /// sign may have been made. The server knows the key for a day; past
+  /// that, sending again could make a second sign.
+  public var unsureSince: Date?
 
   public init(handle: String, post: SignPost, now: Date = .now, id: UUID = UUID()) {
     self.id = id
@@ -126,6 +130,14 @@ public enum Delivery {
   /// Uploads older than this are sent again: the server keeps them a day,
   /// and a post can take a while to go after its upload.
   public static let uploadFresh: TimeInterval = 20 * 3600
+  /// How long after an unanswered try the key still covers a retry: the
+  /// server remembers it a day from that try.
+  public static let keyFresh: TimeInterval = 20 * 3600
+
+  /// What the player is told when a post may have gone and it's too late
+  /// to send it again safely.
+  public static let unsure =
+    "This one may have posted already: the connection dropped as it went. Look for it on your page, and try again only if it isn’t there."
 
   /// What the player is told while a post waits for a connection.
   public static let offline = "Waiting for a connection. It’ll post on its own."
@@ -137,6 +149,11 @@ public enum Delivery {
     var item = item
     item.attempts += 1
     var uploadedNow = false
+    var sent = false
+    if let since = item.unsureSince, now().timeIntervalSince(since) > keyFresh {
+      item.state = .refused(unsure)
+      return item
+    }
     do {
       if item.uploadId == nil || item.uploadedAt.map({ now().timeIntervalSince($0) > uploadFresh }) ?? true {
         guard let photo else {
@@ -149,11 +166,13 @@ public enum Delivery {
         uploadedNow = true
       }
       item.post.photoIds = [item.uploadId!]
+      sent = true
       let detail = try await sender.post(item.post, item.key)
       let sign = PostedSign(detail.sign)
       item.state = detail.sign.visibility == .shown ? .posted(sign) : .held(sign, note: detail.sign.moderationNote)
       return item
     } catch {
+      if sent, item.unsureSince == nil, Outcome.unanswered(error) { item.unsureSince = now() }
       switch Outcome(error) {
       case .later(let problem, let wait):
         item.state = .waiting(problem: problem)
@@ -165,7 +184,11 @@ public enum Delivery {
         // fresh upload is refused the same way, say so.
         item.uploadId = nil
         item.uploadedAt = nil
-        if uploadedNow {
+        if item.unsureSince != nil {
+          // The photo's taken, most likely by this post's own sign from
+          // the try that went unanswered: don't post it twice.
+          item.state = .refused(unsure)
+        } else if uploadedNow {
           item.state = .refused(message)
         } else {
           item.state = .waiting(problem: nil)
@@ -216,6 +239,28 @@ public enum Delivery {
         // Anything else (a reply that couldn't be read) is the server's
         // trouble, not the post's: try again later.
         self = .later(busy, wait: nil)
+      }
+    }
+
+    /// The request may have reached the server and made the sign, though
+    /// no answer said so: the connection dropped or timed out after it
+    /// went, a gateway answered for the server, or the reply couldn't be
+    /// read. Not when it never left the phone, or the server itself said
+    /// no (it undoes a failed post).
+    static func unanswered(_ error: any Error) -> Bool {
+      switch error {
+      case is SignedOut:
+        return false
+      case let error as APIError:
+        return error.status == 0 || (error.status >= 500 && error.code.hasPrefix("http_"))
+      case let error as URLError:
+        let neverLeft: [URLError.Code] = [
+          .notConnectedToInternet, .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed,
+          .dataNotAllowed, .internationalRoamingOff, .callIsActive, .secureConnectionFailed, .cancelled,
+        ]
+        return !neverLeft.contains(error.code)
+      default:
+        return true
       }
     }
   }

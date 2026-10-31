@@ -76,7 +76,12 @@ The website and the server behind it are in
     same key, so a retry is one sign. No connection waits ("Waiting for a
     connection. It'll post on its own."), a busy server backs off (5 s to
     30 min), a rate limit waits an hour, a 401 waits for sign-in, any
-    other 4xx is a refusal. `OutboxFolder` keeps the queue and its photos
+    other 4xx is a refusal. A post that left the phone with no answer back
+    (a timeout, a dropped connection, a gateway error) may have made the
+    sign; the server knows its key for a day, so once 20 hours have passed,
+    or its photo turns out to be taken, it stops and says "This one may
+    have posted already" instead of posting again. The player's own Try
+    again clears that. `OutboxFolder` keeps the queue and its photos
     in Application Support (`Outbox/`, not backed up), so a post survives
     a relaunch. `PostParts` makes the upload (JPEG, upright, no metadata,
     under 4 MB), the numbers (with their text, why and box), the finders
