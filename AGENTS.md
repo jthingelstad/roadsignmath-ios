@@ -47,7 +47,12 @@ The website and the server behind it are in
     the text the checker reads, the LaTeX to draw with a box where the next
     piece goes, and a status from the checker's own answer.
     `WayDraft.tiles(onSign:)` makes the tiles from a posted sign's numbers,
-    for "Find another way".
+    for "Find another way". `Draft` and `DraftFolder` (`Drafts.swift`)
+    are Drafts: a sign saved for later, its photo as taken, its numbers
+    as checked (nil when saved before they were read, so opening it
+    reads again) and the math so far (`WayDraft` is `Codable`), a folder
+    each in Application Support (`Drafts/`, which the phone's backup
+    keeps, unlike the outbox) with a small `thumb.jpg` for the list.
   - `MathArt`: draws a way's LaTeX (the `tex` the server and `Equation`
     write) as an image with SwiftMath in Latin Modern, the look of a math
     book, and caches each picture by text, size and color so feeds scroll
@@ -210,6 +215,17 @@ The website and the server behind it are in
   comes back or the app opens, and bumps `postedCount` so Home and the
   Map read again) and `Views/OutboxNotes.swift` (Home's word about a post
   waiting, posted while you were away, held or refused).
+  Drafts, for playing later (Jamie, 2026-10-31: "I take photos of any
+  sign that looks hopeful and then I try to solve it later"): "Save for
+  later" on the camera's review (the right-hand slot) and in Check's and
+  Solve's toolbars (`.savesForLater()`) keeps the shot, its numbers and
+  the math so far, and the camera is ready for the next sign. The
+  camera's top right shows the Drafts button with a count while any are
+  kept; `Views/DraftsView.swift` lists them newest first, a tap picks one
+  up on the screen it reached (`CaptureFlow.resume`: Check, or Solve once
+  math is begun) and a swipe deletes it. `RoadSignMath/DraftShelf.swift`
+  is the list the screens watch; saving again updates the same draft, and
+  posting it (into the outbox) removes it. They never leave the phone.
   `Views/AnotherWayView.swift` is "Find another way": from a Home card or
   the sign page (the `findWay` environment, set by `.findsAnotherWay()` on
   each tab's stack), a sheet with the sign, its ways so far and Solve's
@@ -314,7 +330,9 @@ The website and the server behind it are in
   `-RSMSpot <x>,<y>` (a tap on the photo, 0 to 1 each way), `-RSMSolve YES`
   (with `-RSMWay <math>` to write the math, its numbers taken from the
   tiles) or `-RSMPost YES` (`-RSMWay` there posts the math as solved),
-  and `-RSMLandscape YES` to turn sideways. On Post it: `-RSMTitle
+  and `-RSMLandscape YES` to turn sideways. Drafts: `-RSMSaveDraft YES`
+  saves the read shot (with `-RSMWay`'s math), `-RSMDrafts YES` opens the
+  list on the camera and `-RSMDrafts open` picks up the newest. On Post it: `-RSMTitle
   <name>`, `-RSMSpotted <a,b>`, `-RSMPostName <name>`, `-RSMSayWhere YES`
   (the town search, `-RSMTown <words>` typed in it, `-RSMTownPick YES`
   picks the first), `-RSMScrollEnd YES` (to the bottom once "Posted

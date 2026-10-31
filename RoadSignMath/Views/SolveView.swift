@@ -65,6 +65,7 @@ struct SolveView: View {
     .navigationTitle("Solve it")
     .navigationBarTitleDisplayMode(.inline)
     .toolbarBackground(Color.ground, for: .navigationBar)
+    .savesForLater()
     .sensoryFeedback(.selection, trigger: taps)
     .sensoryFeedback(.success, trigger: works) { _, now in now }
     .onAppear(perform: start)
