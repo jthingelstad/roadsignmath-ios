@@ -106,15 +106,16 @@ The website and the server behind it are in
   `Views/SignInView.swift` is the sign-in screen (email, code, name,
   welcome), shown on first launch with "Look around first", and
   `Views/MeView.swift` is You: your profile (signs, states, the year of
-  your first sign), your signs as Photos or Math (each way drawn by
-  `MathArt`, a tap opens the sign; held or hidden ones only you see say
-  why instead), a warm empty state that opens Capture, and the settings
-  sheet (passenger mode, name, email, sign out, delete my account, and
-  the build at the bottom). It reads `GET /me` and your own
+  your first sign), your signs as Home's timeline (the same cards, newest
+  posted first) or a grid of photos (a tap opens the sign; held or hidden
+  ones only you see say why instead), a warm empty state that opens Capture, and the settings
+  sheet (name, email, sign out, delete my account, and the build at
+  the bottom). It reads `GET /me` and your own
   `GET /players/{handle}` with your token, which carries your held and
-  hidden signs. `Preferences.swift` is what the phone remembers
-  (passenger mode, on unless turned off: a label on Capture, never a
-  lock) and `BuildInfo`, the stamped version, build and commit.
+  hidden signs. `Preferences.swift` holds `BuildInfo`, the stamped
+  version, build and commit. Capture always shows "Passenger mode": a
+  reminder, never a lock, with no setting to hide it (Jamie, 2026-10-30:
+  "passenger mode leave on").
   Capture is `CaptureFlow.swift` (the shot, its reading and the checked
   list, shared by the screens after the camera), `Camera.swift`
   (AVFoundation on its own queue; the preview turns with the phone through
@@ -204,8 +205,8 @@ The website and the server behind it are in
   `-RSMMine YES` (the Map's Mine chip),
   and for sign-in `-RSMSignIn <email>` (opens sign-in and sends the
   email), `-RSMCode <digits>`, `-RSMName <name>` (`-RSMNameSave YES`
-  saves it) and `-RSMMe YES` (opens You; `-RSMLook math` shows the Math
-  list, `-RSMSettings YES` opens its settings). Capture's: `-RSMCapture camera`
+  saves it) and `-RSMMe YES` (opens You; `-RSMLook photos` shows the
+  grid, `-RSMSettings YES` opens its settings). Capture's: `-RSMCapture camera`
   opens the camera, `-RSMCapture sample` shoots the sample sign and
   `-RSMCapture <file>` takes a file on this Mac as if picked from the
   library (the simulator reads Mac paths); then `-RSMCheck YES` (Check the

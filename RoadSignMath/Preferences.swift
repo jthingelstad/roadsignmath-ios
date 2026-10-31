@@ -1,14 +1,5 @@
 import Foundation
 
-/// What this iPhone remembers between launches, and what it says about
-/// itself.
-enum Preferences {
-  /// Capture shows "Passenger mode" at the top: a reminder, not a lock
-  /// (Jamie: "a label and a setting, as designed, no lock"). On unless
-  /// turned off in Me's settings.
-  static let passengerMode = "passengerMode"
-}
-
 /// The build, as `scripts/version.sh` stamps it into Info.plist, for a
 /// tester to name when something's off.
 enum BuildInfo {

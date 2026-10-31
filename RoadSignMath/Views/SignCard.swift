@@ -73,27 +73,35 @@ struct SignCard: View {
         .foregroundStyle(Color.greenInk)
         .padding(.leading, 16)
       Spacer()
-      if sign.place.lat != nil {
-        Button { store.showOnMap(sign) } label: {
-          Image(systemName: "mappin.and.ellipse")
-            .font(.system(size: 19, weight: .medium))
-            .frame(width: 44, height: 44)
-            .contentShape(Rectangle())
-        }
-        .accessibilityLabel("Show \(sign.title) on the map")
+      // A held or hidden sign has no public page and no pin: nothing to show or share.
+      if sign.visibility == .shown {
+        publicActions
       }
-      ShareLink(item: sign.url, subject: Text(sign.title), message: Text(shareLine)) {
-        Image(systemName: "square.and.arrow.up")
-          .font(.system(size: 19, weight: .medium))
-          .frame(width: 44, height: 44)
-          .contentShape(Rectangle())
-      }
-      .accessibilityLabel("Share \(sign.title)")
     }
+    .frame(minHeight: 44)
     .foregroundStyle(Color.ink2)
     .buttonStyle(.plain)
     .padding(.trailing, 8)
     .padding(.top, 2)
+  }
+
+  @ViewBuilder private var publicActions: some View {
+    if sign.place.lat != nil {
+      Button { store.showOnMap(sign) } label: {
+        Image(systemName: "mappin.and.ellipse")
+          .font(.system(size: 19, weight: .medium))
+          .frame(width: 44, height: 44)
+          .contentShape(Rectangle())
+      }
+      .accessibilityLabel("Show \(sign.title) on the map")
+    }
+    ShareLink(item: sign.url, subject: Text(sign.title), message: Text(shareLine)) {
+      Image(systemName: "square.and.arrow.up")
+        .font(.system(size: 19, weight: .medium))
+        .frame(width: 44, height: 44)
+        .contentShape(Rectangle())
+    }
+    .accessibilityLabel("Share \(sign.title)")
   }
 
   private var words: some View {
