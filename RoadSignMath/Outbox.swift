@@ -215,8 +215,13 @@ final class Outbox {
       upload: { photo in try await account.call { try await client.uploadPhoto(photo, token: $0) } },
       post: { post, key in try await account.call { try await client.postSign(post, key: key, token: $0) } },
       find: { handle, photoId in
-        try await account.call { token in
-          try await client.player(handle, token: token).signs?.first { $0.photos.contains { $0.id == photoId } }
+        do {
+          return try await account.call { token in
+            try await client.player(handle, token: token).signs?.first { $0.photos.contains { $0.id == photoId } }
+          }
+        } catch let error as APIError where error.status == 404 {
+          // A player the server doesn't list yet has no signs, so no sign was made.
+          return nil
         }
       })
   }
