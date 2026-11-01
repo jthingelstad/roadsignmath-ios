@@ -111,6 +111,17 @@ struct HomeView: View {
     }
   }
 
+  private var youHaveNews: Bool { !account.newBadges.isEmpty || account.newActivity }
+
+  private var news: String {
+    switch (!account.newBadges.isEmpty, account.newActivity) {
+    case (true, true): ", a new badge and something new on your signs"
+    case (true, false): ", a new badge"
+    case (false, true): ", something new on your signs"
+    case (false, false): ""
+    }
+  }
+
   /// Your avatar, which opens Me, or a way to sign in.
   @ViewBuilder private var you: some View {
     if let me = account.me, account.signedIn {
@@ -118,13 +129,13 @@ struct HomeView: View {
         showingMe = true
       } label: {
         Avatar(name: me.name, color: Color(hex: me.avatarColor) ?? .signGreen, size: 34, photo: me.avatarThumbUrl)
-          // A badge not seen yet.
-          .overlay(alignment: .topTrailing) { if !account.newBadges.isEmpty { NewDot().offset(x: 2, y: -2) } }
+          // A badge not seen yet, or something new on your signs.
+          .overlay(alignment: .topTrailing) { if youHaveNews { NewDot().offset(x: 2, y: -2) } }
           .frame(width: 44, height: 44)
           .contentShape(Circle())
       }
       .buttonStyle(.plain)
-      .accessibilityLabel((me.name.isEmpty ? "You" : "You: \(me.name)") + (account.newBadges.isEmpty ? "" : ", a new badge"))
+      .accessibilityLabel((me.name.isEmpty ? "You" : "You: \(me.name)") + news)
     } else if account.signedIn {
       Button { showingMe = true } label: {
         Image(systemName: "person.crop.circle.fill").font(.system(size: 28)).foregroundStyle(Color.greenInk)

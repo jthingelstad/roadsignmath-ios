@@ -19,7 +19,10 @@ the signs from last time, and says when they were read), each with its photo and
 book would; a sign's own page with every way it has been solved; and a Map
 of where the signs were found. You can sign in (email, then the code or the
 link), pick the name that goes on your signs, and see yourself under You,
-where you can sign out or delete your account. A sign's ⋯ menu shares it,
+where you can sign out or delete your account. You also shows what's new on
+your signs: the ways other players found and the hearts they gave in the
+last 30 days, with a dot on your avatar while there's something you haven't
+seen. There are no notifications. A sign's ⋯ menu shares it,
 reports someone else's sign as inappropriate (the moderator looks again and
 takes it down if it agrees) or blocks whoever posted it, and deletes a sign
 of your own. Settings lists the players you blocked, takes a one-line bio for
@@ -39,7 +42,9 @@ it reads gets a yellow box. Check the numbers next: untick the ones you don't
 want, fix a misread one, and add one it missed by tapping the photo where it
 is or typing it. Then write the math, name the sign, say something about
 it if you like, and post it. Posted! takes you to your sign, shares its link
-or opens the camera for the next one.
+or opens the camera for the next one. A sign you can't solve yet can wait:
+"Save for later" keeps it in Drafts, each one known by the town the photo
+was taken in and the day, ready to pick up where you left off.
 
 `RoadSignMathKit` is a Swift package for the code that isn't a screen.
 `SignReading` reads the numbers on a photo of a sign with Apple's Vision and

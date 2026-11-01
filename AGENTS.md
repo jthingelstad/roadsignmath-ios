@@ -50,7 +50,9 @@ The website and the server behind it are in
     for "Find another way". `Draft` and `DraftFolder` (`Drafts.swift`)
     are Drafts: a sign saved for later, its photo as taken, its numbers
     as checked (nil when saved before they were read, so opening it
-    reads again) and the math so far (`WayDraft` is `Codable`), a folder
+    reads again), the math so far (`WayDraft` is `Codable`) and its
+    place, the town the photo's own GPS was taken in (nil for the
+    camera's shots, which have none), a folder
     each in Application Support (`Drafts/`, which the phone's backup
     keeps, unlike the outbox) with a small `thumb.jpg` for the list.
   - `MathArt`: draws a way's LaTeX (the `tex` the server and `Equation`
@@ -86,7 +88,13 @@ The website and the server behind it are in
     the bio (`Feedback.swift`, API 1.10.0: `sendFeedback` sends `POST
     /feedback` a message of at most 2000 characters, `reply_ok` and an
     app line of at most 120, answered 202, ten a day; `updateMe(token:bio:)`
-    sends `PATCH /me` a bio of at most 160, empty taking it away), screen views (`ScreenViews.swift`: `ViewPath`
+    sends `PATCH /me` a bio of at most 160, empty taking it away), what's
+    new on your signs (`Activity.swift`, API 1.10.0: `myActivity` reads
+    `GET /me/activity`, the ways other players found and the hearts they
+    gave on your signs in the last 30 days; `ActivityRow.rows` makes each
+    way a row and gathers a sign's hearts into one, new ones apart from
+    the ones seen, "Pat and 2 others"; `ActivityRow.when` says "2h",
+    "Yesterday", "Oct 27"; a kind it doesn't know is left out), screen views (`ScreenViews.swift`: `ViewPath`
     makes and checks a screen's path as the server's `VIEW_PATH` does,
     `countViews` sends `POST /app/views` with no token, and `ViewCounter`
     batches them, the first a few seconds after a view and then at most
@@ -207,7 +215,18 @@ The website and the server behind it are in
   `Photos.shared`, at the size shown), wherever the app draws one: the
   Home header, cards, the sign page, Post it's finders, You and player
   pages; `Store.photo(for:)` finds a finder's by handle in `/players`.
-  Under the profile is the Badges row (shown with none earned too, so "See all" says how to earn the first): the newest six earned,
+  Under the profile is "On your signs" (`Views/OnYourSigns.swift`;
+  Jamie, 2026-10-31: "Yes! This is great!"): what's new on your signs,
+  read by `Account.refresh` (each time the app opens, and after a block),
+  the newest five rows with "Show all", a way's math on its plate, hearts
+  gathered by sign, and the ones since you last looked marked new (a
+  tint, a dot and the New pill) for that visit; a tap opens the sign. It
+  isn't shown with nothing in the last 30 days. How far you've looked is
+  kept on the phone (`Account.activitySeen`, UserDefaults per server and
+  handle); the first read on a phone arrives seen, as badges do. No push
+  and no running count: while something's new, Home's You avatar
+  carries the dot new badges use, and it goes once You has shown it.
+  Under that is the Badges row (shown with none earned too, so "See all" says how to earn the first): the newest six earned,
   a red dot on any not seen on this phone, and "See all", the shelves
   (`Views/BadgesView.swift`: five shelves, earned in color with the step,
   the day and the sign, a tap opens that sign; not earned faded with how,
@@ -278,6 +297,15 @@ The website and the server behind it are in
   math is begun) and a swipe deletes it. `RoadSignMath/DraftShelf.swift`
   is the list the screens watch; saving again updates the same draft, and
   posting it (into the outbox) removes it. They never leave the phone.
+  Each row is known by where the sign was (`Draft.heading`: the town
+  from the photo's GPS, else "From your photos", "From the camera" or
+  "The sample sign") and says when and how far (`Draft.details`: "Taken
+  Sunday" or "Saved today", a library photo's own day being the day
+  taken, then the numbers so far, or "no place in the photo"), with
+  Solved, Math begun or Numbers checked beside. The town is looked up
+  once, as it's saved; the list looks up any draft from your photos
+  saved before that (`DraftShelf.findPlaces`), and tries again next
+  time if the lookup fails.
   "Snap a road sign" (`SnapIntent.swift`) is an App Intent with its App
   Shortcut, for Siri, Shortcuts, Spotlight and the Action button: it opens
   the app on the camera and nothing more (the passenger still takes the
