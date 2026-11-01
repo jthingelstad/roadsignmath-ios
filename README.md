@@ -19,7 +19,10 @@ the signs from last time, and says when they were read), each with its photo and
 book would; a sign's own page with every way it has been solved; and a Map
 of where the signs were found. You can sign in (email, then the code or the
 link), pick the name that goes on your signs, and see yourself under You,
-where you can sign out or delete your account. A sign's ⋯ menu shares it,
+where you can sign out or delete your account. You also shows what's new on
+your signs: the ways other players found and the hearts they gave in the
+last 30 days, with a dot on your avatar while there's something you haven't
+seen. There are no notifications. A sign's ⋯ menu shares it,
 reports someone else's sign as inappropriate (the moderator looks again and
 takes it down if it agrees) or blocks whoever posted it, and deletes a sign
 of your own. Settings lists the players you blocked, takes a one-line bio for

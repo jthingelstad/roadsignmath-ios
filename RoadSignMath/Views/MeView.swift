@@ -42,6 +42,10 @@ struct MeView: View {
   @State private var showing = false
   /// Deleting a sign only you see didn't work.
   @State private var problem: String?
+  /// How far "On your signs" had been looked at when You opened: what's
+  /// after it shows as new for this visit, though it counts as seen.
+  @State private var lookedUpTo: Date?
+  @State private var looked = false
   @Environment(\.accessibilityReduceMotion) private var still
 
   var body: some View {
@@ -137,7 +141,24 @@ struct MeView: View {
     #if DEBUG
       if Script.value("RSMLook") == "photos" { look = .photos }
     #endif
+    seeActivity()
     await welcomeBack()
+  }
+
+  /// "On your signs" is looked at: the dot goes, and what came since the
+  /// last look stays marked new until You closes.
+  private func seeActivity() {
+    guard showing, let activity = account.activity else { return }
+    if !looked {
+      lookedUpTo = account.activitySeen
+      looked = true
+    }
+    account.seeActivity(upTo: activity.newest)
+  }
+
+  /// A row tapped: the sign's page, or for one only you see, why.
+  private func open(_ ref: ActivityItem.SignRef) {
+    if let mine = signs.first(where: { $0.id == ref.id }) { open(mine) } else { path.append(.sign(ref.id)) }
   }
 
   /// Badges earned since you last looked (a way someone found on your
@@ -170,6 +191,10 @@ struct MeView: View {
         if !arrived.isEmpty {
           NewBadgesCard(badges: arrived, flipped: flipped)
             .padding(.horizontal, 16)
+        }
+        if let activity = account.activity {
+          let rows = ActivityRow.rows(activity.items, seen: looked ? lookedUpTo : account.activitySeen)
+          if !rows.isEmpty { OnYourSigns(rows: rows, days: activity.days, open: open) }
         }
         // Shown with none earned too, so the shelves say how to earn the
         // first; a server before 1.6.0 sends no badges at all.

@@ -53,6 +53,12 @@ final class Account {
   /// The badges you've seen on this phone, per handle, so a new one gets
   /// a dot until it's looked at. Nil until your badges are first read.
   private(set) var seenBadges: SeenBadges?
+  /// What's new on your signs (`GET /me/activity`), read with `refresh`.
+  /// Nil until read, and from a server before API 1.10.0.
+  private(set) var activity: MyActivity?
+  /// How far "On your signs" has been looked at on this phone, per
+  /// handle. Nil before the first read here, which arrives seen.
+  private(set) var activitySeen: Date?
 
   init(client: APIClient, tokens: (any TokenStore)? = nil, defaults: UserDefaults = .standard) {
     self.client = client
@@ -71,6 +77,7 @@ final class Account {
       me = try? JSONDecoder().decode(Me.self, from: saved)
     }
     loadSeenBadges()
+    loadActivitySeen()
     if let saved = defaults.data(forKey: key + ":pending"),
       let pending = try? JSONDecoder().decode(Pending.self, from: saved), pending.expires > .now
     {
@@ -185,6 +192,7 @@ final class Account {
     attempt += 1
     token = done.token
     remember(done.me)
+    Task { await readActivity() }
     setPending(nil)
     linkProblem = nil
     step = done.me.needsName ? .name : .welcome
@@ -235,7 +243,39 @@ final class Account {
   func refresh() async {
     guard signedIn else { return }
     if let me = try? await authorized({ try await client.me(token: $0) }) { remember(me) }
+    await readActivity()
   }
+
+  // MARK: On your signs
+
+  /// Something on your signs since you last looked: the dot on your avatar.
+  var newActivity: Bool { activity?.hasNew(since: activitySeen) ?? false }
+
+  /// Reads what's new on your signs. A failure keeps what was read before.
+  private func readActivity() async {
+    guard signedIn, let handle = me?.handle else { return }
+    guard let read = try? await authorized({ try await client.myActivity(token: $0) }), me?.handle == handle else { return }
+    activity = read
+    if activitySeen == nil {
+      // The first read on this phone arrives seen: no dot for what came
+      // before. With nothing yet, everything after counts as new.
+      seeActivity(upTo: read.newest ?? .distantPast)
+    }
+  }
+
+  /// Looked at on You, up to `date` (the newest shown).
+  func seeActivity(upTo date: Date?) {
+    guard let date, let handle = me?.handle, date > activitySeen ?? .distantPast else { return }
+    activitySeen = date
+    defaults.set(date.timeIntervalSince1970, forKey: activityKey(handle))
+  }
+
+  private func loadActivitySeen() {
+    guard let handle = me?.handle, defaults.object(forKey: activityKey(handle)) != nil else { activitySeen = nil; return }
+    activitySeen = Date(timeIntervalSince1970: defaults.double(forKey: activityKey(handle)))
+  }
+
+  private func activityKey(_ handle: String) -> String { key + ":activitySeen:" + handle }
 
   /// Your signs, newest first: the ones you found, and the ones only you
   /// see (held or hidden), since the read carries your token.
@@ -316,12 +356,16 @@ final class Account {
   /// The longest note a report takes after "Inappropriate: ".
   static let reportNoteMax = APIClient.reportMax - "Inappropriate: ".count
 
+  /// Blocks a player; reads what's new on your signs again, which leaves
+  /// them out.
   func block(_ handle: String) async throws {
     try await authorized { try await client.block(handle, token: $0) }
+    Task { await readActivity() }
   }
 
   func unblock(_ handle: String) async throws {
     try await authorized { try await client.unblock(handle, token: $0) }
+    Task { await readActivity() }
   }
 
   func blockedPlayers() async throws -> [BlockedPlayer] {
@@ -379,9 +423,14 @@ final class Account {
   }
 
   private func remember(_ me: Me) {
+    let someoneElse = self.me?.handle != me.handle
     self.me = me
     defaults.set(try? JSONEncoder().encode(me), forKey: key + ":me")
     loadSeenBadges()
+    if someoneElse {
+      activity = nil
+      loadActivitySeen()
+    }
   }
 
   // MARK: Badges seen
@@ -428,6 +477,8 @@ final class Account {
     me = nil
     defaults.removeObject(forKey: key + ":me")
     seenBadges = nil
+    activity = nil
+    activitySeen = nil
   }
 
   private func setPending(_ pending: Pending?) {

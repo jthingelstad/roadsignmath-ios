@@ -68,11 +68,19 @@ struct MathLine: View {
 
   /// The text as VoiceOver should say it: "√(5 − 1) = 2" reads as
   /// "square root of (5 minus 1) equals 2".
-  private var spoken: String {
+  private var spoken: String { Self.spoken(text) }
+
+  /// Math as VoiceOver should say it, as typed ("5-1") or as shown ("5 − 1").
+  static func spoken(_ text: String) -> String {
     text.replacingOccurrences(of: "√", with: " square root of ")
+      .replacingOccurrences(of: "sqrt", with: " square root of ")
       .replacingOccurrences(of: "−", with: " minus ")
+      .replacingOccurrences(of: "-", with: " minus ")
       .replacingOccurrences(of: "×", with: " times ")
+      .replacingOccurrences(of: "*", with: " times ")
       .replacingOccurrences(of: "÷", with: " divided by ")
+      .replacingOccurrences(of: "/", with: " divided by ")
+      .replacingOccurrences(of: "=", with: " equals ")
       .replacingOccurrences(of: "^", with: " to the power of ")
       .replacingOccurrences(of: "!", with: " factorial ")
       .split(separator: " ").joined(separator: " ")
