@@ -341,7 +341,8 @@ struct NoSignalBar: View {
   }
 }
 
-/// The app's name in the bar, with its sign.
+/// The app's name in the bar, with its sign: Highway, the brand, whichever
+/// icon the Home Screen shows.
 struct Brand: View {
   var body: some View {
     HStack(spacing: 8) {

@@ -58,6 +58,12 @@ already in your library.
 - [ ] Turn on airplane mode, post a sign, turn it off: it goes when the
       phone is back online.
 - [ ] Larger Text (Settings > Accessibility) and dark mode both read well.
+- [ ] Settings > App icon: pick one of the four others. The system says
+      the icon changed, the tick moves, and the Home Screen shows it; it's
+      still ticked after you close and reopen the app. Inside the app the
+      bar still shows the green Highway sign. Long-press the Home Screen,
+      Edit > Customize, and try Dark and Tinted: the icon keeps its shape
+      in each. Pick Highway again to go back.
 - [ ] VoiceOver reads the numbers, the tiles and "It works" sensibly.
 - [ ] Delete my account (You) is there. Only try it with a spare account,
       such as a plus address: it removes every sign that account posted.

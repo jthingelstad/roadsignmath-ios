@@ -361,7 +361,8 @@ struct MeView: View {
 }
 
 /// Me's settings: your profile photo, your name and email, the players
-/// you blocked, sign out, Delete my account, and the build this is.
+/// you blocked, the app's icon, sign out, Delete my account, and the build
+/// this is.
 private struct SettingsView: View {
   @Environment(Account.self) private var account
   @Environment(\.dismiss) private var dismiss
@@ -386,6 +387,7 @@ private struct SettingsView: View {
         case .howToPlay: HowToPlayView()
         case .feedback: FeedbackView()
         case .licenses: LicensesView()
+        case .appIcon: AppIconView()
         }
       }
       .profilePhoto($photo)
@@ -465,6 +467,13 @@ private struct SettingsView: View {
         }
       } footer: {
         Text("Their signs and ways stay out of your app until you unblock them.").face(.meta)
+      }
+      Section {
+        Button {
+          page = .appIcon
+        } label: {
+          iconRow
+        }
       }
       Section {
         Button {
@@ -566,6 +575,29 @@ private struct SettingsView: View {
     .accessibilityAddTraits(link ? .isLink : [])
   }
 
+  /// App icon, with the one on the Home Screen now (read again each time
+  /// Settings draws, so it's right on the way back from choosing).
+  private var iconRow: some View {
+    let icon = HomeScreenIcon.current
+    return HStack(spacing: 10) {
+      Text("App icon").face(.bodyBold).foregroundStyle(Color.ink)
+      Spacer(minLength: 8)
+      Image(icon.picture)
+        .resizable()
+        .frame(width: 26, height: 26)
+        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .accessibilityHidden(true)
+      Text(icon.name).face(.body).foregroundStyle(Color.ink2).lineLimit(1)
+      Image(systemName: "chevron.right")
+        .font(.system(size: 13, weight: .semibold))
+        .foregroundStyle(Color.ink3)
+        .accessibilityHidden(true)
+    }
+    .frame(minHeight: 32)
+    .contentShape(Rectangle())
+    .accessibilityElement(children: .combine)
+  }
+
   private func delete() {
     deleting = true
     problem = nil
@@ -582,12 +614,13 @@ private struct SettingsView: View {
 
 /// The screens Settings pushes.
 private enum SettingsPage: Hashable {
-  case blocked, howToPlay, feedback, licenses
+  case blocked, howToPlay, feedback, licenses, appIcon
 
-  /// `-RSMBlocked YES`, or `-RSMHelp play|feedback|licenses`, with
-  /// `-RSMMe YES -RSMSettings YES`.
+  /// `-RSMBlocked YES`, `-RSMAppIcon YES`, or `-RSMHelp
+  /// play|feedback|licenses`, with `-RSMMe YES -RSMSettings YES`.
   static var scripted: SettingsPage? {
     if Script.flag("RSMBlocked") { return .blocked }
+    if Script.flag("RSMAppIcon") { return .appIcon }
     switch Script.value("RSMHelp") {
     case "play": return .howToPlay
     case "feedback": return .feedback

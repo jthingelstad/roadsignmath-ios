@@ -26,14 +26,21 @@ seen. There are no notifications. A sign's ⋯ menu shares it,
 reports someone else's sign as inappropriate (the moderator looks again and
 takes it down if it agrees) or blocks whoever posted it, and deletes a sign
 of your own. Settings lists the players you blocked, takes a one-line bio for
-your page, and has Help (How to play, and Send feedback, which emails Jamie)
-and About (the privacy page, the about page and the licenses).
+your page, picks the app's icon on your Home Screen, and has Help (How to
+play, and Send feedback, which emails Jamie) and About (the privacy page, the
+about page and the licenses).
 
 A new player gets a How to play card on Home until they close it or post
 a sign; it's in Settings, under Help, after that.
 
 "Snap a road sign" opens the app on the camera from Siri, Shortcuts,
-Spotlight or the Action button. The icon has dark and tinted looks.
+Spotlight or the Action button.
+
+The icon is Highway, the Road Sign Math sign: a white square root that takes
+the exit, on highway green. Sunshine, Division, Factorial and Four Ways are
+the others to choose from in Settings > App icon. Each has dark and tinted
+looks, and inside the app the brand stays Highway whichever one you choose.
+The approved brand package they come from is in `design/brand/v1`.
 
 Capture is here too: the green camera button opens the camera, sideways or
 upright, marked "Passenger mode" as a reminder that the shot is the
