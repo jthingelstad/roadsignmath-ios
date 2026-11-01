@@ -18,14 +18,17 @@ signs, newest first, each with its photo and its math drawn the way a math
 book would; a sign's own page with every way it has been solved; and a Map
 of where the signs were found. You can sign in (email, then the code or the
 link), pick the name that goes on your signs, and see yourself under You,
-where you can sign out or delete your account.
+where you can sign out or delete your account. A sign's ⋯ menu shares it,
+reports someone else's sign as inappropriate (the moderator looks again and
+takes it down if it agrees) or blocks whoever posted it, and deletes a sign
+of your own. Settings lists the players you blocked.
 
 Capture is here too: the green camera button opens the camera, sideways or
 upright, marked "Passenger mode" as a reminder that the shot is the
 passenger's job. Take a photo, or pick one you took earlier, and every number
 it reads gets a yellow box. Check the numbers next: untick the ones you don't
 want, fix a misread one, and add one it missed by tapping the photo where it
-is or typing it. Writing the math and posting come next.
+is or typing it. Then write the math and post it.
 
 `RoadSignMathKit` is a Swift package for the code that isn't a screen.
 `SignReading` reads the numbers on a photo of a sign with Apple's Vision and

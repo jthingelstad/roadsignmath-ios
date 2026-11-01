@@ -40,6 +40,8 @@ struct MeView: View {
   @State private var flipped = false
   /// On screen: a reload that ends after You closed reveals nothing.
   @State private var showing = false
+  /// Deleting a sign only you see didn't work.
+  @State private var problem: String?
   @Environment(\.accessibilityReduceMotion) private var still
 
   var body: some View {
@@ -89,10 +91,16 @@ struct MeView: View {
       .alert(
         "Only you can see this one", isPresented: Binding(get: { onlyYours != nil }, set: { if !$0 { onlyYours = nil } }),
         presenting: onlyYours
-      ) { _ in
+      ) { sign in
         Button("OK", role: .cancel) {}
+        Button("Delete this sign", role: .destructive) { delete(sign) }
       } message: { sign in
-        Text(sign.moderationNote ?? "It isn’t on the feed or the map.")
+        Text((sign.moderationNote ?? "It isn’t on the feed or the map.") + "\n\nYou can delete it. That can’t be undone.")
+      }
+      .alert("That didn’t work", isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } }), presenting: problem) { _ in
+        Button("OK", role: .cancel) {}
+      } message: { problem in
+        Text(problem)
       }
     }
     .findsAnotherWay()
@@ -300,6 +308,18 @@ struct MeView: View {
     if sign.visibility == .shown { path.append(.sign(sign.id)) } else { onlyYours = sign }
   }
 
+  /// A held or hidden sign has no page, so its alert deletes it.
+  private func delete(_ sign: Sign) {
+    Task {
+      do {
+        try await account.deleteSign(sign.id)
+        store.signGone(sign.id)
+      } catch {
+        problem = Account.say(error)
+      }
+    }
+  }
+
   /// What deleting takes with it, in this player's numbers.
   static func deleteWords(_ me: Me) -> String {
     let signs: String
@@ -312,8 +332,8 @@ struct MeView: View {
   }
 }
 
-/// Me's settings: your profile photo, your name and email, sign out,
-/// Delete my account, and the build this is.
+/// Me's settings: your profile photo, your name and email, the players
+/// you blocked, sign out, Delete my account, and the build this is.
 private struct SettingsView: View {
   @Environment(Account.self) private var account
   @Environment(\.dismiss) private var dismiss
@@ -323,12 +343,14 @@ private struct SettingsView: View {
   @State private var deleting = false
   @State private var problem: String?
   @State private var photo: PhotoStart?
+  @State private var showBlocked = Script.flag("RSMBlocked")
 
   var body: some View {
     NavigationStack {
       Group {
         if let me = account.me { list(me) } else { ProgressView() }
       }
+      .navigationDestination(isPresented: $showBlocked) { BlockedPlayersView() }
       .profilePhoto($photo)
       .background(Color.ground)
       .navigationTitle("Settings")
@@ -386,6 +408,13 @@ private struct SettingsView: View {
           .accessibilityHint("Only you see this")
       } footer: {
         Text("Your email is only for signing in. Nobody else sees it.").face(.meta)
+      }
+      Section {
+        Button {
+          showBlocked = true
+        } label: {
+          row("Blocked players", "", chevron: true)
+        }
       }
       Section {
         Button {

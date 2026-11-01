@@ -14,6 +14,22 @@ struct SignView: View {
   @State private var showNumbers = false
   @Environment(\.opener) private var opener
   @Environment(\.findWay) private var findWay
+  @Environment(Account.self) private var account
+  @Environment(\.dismiss) private var dismiss
+  /// The ⋯ menu's report sheet, block and delete confirms.
+  @State private var reporting = false
+  @State private var confirmBlock: Poster?
+  @State private var confirmDelete = false
+  @State private var deleting = false
+  @State private var problem: String?
+  /// Signed out, Report or Block asks you to sign in first.
+  @State private var askSignIn = false
+  @State private var afterSignIn: AfterSignIn?
+  /// The page closes once the report sheet does: the sign came down, or
+  /// its poster is blocked.
+  @State private var leaveAfterReport = false
+
+  enum AfterSignIn { case report, block }
 
   private var sign: Sign? { (detail?.sign ?? store.knownSign(id)).map(store.current) }
 
@@ -33,13 +49,49 @@ struct SignView: View {
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {
       if let sign {
-        ToolbarItem(placement: .topBarTrailing) {
-          ShareLink(item: sign.url, subject: Text(sign.title)) {
-            Image(systemName: "square.and.arrow.up")
-          }
-          .accessibilityLabel("Share this sign")
-        }
+        ToolbarItem(placement: .topBarTrailing) { menu(sign) }
       }
+    }
+    .sheet(isPresented: $reporting, onDismiss: { if leaveAfterReport { dismiss() } }) {
+      if let sign {
+        ReportSheet(sign: sign, poster: Poster(of: sign, players: store.players)) { outcome in
+          if outcome.outcome == .hidden {
+            store.signGone(sign.id)
+            leaveAfterReport = true
+          }
+        } blocked: {
+          if let poster = Poster(of: sign, players: store.players) { store.blocked(poster.handle) }
+          leaveAfterReport = true
+        }
+        .presentationDetents([.medium, .large])
+      }
+    }
+    .confirmationDialog(confirmBlock.map { "Block \($0.name)?" } ?? "", isPresented: Binding(get: { confirmBlock != nil }, set: { if !$0 { confirmBlock = nil } }),
+                        titleVisibility: .visible, presenting: confirmBlock) { poster in
+      Button("Block \(poster.name)", role: .destructive) { block(poster) }
+    } message: { _ in
+      Text(BlockWords.what + " Unblock them in Settings whenever you like.")
+    }
+    .alert("Delete this sign?", isPresented: $confirmDelete, presenting: sign) { sign in
+      Button("Delete this sign", role: .destructive) { delete(sign) }
+      Button("Keep it", role: .cancel) {}
+    } message: { sign in
+      Text(deleteWords(sign))
+    }
+    .alert("That didn’t work", isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } }), presenting: problem) { _ in
+      Button("OK", role: .cancel) {}
+    } message: { problem in
+      Text(problem)
+    }
+    .signInFirst($askSignIn, title: afterSignIn == .block ? "Sign in to block" : "Sign in to report it",
+                 waiting: afterSignIn == .block ? "Blocking is for players. Sign in, then block whoever posted this sign."
+                   : "Reports come from players. Sign in, then tell us what’s wrong with this sign.") {
+      switch afterSignIn {
+      case .report: reporting = true
+      case .block: if let sign, let poster = Poster(of: sign, players: store.players), !isMine(sign) { confirmBlock = poster }
+      case nil: break
+      }
+      afterSignIn = nil
     }
     .task { await load() }
     .refreshable { await load(fresh: true) }
@@ -48,12 +100,115 @@ struct SignView: View {
     .onChange(of: store.details[id]) { _, now in if let now { detail = now } }
   }
 
+  // MARK: The ⋯ menu
+
+  /// Share, then for someone else's sign Report and Block, for yours Delete.
+  private func menu(_ sign: Sign) -> some View {
+    Menu {
+      ShareLink(item: sign.url, subject: Text(sign.title)) {
+        Label("Share this sign", systemImage: "square.and.arrow.up")
+      }
+      if isMine(sign) {
+        Section {
+          Button(role: .destructive) { confirmDelete = true } label: {
+            Label("Delete this sign", systemImage: "trash")
+          }
+          .disabled(deleting)
+        }
+      } else if sign.visibility == .shown {
+        Section {
+          Button { ask(.report) } label: { Label("Report this sign", systemImage: "flag") }
+          if let poster = Poster(of: sign, players: store.players) {
+            Button { ask(.block, poster) } label: { Label("Block \(poster.name)", systemImage: "hand.raised") }
+          }
+        }
+      }
+    } label: {
+      if deleting { ProgressView() } else { Image(systemName: "ellipsis.circle") }
+    }
+    .accessibilityLabel("More")
+  }
+
+  /// You posted it: yours to delete, not to report.
+  private func isMine(_ sign: Sign) -> Bool {
+    guard let handle = account.me?.handle, let poster = sign.postedBy else { return false }
+    return account.signedIn && handle == poster
+  }
+
+  private func ask(_ next: AfterSignIn, _ poster: Poster? = nil) {
+    guard account.signedIn else {
+      afterSignIn = next
+      askSignIn = true
+      return
+    }
+    switch next {
+    case .report: reporting = true
+    case .block: confirmBlock = poster
+    }
+  }
+
+  private func block(_ poster: Poster) {
+    Task {
+      do {
+        try await account.block(poster.handle)
+        store.blocked(poster.handle)
+        account.notice = "\(poster.name) is blocked. Unblock them in Settings whenever you like."
+        dismiss()
+      } catch {
+        problem = Account.say(error)
+      }
+    }
+  }
+
+  /// What deleting takes: the photos, the hearts, and every way, other
+  /// players' too, counted when the ways are in hand.
+  private func deleteWords(_ sign: Sign) -> String {
+    let photos = sign.photos.count > 1 ? "its photos" : "its photo"
+    let others = detail?.ways.filter { $0.by != nil && $0.by?.handle != account.me?.handle }.count ?? 0
+    let ways: String
+    switch others {
+    case 0: ways = "every way found on it"
+    case 1: ways = "every way found on it, including one way another player found"
+    default: ways = "every way found on it, including \(others) ways other players found"
+    }
+    return "This takes down the sign, \(photos), its hearts and \(ways). It can’t be undone."
+  }
+
+  private func delete(_ sign: Sign) {
+    deleting = true
+    Task {
+      do {
+        try await account.deleteSign(sign.id)
+        store.signGone(sign.id)
+        dismiss()
+      } catch {
+        problem = Account.say(error)
+      }
+      deleting = false
+    }
+  }
+
   private func load(fresh: Bool = false) async {
     do {
       detail = try await store.detail(id, fresh: fresh)
       failed = nil
+      // The poster's name for "Block Sam", when they aren't a finder; a
+      // link can open a sign before Home has read the players.
+      if store.players.isEmpty { await store.loadPlayers() }
       #if DEBUG
         if !fresh, Script.flag("RSMFindWay"), let findWay, let sign = detail?.sign { findWay.open(sign) }
+        // `-RSMReport YES`, `-RSMBlock YES`, `-RSMDelete YES`: the ⋯ menu's
+        // sheet and confirms, as if chosen (`-RSMBlock send` blocks the
+        // poster, only ever against `npm run dev`).
+        if !fresh, let sign = detail?.sign {
+          if Script.flag("RSMReport") { ask(.report) }
+          if Script.value("RSMBlock") == "send", let poster = Poster(of: sign, players: store.players) {
+            block(poster)
+          } else if Script.flag("RSMBlock") {
+            ask(.block, Poster(of: sign, players: store.players))
+          }
+          if Script.flag("RSMDelete"), isMine(sign) { confirmDelete = true }
+        }
       #endif
     } catch {
       if !Store.cancelled(error) { failed = Store.say(error) }

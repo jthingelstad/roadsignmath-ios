@@ -77,7 +77,12 @@ The website and the server behind it are in
     sends `PUT` or `DELETE /signs/{id}/heart` and answers with `HeartState`;
     `hearts` and `hearted` on `Sign`; the sign reads take an optional
     token, so a signed-in read says which signs you hearted and is never
-    cached for anyone else), screen views (`ScreenViews.swift`: `ViewPath`
+    cached for anyone else), keeping it pleasant (`Safety.swift`: `report`
+    sends `POST /signs/{id}/report` a reason of at most 300 characters and
+    answers with `ReportOutcome`, hidden or kept with the moderator's note;
+    `block` and `unblock` send `POST` and `DELETE /players/{handle}/block`;
+    `blocks` reads `GET /me/blocks`; `deleteSign` sends `DELETE
+    /signs/{id}`, a 503 meaning the sign is still there), screen views (`ScreenViews.swift`: `ViewPath`
     makes and checks a screen's path as the server's `VIEW_PATH` does,
     `countViews` sends `POST /app/views` with no token, and `ViewCounter`
     batches them, the first a few seconds after a view and then at most
@@ -249,6 +254,23 @@ The website and the server behind it are in
   takes it back with a light one; signed out it asks "Sign in to heart
   it"; a failure says so in the notice toast. The count is the website's
   and the app's hearts together, hidden when there are none.
+  The sign page's ⋯ menu (`SignView.menu`) has Share, then for someone
+  else's shown sign Report this sign and Block <poster>, and for your own
+  (`posted_by` is your handle) Delete this sign. Reporting has one reason,
+  inappropriate (Jamie, 2026-10-31: "we don't need that much yuck… just
+  report it as inappropriate"): `Views/Safety.swift`'s `ReportSheet`
+  takes an optional note, sends "Inappropriate" or "Inappropriate: <note>",
+  and shows the moderator's answer and note, with "Block <poster> too".
+  Blocking confirms first and says they aren't told; a blocked player's
+  signs leave Home at once (`Store.blocked`) and every list reads again.
+  Deleting confirms with what goes, counting the ways other players found
+  (Jamie, 2026-10-31: yes, deleting takes them too, and the confirm says
+  so). A deleted sign, or one a report took down, leaves every list, the
+  map and the timelines at once (`Store.signGone`, `Store.gone`), and the
+  page closes. A held or hidden sign has no page, so You's "Only you can
+  see this one" alert has Delete this sign. Signed out, Report and Block
+  ask you to sign in first. Settings has Blocked players
+  (`BlockedPlayersView`), each with Unblock.
   Screen views: `countsView(_:)` (`Views/ScreenViews.swift`) counts a
   screen in the site's analytics each time it comes into view, as a page
   load would: a sign page (`/signs/<slug>`), a player's (`/players/<handle>`),
@@ -362,7 +384,12 @@ The website and the server behind it are in
   way" on that sign (on Post it, on the first sign "Posted already?"
   finds); `-RSMWay <math>` writes the way there too, and
   `-RSMWayAdded <id,id>` shows it gone on with those badges (nothing is
-  sent). To see the
+  sent). With `-RSMOpen /signs/<slug>`, `-RSMReport YES` opens the report
+  sheet (`-RSMReportNote <words>` writes the note, `-RSMReportSend YES`
+  sends it), `-RSMBlock YES` the block confirm (`-RSMBlock send` blocks),
+  and `-RSMDelete YES` the delete confirm on your own sign; `-RSMBlocked
+  YES` with `-RSMMe YES -RSMSettings YES` opens Blocked players. Sending
+  or blocking only ever against `npm run dev`. To see the
   You dot or the flip on You, write the seen record with `xcrun simctl
   spawn <sim> defaults write "$(xcrun simctl get_app_container <sim>
   xyz.roadsignmath.app data)/Library/Preferences/xyz.roadsignmath.app"

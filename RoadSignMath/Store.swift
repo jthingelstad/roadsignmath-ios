@@ -310,6 +310,11 @@ final class Store {
   /// changed, so the kept reads go and Home reads again.
   func signedInChanged() {
     heartsGiven = [:]
+    readAgain()
+  }
+
+  /// The kept sign pages go, and Home's lists read again.
+  private func readAgain() {
     details = [:]
     Task {
       await loadLatest()
@@ -318,6 +323,39 @@ final class Store {
       if complexLoad == .loaded { await loadComplex() }
     }
   }
+
+  // MARK: Gone and blocked
+
+  /// Signs gone since they were read: one you deleted, or one taken down
+  /// after your report. Every list leaves them out, the timelines the
+  /// store doesn't hold too.
+  private(set) var gone: Set<String> = []
+
+  /// A sign deleted or taken down: off every list and the map at once.
+  func signGone(_ id: String) {
+    gone.insert(id)
+    latest.removeAll { $0.id == id }
+    near.removeAll { $0.id == id }
+    popular.removeAll { $0.id == id }
+    complex.removeAll { $0.id == id }
+    pins.removeAll { $0.id == id }
+    for key in details.keys where details[key]?.sign.id == id { details[key] = nil }
+    withNewWays[id] = nil
+  }
+
+  /// A player blocked: their signs leave the lists at once, and every
+  /// read after leaves their signs and ways out, so the lists read again.
+  func blocked(_ handle: String) {
+    let theirs = { (sign: Sign) in sign.postedBy == handle }
+    latest.removeAll(where: theirs)
+    near.removeAll(where: theirs)
+    popular.removeAll(where: theirs)
+    complex.removeAll(where: theirs)
+    readAgain()
+  }
+
+  /// A player unblocked: their signs and ways come back with the next read.
+  func unblocked() { readAgain() }
 
   /// A read with your token when signed in. A 401 tells `Account`, which
   /// checks and signs out if the token has ended, and reads again without.
