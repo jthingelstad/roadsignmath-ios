@@ -21,7 +21,9 @@ link), pick the name that goes on your signs, and see yourself under You,
 where you can sign out or delete your account. A sign's ⋯ menu shares it,
 reports someone else's sign as inappropriate (the moderator looks again and
 takes it down if it agrees) or blocks whoever posted it, and deletes a sign
-of your own. Settings lists the players you blocked.
+of your own. Settings lists the players you blocked, takes a one-line bio for
+your page, and has Help (How to play, and Send feedback, which emails Jamie)
+and About (the privacy page, the about page and the licenses).
 
 Capture is here too: the green camera button opens the camera, sideways or
 upright, marked "Passenger mode" as a reminder that the shot is the

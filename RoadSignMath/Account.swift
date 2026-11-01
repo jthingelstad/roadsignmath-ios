@@ -209,6 +209,13 @@ final class Account {
     remember(me)
   }
 
+  /// Your bio: a line about you on your page, at most 160 characters.
+  /// Empty takes it away.
+  func setBio(_ bio: String) async throws {
+    let me = try await authorized { try await client.updateMe(token: $0, bio: bio) }
+    remember(me)
+  }
+
   func finishSignIn() {
     signingIn = false
     step = .email
@@ -264,6 +271,32 @@ final class Account {
   /// Hearts a sign, or takes your heart back.
   func heart(_ signId: String, _ on: Bool) async throws -> HeartState {
     try await authorized { try await client.heart(signId, on, token: $0) }
+  }
+
+  // MARK: Feedback
+
+  /// Emails your feedback to Jamie with your name and page and
+  /// `feedbackApp`; your email goes along as the reply address only when
+  /// `replyOK`.
+  func sendFeedback(_ message: String, replyOK: Bool) async throws {
+    try await authorized { try await client.sendFeedback(message, replyOK: replyOK, app: Account.feedbackApp, token: $0) }
+  }
+
+  /// "Road Sign Math 0.9.0 · build 61 · 1a2b3c4 · iOS 26.1 · iPhone18,2":
+  /// what a problem might need to be found.
+  static var feedbackApp: String {
+    let os = ProcessInfo.processInfo.operatingSystemVersion
+    let version = [os.majorVersion, os.minorVersion] + (os.patchVersion > 0 ? [os.patchVersion] : [])
+    return [BuildInfo.line, "iOS " + version.map(String.init).joined(separator: "."), model].joined(separator: .dot)
+  }
+
+  /// The phone's model identifier ("iPhone18,2"); the simulator says
+  /// which phone it plays.
+  private static var model: String {
+    if let simulated = ProcessInfo.processInfo.environment["SIMULATOR_MODEL_IDENTIFIER"] { return simulated }
+    var system = utsname()
+    uname(&system)
+    return withUnsafeBytes(of: system.machine) { String(decoding: $0.prefix { $0 != 0 }, as: UTF8.self) }
   }
 
   // MARK: Keeping it pleasant

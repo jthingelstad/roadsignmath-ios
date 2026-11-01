@@ -338,19 +338,28 @@ private struct SettingsView: View {
   @Environment(Account.self) private var account
   @Environment(\.dismiss) private var dismiss
   @State private var renaming = false
+  @State private var editingBio = Script.flag("RSMBio")
+  @State private var blockedCount: Int?
   @State private var confirmSignOut = false
   @State private var confirmDelete = false
   @State private var deleting = false
   @State private var problem: String?
   @State private var photo: PhotoStart?
-  @State private var showBlocked = Script.flag("RSMBlocked")
+  @State private var page: SettingsPage? = SettingsPage.scripted
 
   var body: some View {
     NavigationStack {
       Group {
         if let me = account.me { list(me) } else { ProgressView() }
       }
-      .navigationDestination(isPresented: $showBlocked) { BlockedPlayersView() }
+      .navigationDestination(item: $page) { page in
+        switch page {
+        case .blocked: BlockedPlayersView()
+        case .howToPlay: HowToPlayView()
+        case .feedback: FeedbackView()
+        case .licenses: LicensesView()
+        }
+      }
       .profilePhoto($photo)
       .background(Color.ground)
       .navigationTitle("Settings")
@@ -364,9 +373,15 @@ private struct SettingsView: View {
         RenameView(current: account.me?.name ?? "")
           .presentationDetents([.medium, .large])
       }
+      .sheet(isPresented: $editingBio) {
+        BioView(current: account.me?.bio ?? "")
+          .presentationDetents([.medium, .large])
+      }
     }
     .tint(.greenInk)
     .onChange(of: account.signedIn) { _, now in if !now { dismiss() } }
+    // How many you've blocked, read again when you come back from the list.
+    .task(id: page == nil) { if page == nil { blockedCount = try? await account.blockedPlayers().count } }
   }
 
   private func list(_ me: Me) -> some View {
@@ -404,17 +419,53 @@ private struct SettingsView: View {
         } label: {
           row("Name", me.name.isEmpty ? "Add your name" : me.name, chevron: true, nudge: me.name.isEmpty)
         }
+        Button {
+          editingBio = true
+        } label: {
+          row("Bio", me.bio.flatMap { $0.isEmpty ? nil : $0 } ?? "Add a line about you", chevron: true, nudge: (me.bio ?? "").isEmpty)
+        }
         row("Email", me.email)
           .accessibilityHint("Only you see this")
       } footer: {
-        Text("Your email is only for signing in. Nobody else sees it.").face(.meta)
+        Text("Your bio shows on your page. Your email is only for signing in; nobody else sees it.").face(.meta)
       }
       Section {
         Button {
-          showBlocked = true
+          page = .blocked
         } label: {
-          row("Blocked players", "", chevron: true)
+          row("Blocked players", blockedCount.map { $0 == 0 ? "" : "\($0)" } ?? "", chevron: true)
         }
+      } footer: {
+        Text("Their signs and ways stay out of your app until you unblock them.").face(.meta)
+      }
+      Section {
+        Button {
+          page = .howToPlay
+        } label: {
+          row("How to play", "", chevron: true)
+        }
+        Button {
+          page = .feedback
+        } label: {
+          row("Send feedback", "", chevron: true)
+        }
+      } header: {
+        Text("Help").face(.metaBold)
+      } footer: {
+        Text("A problem, an idea or a hello. It reaches Jamie.").face(.meta)
+      }
+      Section {
+        Link(destination: SitePage.privacy) { row("Privacy", "", link: true) }
+        Link(destination: SitePage.about) { row("About Road Sign Math", "", link: true) }
+        Button {
+          page = .licenses
+        } label: {
+          row("Licenses", "", chevron: true)
+        }
+      } header: {
+        Text("About").face(.metaBold)
+      } footer: {
+        Text("Overpass, Latin Modern, SwiftMath, CC BY 4.0").face(.meta)
       }
       Section {
         Button {
@@ -465,7 +516,7 @@ private struct SettingsView: View {
     .scrollContentBackground(.hidden)
   }
 
-  private func row(_ label: String, _ value: String, chevron: Bool = false, nudge: Bool = false) -> some View {
+  private func row(_ label: String, _ value: String, chevron: Bool = false, nudge: Bool = false, link: Bool = false) -> some View {
     HStack(spacing: 10) {
       Text(label).face(.bodyBold).foregroundStyle(Color.ink)
       Spacer(minLength: 8)
@@ -474,15 +525,17 @@ private struct SettingsView: View {
         .foregroundStyle(nudge ? Color.greenInk : Color.ink2)
         .lineLimit(1)
         .truncationMode(.middle)
-      if chevron {
-        Image(systemName: "chevron.right")
+      if chevron || link {
+        Image(systemName: link ? "arrow.up.right" : "chevron.right")
           .font(.system(size: 13, weight: .semibold))
           .foregroundStyle(Color.ink3)
           .accessibilityHidden(true)
       }
     }
     .frame(minHeight: 32)
+    .contentShape(Rectangle())
     .accessibilityElement(children: .combine)
+    .accessibilityAddTraits(link ? .isLink : [])
   }
 
   private func delete() {
@@ -495,6 +548,112 @@ private struct SettingsView: View {
         if account.signedIn { problem = Account.say(error) }
       }
       deleting = false
+    }
+  }
+}
+
+/// The screens Settings pushes.
+private enum SettingsPage: Hashable {
+  case blocked, howToPlay, feedback, licenses
+
+  /// `-RSMBlocked YES`, or `-RSMHelp play|feedback|licenses`, with
+  /// `-RSMMe YES -RSMSettings YES`.
+  static var scripted: SettingsPage? {
+    if Script.flag("RSMBlocked") { return .blocked }
+    switch Script.value("RSMHelp") {
+    case "play": return .howToPlay
+    case "feedback": return .feedback
+    case "licenses": return .licenses
+    default: return nil
+    }
+  }
+}
+
+/// Your bio: one line about you, on your page under your name.
+private struct BioView: View {
+  let current: String
+
+  @Environment(Account.self) private var account
+  @Environment(\.dismiss) private var dismiss
+  @State private var bio = ""
+  @State private var saving = false
+  @State private var problem: String?
+  @FocusState private var typing: Bool
+
+  private var trimmed: String { bio.trimmingCharacters(in: .whitespacesAndNewlines) }
+  private var left: Int { APIClient.bioMax - bio.count }
+
+  var body: some View {
+    NavigationStack {
+      VStack(alignment: .leading, spacing: 10) {
+        TextField("Add a line about you", text: $bio, axis: .vertical)
+          .face(.field)
+          .lineLimit(2...4)
+          .submitLabel(.done)
+          .focused($typing)
+          .padding(12)
+          .background(Color.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+          .overlay {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+              .strokeBorder(typing ? Color.greenInk : Color.ruleStrong, lineWidth: typing ? 2 : 1.5)
+          }
+          .onChange(of: bio) { _, now in
+            // One line: Return is Done, not a new line.
+            if now.contains(where: \.isNewline) {
+              bio = String(now.filter { !$0.isNewline }.prefix(APIClient.bioMax))
+              typing = false
+            } else if now.count > APIClient.bioMax {
+              bio = String(now.prefix(APIClient.bioMax))
+            }
+          }
+          .accessibilityLabel("Bio")
+        HStack(alignment: .firstTextBaseline) {
+          Text(trimmed.isEmpty && !current.isEmpty ? "Save it empty to take your bio away." : "It shows on your page, under your name, for everyone.")
+            .fixedSize(horizontal: false, vertical: true)
+          Spacer(minLength: 12)
+          Text("\(left) left").foregroundStyle(left < 20 ? Color.warn : Color.ink3)
+        }
+        .face(.meta)
+        .foregroundStyle(Color.ink2)
+        if let problem { ProblemLine(text: problem) }
+        Spacer()
+      }
+      .padding(20)
+      .background(Color.ground)
+      .navigationTitle(current.isEmpty ? "Your bio" : "Change your bio")
+      .navigationBarTitleDisplayMode(.inline)
+      .toolbar {
+        ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+        ToolbarItem(placement: .confirmationAction) {
+          if saving {
+            ProgressView()
+          } else {
+            Button("Save", action: save).disabled(trimmed == current)
+          }
+        }
+      }
+    }
+    .interactiveDismissDisabled(saving)
+    .onAppear {
+      bio = current
+      if let scripted = Script.text("RSMBioText") { bio = scripted }
+      typing = true
+      if Script.flag("RSMBioSave") { save() }
+    }
+  }
+
+  private func save() {
+    guard !saving, trimmed != current else { return }
+    saving = true
+    problem = nil
+    Task {
+      do {
+        try await account.setBio(trimmed)
+        dismiss()
+      } catch {
+        problem = Account.say(error)
+      }
+      saving = false
     }
   }
 }
