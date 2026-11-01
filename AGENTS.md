@@ -185,7 +185,8 @@ The website and the server behind it are in
   posted first) or a grid of photos (a tap opens the sign; held or hidden
   ones only you see say why instead), a warm empty state that opens Capture, and the settings
   sheet (profile photo, name, bio, email, Blocked players with a count,
-  Help, About, sign out, delete my account, and the build at the bottom).
+  App icon, Help, About, sign out, delete my account, and the build at the
+  bottom).
   Every text limit counts as the server does, in UTF-16 units
   (`String.serverLength` and `clipped(to:)` in `TextLength.swift`, which
   never cut through a character), so an emoji counts two.
@@ -384,8 +385,27 @@ The website and the server behind it are in
   that one request and is kept nowhere (the server logs no paths or
   queries), so it isn't listed. A new API on Apple's required-reason list,
   or a new kind of data kept, goes in it and in App Store Connect's
-  answers (`docs/DISTRIBUTION.md`). The app icon has its dark and tinted
-  looks beside it in `AppIcon.appiconset`, the same plate recolored.
+  answers (`docs/DISTRIBUTION.md`).
+- The identity: `design/brand/v1` is the approved brand package (Highway,
+  the primary logo and default icon, and four alternates: Sunshine,
+  Division, Factorial and Four Ways), as designed; read its
+  `START-HERE.txt`. Don't redraw or recolor it. `scripts/app-icons.swift`
+  (`swift scripts/app-icons.swift design/brand/v1
+  RoadSignMath/Assets.xcassets`) makes everything the app uses from it:
+  each icon's app icon set (`AppIcon` is Highway; the others are
+  `AppIcon-<Name>`, listed in the target's
+  `ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES`), with Any (the
+  package's square 1024, byte for byte), Dark (its foreground layer on a
+  transparent ground, deep green turned sign yellow) and Tinted (grayscale)
+  looks, which Apple asks of every alternate too; an `Icon<Name>` vector
+  picture of each for the picker; and `Logo` (Highway), the brand in
+  Home's bar, whichever icon the Home Screen shows. It never reads the
+  rounded previews. Change the package, then run the script; don't edit
+  the generated sets by hand. `HomeScreenIcon.swift` is the five, read
+  from and set through `UIApplication` (the system keeps the choice), and
+  `Views/AppIconView.swift` is Settings > App icon: the five with the
+  current one ticked, the system's own alert on a change, and a line
+  when it fails, the tick staying where the icon really is.
 - `Config/`: `Info.plist` (it also claims the `roadsignmath://` scheme,
   so `roadsignmath://signin?l=<login>&t=<token>` finishes a sign-in where
   a universal link can't), the entitlements (Associated Domains for
@@ -490,7 +510,10 @@ The website and the server behind it are in
   sheet (`-RSMReportNote <words>` writes the note, `-RSMReportSend YES`
   sends it), `-RSMBlock YES` the block confirm (`-RSMBlock send` blocks),
   and `-RSMDelete YES` the delete confirm on your own sign; `-RSMBlocked
-  YES` with `-RSMMe YES -RSMSettings YES` opens Blocked players. Sending
+  YES` with `-RSMMe YES -RSMSettings YES` opens Blocked players, and
+  `-RSMAppIcon YES` opens App icon (`-RSMAppIconPick
+  sunshine|division|factorial|fourWays|highway` taps one a second later,
+  and `-RSMAppIconFail YES` makes every change fail). Sending
   or blocking only ever against `npm run dev`. With `-RSMMe YES
   -RSMSettings YES`: `-RSMBio YES` opens the bio (`-RSMBioText <words>`
   writes it, `-RSMBioSave YES` saves it), and `-RSMHelp
