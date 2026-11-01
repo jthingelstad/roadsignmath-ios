@@ -266,6 +266,41 @@ final class Account {
     try await authorized { try await client.heart(signId, on, token: $0) }
   }
 
+  // MARK: Keeping it pleasant
+
+  /// Reports a sign as inappropriate, the one reason there is, with your
+  /// note when you add one. The moderator looks again and answers.
+  func report(_ signId: String, note: String) async throws -> ReportOutcome {
+    try await authorized { try await client.report(signId, reason: Account.reportReason(note), token: $0) }
+  }
+
+  /// "Inappropriate", or "Inappropriate: " and your note.
+  static func reportReason(_ note: String) -> String {
+    let note = note.trimmingCharacters(in: .whitespacesAndNewlines)
+    return note.isEmpty ? "Inappropriate" : "Inappropriate: " + note
+  }
+
+  /// The longest note a report takes after "Inappropriate: ".
+  static let reportNoteMax = APIClient.reportMax - "Inappropriate: ".count
+
+  func block(_ handle: String) async throws {
+    try await authorized { try await client.block(handle, token: $0) }
+  }
+
+  func unblock(_ handle: String) async throws {
+    try await authorized { try await client.unblock(handle, token: $0) }
+  }
+
+  func blockedPlayers() async throws -> [BlockedPlayer] {
+    try await authorized { try await client.blocks(token: $0) }
+  }
+
+  /// Deletes a sign you posted; reads you again, so You counts one fewer.
+  func deleteSign(_ signId: String) async throws {
+    try await authorized { try await client.deleteSign(signId, token: $0) }
+    Task { await refresh() }
+  }
+
   /// Signs out here at once, then tells the server to end that token, so
   /// a slow answer can't sign out whoever signs in next.
   func signOut() async {
