@@ -33,8 +33,11 @@ final class Store {
   // Latest: the newest signs, a page at a time.
   private(set) var latest: [Sign] = []
   private(set) var latestLoad: Load = .idle
-  /// When the signs in Latest were read.
+  /// When the signs in Latest were read, and by whom (whose hearts they
+  /// show): kept with them, so a sign removed later is removed from the
+  /// copy on the phone as the same read.
   private(set) var latestReadAt: Date?
+  private var latestReader: String?
   /// Latest's signs are the ones kept on the phone, not read yet this time.
   private(set) var latestKept = false
   /// The last read of Latest failed while it had signs to show: Home says
@@ -123,6 +126,7 @@ final class Store {
     if latest.isEmpty, let kept = keptFeed?.load(reader: reader) {
       latest = kept.signs
       latestReadAt = kept.readAt
+      latestReader = kept.reader
       latestKept = true
     }
     if latest.isEmpty { latestLoad = .loading }
@@ -140,6 +144,8 @@ final class Store {
       feedGeneration += 1
       latestLoad = .loaded
       latestReadAt = started
+      // `read` answers as whoever is signed in now.
+      latestReader = reader
       latestKept = false
       latestTrouble = nil
       keepLatest()
@@ -162,10 +168,12 @@ final class Store {
     account?.signedIn == true ? account?.me?.handle : nil
   }
 
-  /// Latest's first page, as now shown, kept on the phone for next time.
+  /// Latest's first page, as now shown, kept on the phone for next time:
+  /// after a read, and after a sign leaves it (deleted, taken down, its
+  /// player blocked), even while it shows the signs kept from last time.
   private func keepLatest() {
-    guard let keptFeed, let latestReadAt, !latestKept else { return }
-    keptFeed.save(KeptFeed(readAt: latestReadAt, reader: reader, signs: latest))
+    guard let keptFeed, let latestReadAt else { return }
+    keptFeed.save(KeptFeed(readAt: latestReadAt, reader: latestReader, signs: latest))
   }
 
   func loadMore() async {
