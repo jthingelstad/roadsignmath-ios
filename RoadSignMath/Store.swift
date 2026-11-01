@@ -46,6 +46,10 @@ final class Store {
   private(set) var popular: [Sign] = []
   private(set) var popularLoad: Load = .idle
 
+  // Complexity: the most complex math first.
+  private(set) var complex: [Sign] = []
+  private(set) var complexLoad: Load = .idle
+
   private(set) var pins: [Pin] = []
   private(set) var years: [Int] = []
   private(set) var mapLoad: Load = .idle
@@ -199,6 +203,19 @@ final class Store {
     }
   }
 
+  func loadComplex() async {
+    if complexLoad == .loading { return }
+    complexLoad = .loading
+    let started = Date()
+    do {
+      complex = try await read { try await self.client.complexSigns(token: $0) }
+      settleHearts(complex, readAt: started)
+      complexLoad = .loaded
+    } catch {
+      complexLoad = Self.cancelled(error) ? (complex.isEmpty ? .idle : .loaded) : (complex.isEmpty ? .failed(Self.say(error)) : .loaded)
+    }
+  }
+
   /// Signs a way was just added to, as the server answered (or read again
   /// since), for the lists the store doesn't hold (You's and a player's
   /// timelines).
@@ -214,6 +231,7 @@ final class Store {
     if let at = latest.firstIndex(where: { $0.id == sign.id }) { latest[at] = sign.keepingMiles(of: latest[at]) }
     if let at = near.firstIndex(where: { $0.id == sign.id }) { near[at] = sign.keepingMiles(of: near[at]) }
     if let at = popular.firstIndex(where: { $0.id == sign.id }) { popular[at] = sign.keepingMiles(of: popular[at]) }
+    if let at = complex.firstIndex(where: { $0.id == sign.id }) { complex[at] = sign.keepingMiles(of: complex[at]) }
   }
 
   /// A sign from a list read before a way was added to it, or a heart
@@ -297,6 +315,7 @@ final class Store {
       await loadLatest()
       if nearLoad == .loaded, !locationDenied { await loadNear() }
       if popularLoad == .loaded { await loadPopular() }
+      if complexLoad == .loaded { await loadComplex() }
     }
   }
 
@@ -343,6 +362,7 @@ final class Store {
   func knownSign(_ id: String) -> Sign? {
     details[id]?.sign ?? latest.first { $0.id == id || $0.slug == id } ?? near.first { $0.id == id || $0.slug == id }
       ?? popular.first { $0.id == id || $0.slug == id }
+      ?? complex.first { $0.id == id || $0.slug == id }
       ?? details.values.first { $0.sign.slug == id }?.sign
   }
 

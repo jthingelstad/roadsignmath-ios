@@ -458,7 +458,7 @@ enum Script {
   }
 
   static var scripted: Bool {
-    ["RSMTab", "RSMOpen", "RSMFocus", "RSMSearch", "RSMCapture", "RSMBadge", "RSMUnlocked"].contains { value($0) != nil }
+    ["RSMTab", "RSMFeed", "RSMOpen", "RSMFocus", "RSMSearch", "RSMCapture", "RSMBadge", "RSMUnlocked"].contains { value($0) != nil }
       || flag("RSMMe") || flag("RSMBadges")
   }
 }

@@ -1,13 +1,14 @@
 import RoadSignMathAPI
 import SwiftUI
 
-/// Everyone's signs, newest first, nearest first, or the most hearted first.
+/// Everyone's signs, newest first, nearest first, the most hearted first,
+/// or the most complex math first.
 struct HomeView: View {
-  enum Which: Hashable { case latest, near, popular }
+  enum Which: Hashable { case latest, near, popular, complex }
 
   @Environment(Store.self) private var store
   @Environment(Account.self) private var account
-  @State private var which = Script.value("RSMFeed") == "popular" ? Which.popular : Which.latest
+  @State private var which = HomeView.scripted()
   @State private var showingMe = Script.flag("RSMMe") || Script.flag("RSMBadges") || Script.value("RSMBadge") != nil
   @State private var top = ScrollPosition(edge: .top)
   @Namespace private var zoom
@@ -34,6 +35,7 @@ struct HomeView: View {
         case .latest: await store.loadLatest()
         case .near: await store.loadNear()
         case .popular: await store.loadPopular()
+        case .complex: await store.loadComplex()
         }
       }
       .toolbar {
@@ -60,8 +62,22 @@ struct HomeView: View {
     .onChange(of: which) { _, now in
       if now == .near, store.nearLoad == .idle { Task { await store.loadNear() } }
       if now == .popular, store.popularLoad == .idle { Task { await store.loadPopular() } }
+      if now == .complex, store.complexLoad == .idle { Task { await store.loadComplex() } }
     }
-    .task { if which == .popular, store.popularLoad == .idle { await store.loadPopular() } }
+    .task {
+      if which == .popular, store.popularLoad == .idle { await store.loadPopular() }
+      if which == .complex, store.complexLoad == .idle { await store.loadComplex() }
+    }
+  }
+
+  /// The tab Home opens on: Latest, or `-RSMFeed popular|complexity` in
+  /// a Debug build's screenshots.
+  private static func scripted() -> Which {
+    switch Script.value("RSMFeed") {
+    case "popular": .popular
+    case "complexity": .complex
+    default: .latest
+    }
   }
 
   /// Your avatar, which opens Me, or a way to sign in.
@@ -101,14 +117,18 @@ struct HomeView: View {
   }
 
   private var tabs: some View {
-    HStack(spacing: 6) {
-      Pill(label: "Latest", chosen: which == .latest) { withAnimation(.snappy) { which = .latest } }
-      Pill(label: "Near you", chosen: which == .near) { withAnimation(.snappy) { which = .near } }
-      Pill(label: "Popular", chosen: which == .popular) { withAnimation(.snappy) { which = .popular } }
-      Spacer()
+    // Four don't fit across a phone, so they slide sideways.
+    ScrollView(.horizontal) {
+      HStack(spacing: 6) {
+        Pill(label: "Latest", chosen: which == .latest) { withAnimation(.snappy) { which = .latest } }
+        Pill(label: "Near you", chosen: which == .near) { withAnimation(.snappy) { which = .near } }
+        Pill(label: "Popular", chosen: which == .popular) { withAnimation(.snappy) { which = .popular } }
+        Pill(label: "Complexity", chosen: which == .complex) { withAnimation(.snappy) { which = .complex } }
+      }
+      .padding(.horizontal, 16)
+      .padding(.vertical, 8)
     }
-    .padding(.horizontal, 16)
-    .padding(.vertical, 8)
+    .scrollIndicators(.hidden)
     .background(Color.card)
     .overlay(alignment: .bottom) { Color.rule.frame(height: 1) }
     .accessibilityElement(children: .contain)
@@ -120,6 +140,7 @@ struct HomeView: View {
     case .latest: latest
     case .near: near
     case .popular: popular
+    case .complex: complexity
     }
   }
 
@@ -196,6 +217,27 @@ struct HomeView: View {
           .padding(.top, 60)
       } else {
         cards(store.popular, miles: false)
+      }
+    }
+  }
+
+  /// The most complex math first, as the server scores it (the operators in
+  /// a sign's hardest way: roots, powers and factorials count most). The
+  /// score orders the list and is never shown.
+  @ViewBuilder private var complexity: some View {
+    switch store.complexLoad {
+    case .idle, .loading where store.complex.isEmpty:
+      ForEach(0..<3, id: \.self) { _ in CardSkeleton() }
+    case .failed(let why):
+      Notice(symbol: "wifi.exclamationmark", title: "Can’t reach the signs", message: why,
+             action: ("Try again", { Task { await store.loadComplex() } }))
+        .padding(.top, 60)
+    default:
+      if store.complex.isEmpty {
+        Notice(symbol: "x.squareroot", title: "No signs yet", message: "Roots, powers and factorials put a sign near the top here.")
+          .padding(.top, 60)
+      } else {
+        cards(store.complex, miles: false)
       }
     }
   }
