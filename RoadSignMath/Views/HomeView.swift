@@ -8,7 +8,13 @@ struct HomeView: View {
 
   @Environment(Store.self) private var store
   @Environment(Account.self) private var account
+  @Environment(CaptureFlow.self) private var flow
   @State private var which = HomeView.scripted()
+  /// How to play has been closed, or its camera opened: a new player's
+  /// card shows until then, or until they've posted a sign.
+  @AppStorage("howToPlayDone") private var howToPlayDone = false
+  /// `-RSMHowToPlay YES` shows the card anyway, for screenshots.
+  @State private var howToPlayScripted = Script.flag("RSMHowToPlay")
   @State private var showingMe = Script.flag("RSMMe") || Script.flag("RSMBadges") || Script.value("RSMBadge") != nil
   @State private var top = ScrollPosition(edge: .top)
   @Namespace private var zoom
@@ -20,6 +26,16 @@ struct HomeView: View {
         LazyVStack(spacing: 10, pinnedViews: .sectionHeaders) {
           Section {
             OutboxNotes()
+            if which == .latest, let trouble = store.latestTrouble {
+              NoSignalBar(trouble: trouble, asOf: store.latestReadAt)
+            }
+            if showsHowToPlay {
+              HowToPlayCard(name: account.me?.name, done: closeHowToPlay) {
+                closeHowToPlay()
+                flow.begin()
+              }
+              .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .top)))
+            }
             content
           } header: {
             tabs
@@ -67,6 +83,21 @@ struct HomeView: View {
     .task {
       if which == .popular, store.popularLoad == .idle { await store.loadPopular() }
       if which == .complex, store.complexLoad == .idle { await store.loadComplex() }
+    }
+    // A player with a sign posted knows how to play.
+    .onChange(of: account.me?.signCount ?? 0, initial: true) { _, now in
+      if now > 0, !howToPlayScripted { howToPlayDone = true }
+    }
+  }
+
+  private var showsHowToPlay: Bool {
+    howToPlayScripted || (!howToPlayDone && (account.me?.signCount ?? 0) == 0)
+  }
+
+  private func closeHowToPlay() {
+    withAnimation(.snappy) {
+      howToPlayDone = true
+      howToPlayScripted = false
     }
   }
 
@@ -146,7 +177,8 @@ struct HomeView: View {
 
   @ViewBuilder private var latest: some View {
     switch store.latestLoad {
-    case .idle, .loading where store.latest.isEmpty:
+    // The signs kept from last time show while the server is read.
+    case .idle where store.latest.isEmpty, .loading where store.latest.isEmpty:
       ForEach(0..<3, id: \.self) { _ in CardSkeleton() }
     case .failed(let why):
       Notice(symbol: "wifi.exclamationmark", title: "Can’t reach the signs", message: why,
@@ -159,10 +191,12 @@ struct HomeView: View {
       } else {
         cards(store.latest, miles: false)
         if store.hasMore {
-          ProgressView()
-            .padding(24)
-            .task { await store.loadMore() }
-        } else if store.latest.count > 3 {
+          if store.latestTrouble == nil {
+            ProgressView()
+              .padding(24)
+              .task { await store.loadMore() }
+          }
+        } else if store.latest.count > 3, !store.latestKept {
           Text("That’s every sign so far.")
             .face(.meta)
             .foregroundStyle(Color.ink3)
@@ -246,6 +280,53 @@ struct HomeView: View {
     ForEach(signs) { sign in
       SignCard(sign: sign, showMiles: miles, zoom: zoom) { store.homePath.append(sign.id) }
     }
+  }
+}
+
+/// Over Latest's signs when the last read failed, for want of a signal
+/// or an answer: when the signs shown were read, and how to try again.
+/// It goes by itself once a read works, which happens as soon as the
+/// signal is back.
+struct NoSignalBar: View {
+  let trouble: Store.Trouble
+  let asOf: Date?
+
+  var body: some View {
+    HStack(spacing: 12) {
+      Image(systemName: trouble == .noSignal ? "wifi.slash" : "exclamationmark.icloud")
+        .font(.system(size: 20, weight: .semibold))
+        .accessibilityHidden(true)
+      VStack(alignment: .leading, spacing: 1) {
+        Text(trouble == .noSignal ? "No signal" : "Can’t reach the signs").face(.bodyBold)
+        Text(words).face(.meta).fixedSize(horizontal: false, vertical: true)
+      }
+      Spacer(minLength: 0)
+    }
+    .foregroundStyle(Color.yellowInk)
+    .padding(.horizontal, 14)
+    .padding(.vertical, 10)
+    .background(Color.signYellow, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    .padding(.horizontal, 16)
+    .padding(.top, 2)
+    .accessibilityElement(children: .combine)
+  }
+
+  private var words: String {
+    let read = asOf.map { "These are the signs as of \(Self.when($0)). " } ?? ""
+    return trouble == .noSignal
+      ? read + "Pull down to try again."
+      : "Road Sign Math isn’t answering just now. " + read + "Pull down to try again."
+  }
+
+  /// "2:14 PM" today, "yesterday at 2:14 PM", or "Oct 30 at 2:14 PM".
+  static func when(_ date: Date, now: Date = .now) -> String {
+    let time = date.formatted(date: .omitted, time: .shortened)
+    let calendar = Calendar.current
+    if calendar.isDate(date, inSameDayAs: now) { return time }
+    if let yesterday = calendar.date(byAdding: .day, value: -1, to: now), calendar.isDate(date, inSameDayAs: yesterday) {
+      return "yesterday at \(time)"
+    }
+    return date.formatted(.dateTime.month(.abbreviated).day()) + " at " + time
   }
 }
 

@@ -147,8 +147,19 @@ The website and the server behind it are in
   says no; `heartsGiven` keeps the newest word on each sign hearted on
   this phone (a read begun after the heart's answer updates it) and
   `current(_:)` lays it, and ways added, over every copy of the sign, so
-  Home, a kept sign page and a player's timeline agree); `Views/` holds
-  Home (the feed), the sign page, the Map (MapKit through
+  Home, a kept sign page and a player's timeline agree). Latest's first
+  page is kept on the phone too (`KeptFeed` in `RoadSignMathAPI`: one file
+  in Caches per server, with when it was read and whose read it was, so
+  only the same player gets their hearts back): Home opens with those
+  signs while the server is read, and when a read fails over signs it
+  can show, `NoSignalBar` says "No signal" (or "Can't reach the signs")
+  with the time they were read, and goes once a read works, which Store
+  tries as soon as the network comes back. `URLCache` is sized for the
+  feed's photos, which never change, so kept signs show their pictures.
+  `Views/` holds
+  Home (the feed, and for a new player the How to play card: shown until
+  it's closed or its camera opened, or they've posted a sign; then it
+  lives in Settings' Help), the sign page, the Map (MapKit through
   `UIViewRepresentable`, since SwiftUI's `Map` can't cluster pins; its
   search reads the pins' own place, finders and numbers, from API 1.4.0,
   and its Mine chip, shown once you're signed in with a sign, keeps the
@@ -170,7 +181,8 @@ The website and the server behind it are in
   The bio (`BioView`) is one line of at most 160 characters, Return
   being Done. `Views/Help.swift` holds the rest: `HowToPlaySteps` (Spot
   it, Snap it, Solve it and the EXIT 2, COUNTY 5, 1 MILE example, √(5 − 1)
-  = 2, the copy from the 1.0 canvas, shared with the first-run card),
+  = 2, the copy from the 1.0 canvas, shared with `HowToPlayCard`, Home's
+  first-run card),
   `FeedbackView` (Send feedback: emailed to Jamie, the address being the
   server's `FEEDBACK_TO`, with the player's name and page and
   `Account.feedbackApp`, the build line, the iOS version and the phone's
@@ -376,7 +388,10 @@ The website and the server behind it are in
   scheme's `RSM_API` environment variable to read another, such as the live
   site (reads only). Release reads `https://roadsignmath.xyz/api/v1`. Debug
   builds also take launch arguments for screenshots: `-RSMTab map`,
-  `-RSMFeed popular|complexity` (Home on that tab),
+  `-RSMFeed popular|complexity` (Home on that tab), `-RSMNoSignal YES`
+  (Latest's reads fail as if there's no signal: the kept signs and the
+  bar), `-RSMHowToPlay YES` (the first-run card, even for a player who
+  has closed it or posted),
   `-RSMOpen /signs/<slug>`, `-RSMFocus <sign id>`, `-RSMSearch <words>`,
   `-RSMMine YES` (the Map's Mine chip),
   and for sign-in `-RSMSignIn <email>` (opens sign-in and sends the
