@@ -129,6 +129,19 @@ import Testing
     let old = #"{"id":"8C7B0E35-6D0C-4B2E-9B8A-3F1D2C4E5A6B","savedAt":800000000,"source":"library"}"#
     let draft = try JSONDecoder().decode(Draft.self, from: Data(old.utf8))
     #expect(draft.place == nil)
+    #expect(draft.takenOn == nil)
     #expect(draft.heading == "From your photos")
+  }
+
+  @Test func takenIsThePhotosOwnDay() {
+    // Taken Aug 14 at 23:30 at −05:00, which is Aug 15 in UTC.
+    var utc = central
+    utc.timeZone = TimeZone(identifier: "UTC")!
+    let takenAt = Date(timeIntervalSince1970: 1_755_232_200)
+    let draft = Draft(source: .library, takenAt: takenAt, takenOn: "2025-08-14", numbers: nil, way: nil, place: "Ames, IA")
+    #expect(draft.details(now: now, calendar: utc).hasPrefix("Taken Aug 14"))
+    // Kept before the day was: the clock, in the phone's time zone.
+    let older = Draft(source: .library, takenAt: takenAt, numbers: nil, way: nil, place: "Ames, IA")
+    #expect(older.details(now: now, calendar: utc).hasPrefix("Taken Aug 15"))
   }
 }

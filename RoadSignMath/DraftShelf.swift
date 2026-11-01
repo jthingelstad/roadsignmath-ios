@@ -20,6 +20,9 @@ final class DraftShelf {
 
   /// Saves a draft (`photo` the first time); false when the phone couldn't.
   func save(_ draft: Draft, photo: Data?) -> Bool {
+    var draft = draft
+    // A town looked up after this draft was picked up again is kept.
+    if draft.place == nil, let kept = all.first(where: { $0.id == draft.id })?.place { draft.place = kept }
     do {
       try folder.save(draft, photo: photo)
     } catch {

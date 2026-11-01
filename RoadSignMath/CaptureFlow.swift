@@ -195,7 +195,7 @@ final class CaptureFlow {
   func saveDraft() -> Bool {
     guard let shot else { return false }
     let saved = Draft(
-      id: draftID ?? UUID(), source: shot.source, takenAt: shot.takenAt,
+      id: draftID ?? UUID(), source: shot.source, takenAt: shot.takenAt, takenOn: shot.foundOn,
       numbers: reading == .reading || reading == .idle ? nil : numbers, way: draft, place: draftPlace)
     guard drafts.save(saved, photo: draftID == nil ? shot.file.data : nil) else { return false }
     // Drafts are known by where they were taken: the town at the photo's

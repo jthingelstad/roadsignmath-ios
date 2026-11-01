@@ -11,6 +11,10 @@ public struct Draft: Codable, Sendable, Hashable, Identifiable {
   public var source: Source
   /// When the photo was taken: the shutter, or the library photo's clock.
   public var takenAt: Date?
+  /// The day it was taken where it was taken, `2025-08-14`: a library
+  /// photo's own day, the one posting uses, which the phone's time zone
+  /// can't move. Nil for drafts saved before it was kept.
+  public var takenOn: String?
   /// The numbers as checked. Nil when it was saved before its reading
   /// finished, so opening it reads the photo again.
   public var numbers: NumberList?
@@ -23,13 +27,14 @@ public struct Draft: Codable, Sendable, Hashable, Identifiable {
   public var place: String?
 
   public init(
-    id: UUID = UUID(), savedAt: Date = .now, source: Source, takenAt: Date?, numbers: NumberList?, way: WayDraft?,
-    place: String? = nil
+    id: UUID = UUID(), savedAt: Date = .now, source: Source, takenAt: Date?, takenOn: String? = nil, numbers: NumberList?,
+    way: WayDraft?, place: String? = nil
   ) {
     self.id = id
     self.savedAt = savedAt
     self.source = source
     self.takenAt = takenAt
+    self.takenOn = takenOn
     self.numbers = numbers
     self.way = way.flatMap { $0.isEmpty ? nil : $0 }
     self.place = place
@@ -49,7 +54,8 @@ public struct Draft: Codable, Sendable, Hashable, Identifiable {
   /// doesn't say) and its numbers, "Taken Saturday ∙ 2, 5 and 1". A photo
   /// from the library with no place says so instead of numbers not read.
   public func details(now: Date = .now, calendar: Calendar = .current) -> String {
-    var parts = [takenAt.map { "Taken " + Self.day($0, now: now, calendar: calendar) }
+    let taken = takenOn.flatMap { Self.noon(of: $0, calendar: calendar) } ?? takenAt
+    var parts = [taken.map { "Taken " + Self.day($0, now: now, calendar: calendar) }
       ?? "Saved " + Self.day(savedAt, now: now, calendar: calendar)]
     if let numbers, !numbers.kept.isEmpty {
       parts.append(numbersText)
@@ -57,6 +63,14 @@ public struct Draft: Codable, Sendable, Hashable, Identifiable {
       parts.append("no place in the photo")
     }
     return parts.joined(separator: " \u{2219} ")
+  }
+
+  /// Midday of `2025-08-14` in `calendar`, so the day reads as itself
+  /// wherever the phone is.
+  static func noon(of day: String, calendar: Calendar) -> Date? {
+    let parts = day.split(separator: "-").compactMap { Int($0) }
+    guard parts.count == 3 else { return nil }
+    return calendar.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2], hour: 12))
   }
 
   /// "today", "yesterday", the weekday within the week ("Saturday"), the
