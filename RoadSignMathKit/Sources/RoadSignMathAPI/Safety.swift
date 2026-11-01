@@ -44,7 +44,7 @@ extension APIClient {
   /// back the first answer. A 503 means the moderator couldn't answer and
   /// nothing changed.
   public func report(_ signId: String, reason: String, token: String) async throws -> ReportOutcome {
-    try await answer(to: request("POST", ["signs", signId, "report"], body: ["reason": String(reason.prefix(APIClient.reportMax))], token: token))
+    try await answer(to: request("POST", ["signs", signId, "report"], body: ["reason": reason.clipped(to: APIClient.reportMax)], token: token))
   }
 
   /// Blocks a player: their signs and ways are left out of everything you

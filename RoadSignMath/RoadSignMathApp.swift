@@ -18,6 +18,7 @@ struct RoadSignMathApp: App {
     let account = Account(client: APIClient(base: Store.server))
     let store = Store()
     store.account = account
+    Photos.shared.account = account
     _store = State(initialValue: store)
     _account = State(initialValue: account)
     _outbox = State(initialValue: Outbox(account: account))

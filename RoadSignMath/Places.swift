@@ -45,7 +45,7 @@ enum Places {
     return clip([town, after].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: ", "))
   }
 
-  private static func clip(_ label: String) -> String { String(label.prefix(APIClient.placeMax)) }
+  private static func clip(_ label: String) -> String { label.clipped(to: APIClient.placeMax) }
 
   /// The two-letter state, for places in the US.
   private static func state(_ item: MKMapItem, _ label: String) -> String? {

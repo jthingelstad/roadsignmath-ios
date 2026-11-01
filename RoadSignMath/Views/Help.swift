@@ -214,7 +214,7 @@ struct FeedbackView: View {
   @FocusState private var typing: Bool
 
   private var trimmed: String { message.trimmingCharacters(in: .whitespacesAndNewlines) }
-  private var left: Int { APIClient.feedbackMax - message.count }
+  private var left: Int { APIClient.feedbackMax - message.serverLength }
   private var email: String { account.me?.email ?? "your email" }
 
   var body: some View {
@@ -260,7 +260,7 @@ struct FeedbackView: View {
             .strokeBorder(typing ? Color.greenInk : Color.ruleStrong, lineWidth: typing ? 2 : 1.5)
         }
         .onChange(of: message) { _, now in
-          if now.count > APIClient.feedbackMax { message = String(now.prefix(APIClient.feedbackMax)) }
+          if now.serverLength > APIClient.feedbackMax { message = now.clipped(to: APIClient.feedbackMax) }
         }
         .accessibilityLabel("Your feedback")
       if left < 200 {

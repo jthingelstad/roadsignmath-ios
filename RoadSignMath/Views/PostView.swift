@@ -132,7 +132,7 @@ struct PostView: View {
               .strokeBorder(field == .title ? Color.signGreen : Color.ruleStrong, lineWidth: 1.5)
           }
           .onChange(of: title) { _, now in
-            if now.count > APIClient.titleMax { title = String(now.prefix(APIClient.titleMax)) }
+            if now.serverLength > APIClient.titleMax { title = now.clipped(to: APIClient.titleMax) }
           }
         if let suggestion, title.trimmingCharacters(in: .whitespaces).isEmpty {
           Button {
@@ -146,8 +146,8 @@ struct PostView: View {
               .background(Color.wayGround, in: Capsule())
           }
           .buttonStyle(.plain)
-        } else if title.count > APIClient.titleMax - 10 {
-          Text("\(APIClient.titleMax - title.count) letters left")
+        } else if title.serverLength > APIClient.titleMax - 10 {
+          Text("\(APIClient.titleMax - title.serverLength) letters left")
             .face(.meta)
             .foregroundStyle(Color.ink3)
         }
@@ -179,10 +179,10 @@ struct PostView: View {
           }
           .onChange(of: caption) { _, now in
             if now.contains(where: \.isNewline) {
-              caption = String(now.map { $0.isNewline ? " " : $0 }.prefix(APIClient.captionMax))
+              caption = String(now.map { $0.isNewline ? " " : $0 }).clipped(to: APIClient.captionMax)
               field = nil
-            } else if now.count > APIClient.captionMax {
-              caption = String(now.prefix(APIClient.captionMax))
+            } else if now.serverLength > APIClient.captionMax {
+              caption = now.clipped(to: APIClient.captionMax)
             }
           }
           .accessibilityLabel("Caption")
@@ -191,8 +191,8 @@ struct PostView: View {
             .fixedSize(horizontal: false, vertical: true)
           Spacer(minLength: 12)
           if !caption.isEmpty {
-            Text("\(APIClient.captionMax - caption.count) left")
-              .foregroundStyle(APIClient.captionMax - caption.count < 20 ? Color.warn : Color.ink3)
+            Text("\(APIClient.captionMax - caption.serverLength) left")
+              .foregroundStyle(APIClient.captionMax - caption.serverLength < 20 ? Color.warn : Color.ink3)
           }
         }
         .face(.meta)
@@ -336,7 +336,7 @@ struct PostView: View {
 
   private func addSpotter() {
     guard !spotterText.isEmpty else { return }
-    withAnimation(.snappy) { spotters.append(String(spotterText.prefix(APIClient.finderNameMax))) }
+    withAnimation(.snappy) { spotters.append(spotterText.clipped(to: APIClient.finderNameMax)) }
     spotter = ""
   }
 

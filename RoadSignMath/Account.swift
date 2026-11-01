@@ -251,10 +251,18 @@ final class Account {
   /// Something on your signs since you last looked: the dot on your avatar.
   var newActivity: Bool { activity?.hasNew(since: activitySeen) ?? false }
 
+  /// Each read of what's new, numbered, so a slow one can't land over a
+  /// newer one (a block's read, say, with an older read still out).
+  private var activityReads = 0
+
   /// Reads what's new on your signs. A failure keeps what was read before.
   private func readActivity() async {
     guard signedIn, let handle = me?.handle else { return }
-    guard let read = try? await authorized({ try await client.myActivity(token: $0) }), me?.handle == handle else { return }
+    activityReads += 1
+    let mine = activityReads
+    guard let read = try? await authorized({ try await client.myActivity(token: $0) }),
+          me?.handle == handle, mine == activityReads
+    else { return }
     activity = read
     if activitySeen == nil {
       // The first read on this phone arrives seen: no dot for what came
@@ -356,7 +364,7 @@ final class Account {
   }
 
   /// The longest note a report takes after "Inappropriate: ".
-  static let reportNoteMax = APIClient.reportMax - "Inappropriate: ".count
+  static let reportNoteMax = APIClient.reportMax - "Inappropriate: ".serverLength
 
   /// Blocks a player; reads what's new on your signs again, which leaves
   /// them out.
@@ -375,8 +383,11 @@ final class Account {
   }
 
   /// Deletes a sign you posted; reads you again, so You counts one fewer.
+  /// One that's gone already (deleted on another phone) counts as deleted.
   func deleteSign(_ signId: String) async throws {
-    try await authorized { try await client.deleteSign(signId, token: $0) }
+    do {
+      try await authorized { try await client.deleteSign(signId, token: $0) }
+    } catch let error as APIError where error.status == 404 {}
     Task { await refresh() }
   }
 

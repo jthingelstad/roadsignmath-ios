@@ -89,7 +89,7 @@ struct ReportSheet: View {
             .strokeBorder(typing ? Color.greenInk : Color.ruleStrong, lineWidth: typing ? 2 : 1.5)
         }
         .onChange(of: note) { _, now in
-          if now.count > Account.reportNoteMax { note = String(now.prefix(Account.reportNoteMax)) }
+          if now.serverLength > Account.reportNoteMax { note = now.clipped(to: Account.reportNoteMax) }
         }
     }
     if let problem { ProblemLine(text: problem) }
@@ -99,7 +99,9 @@ struct ReportSheet: View {
         Text(sending ? "The moderator is looking…" : "Report as inappropriate")
       }
       .face(.button)
-      .foregroundStyle(.white)
+      // Warn is pale in the dark (it's made for words on the ground), so
+      // the words take the card's colour: white in light, near black in dark.
+      .foregroundStyle(Color.card)
       .frame(maxWidth: .infinity, minHeight: 50)
       .background(Color.warn, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }

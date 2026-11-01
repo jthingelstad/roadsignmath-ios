@@ -34,56 +34,7 @@ struct SignView: View {
   private var sign: Sign? { (detail?.sign ?? store.knownSign(id)).map(store.current) }
 
   var body: some View {
-    Group {
-      if let sign {
-        page(sign)
-      } else if let failed {
-        Notice(symbol: "signpost.right", title: "Can’t open this sign", message: failed,
-               action: ("Try again", { Task { await load() } }))
-      } else {
-        ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
-      }
-    }
-    .background(Color.card)
-    .navigationTitle(sign?.title ?? "")
-    .navigationBarTitleDisplayMode(.inline)
-    .toolbar {
-      if let sign {
-        ToolbarItem(placement: .topBarTrailing) { menu(sign) }
-      }
-    }
-    .sheet(isPresented: $reporting, onDismiss: { if leaveAfterReport { dismiss() } }) {
-      if let sign {
-        ReportSheet(sign: sign, poster: Poster(of: sign, players: store.players)) { outcome in
-          if outcome.outcome == .hidden {
-            store.signGone(sign.id)
-            leaveAfterReport = true
-          }
-        } blocked: {
-          if let poster = Poster(of: sign, players: store.players) { store.blocked(poster.handle) }
-          leaveAfterReport = true
-        }
-        .presentationDetents([.medium, .large])
-        .closesForSnap()
-      }
-    }
-    .confirmationDialog(confirmBlock.map { "Block \($0.name)?" } ?? "", isPresented: Binding(get: { confirmBlock != nil }, set: { if !$0 { confirmBlock = nil } }),
-                        titleVisibility: .visible, presenting: confirmBlock) { poster in
-      Button("Block \(poster.name)", role: .destructive) { block(poster) }
-    } message: { _ in
-      Text(BlockWords.what + " Unblock them in Settings whenever you like.")
-    }
-    .alert("Delete this sign?", isPresented: $confirmDelete, presenting: sign) { sign in
-      Button("Delete this sign", role: .destructive) { delete(sign) }
-      Button("Keep it", role: .cancel) {}
-    } message: { sign in
-      Text(deleteWords(sign))
-    }
-    .alert("That didn’t work", isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } }), presenting: problem) { _ in
-      Button("OK", role: .cancel) {}
-    } message: { problem in
-      Text(problem)
-    }
+    asking(shown)
     .signInFirst($askSignIn, title: afterSignIn == .block ? "Sign in to block" : "Sign in to report it",
                  waiting: afterSignIn == .block ? "Blocking is for players. Sign in, then block whoever posted this sign."
                    : "Reports come from players. Sign in, then tell us what’s wrong with this sign.") {
@@ -99,6 +50,84 @@ struct SignView: View {
     .countsView(sign.flatMap { ViewPath.sign($0.slug) })
     // A way just added from here goes on the list at once.
     .onChange(of: store.details[id]) { _, now in if let now { detail = now } }
+  }
+
+  /// The page, its bar and the report sheet, apart from the questions
+  /// below, so the compiler checks each in good time.
+  private var shown: some View {
+    Group {
+      if let sign {
+        page(sign)
+      } else if let failed {
+        Notice(symbol: "signpost.right", title: "Can’t open this sign", message: failed,
+               action: ("Try again", { Task { await load() } }))
+      } else {
+        ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+      }
+    }
+    .background(Color.card)
+    .navigationTitle(sign?.title ?? "")
+    .navigationBarTitleDisplayMode(.inline)
+    .toolbar {
+      if let sign {
+        // The whole title, on two lines and smaller before it's cut short:
+        // a 60-letter title doesn't fit the bar's one line, and the page
+        // shows it nowhere else.
+        ToolbarItem(placement: .principal) {
+          Text(sign.title)
+            .font(sign.title.count > 28 ? .subheadline.weight(.semibold) : .headline)
+            .foregroundStyle(Color.ink)
+            .multilineTextAlignment(.center)
+            .lineLimit(2)
+            .minimumScaleFactor(0.8)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityAddTraits(.isHeader)
+        }
+        ToolbarItem(placement: .topBarTrailing) { menu(sign) }
+      }
+    }
+    .sheet(isPresented: $reporting, onDismiss: { if leaveAfterReport { dismiss() } }) {
+      if let sign {
+        ReportSheet(sign: sign, poster: Poster(of: sign, players: store.players)) { outcome in
+          if outcome.outcome == .hidden {
+            store.signGone(sign.id)
+            leaveOnceReported()
+          }
+        } blocked: {
+          if let poster = Poster(of: sign, players: store.players) { store.blocked(poster.handle) }
+          leaveOnceReported()
+        }
+        .presentationDetents([.medium, .large])
+        .closesForSnap()
+      }
+    }
+  }
+
+  /// The ⋯ menu's questions, and the alert when something didn't work.
+  private func asking(_ content: some View) -> some View {
+    content
+    .confirmationDialog(confirmBlock.map { "Block \($0.name)?" } ?? "", isPresented: Binding(get: { confirmBlock != nil }, set: { if !$0 { confirmBlock = nil } }),
+                        titleVisibility: .visible, presenting: confirmBlock) { poster in
+      Button("Block \(poster.name)", role: .destructive) { block(poster) }
+    } message: { _ in
+      Text(BlockWords.what + " Unblock them in Settings whenever you like.")
+    }
+    // "Snap a road sign" closes the ⋯ menu's questions, as it does the sheets.
+    .onChange(of: Snap.shared.clearing) {
+      confirmBlock = nil
+      confirmDelete = false
+    }
+    .alert("Delete this sign?", isPresented: $confirmDelete, presenting: sign) { sign in
+      Button("Delete this sign", role: .destructive) { delete(sign) }
+      Button("Keep it", role: .cancel) {}
+    } message: { sign in
+      Text(deleteWords(sign))
+    }
+    .alert("That didn’t work", isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } }), presenting: problem) { _ in
+      Button("OK", role: .cancel) {}
+    } message: { problem in
+      Text(problem)
+    }
   }
 
   // MARK: The ⋯ menu
@@ -173,6 +202,12 @@ struct SignView: View {
     default: ways = "every way found on it, including \(others) ways other players found"
     }
     return "This takes down the sign, \(photos), its hearts and \(ways). It can’t be undone."
+  }
+
+  /// The sign is gone for you: leave it once the sheet has closed, or now
+  /// if it already has ("Snap a road sign" can close it mid-send).
+  private func leaveOnceReported() {
+    if reporting { leaveAfterReport = true } else { dismiss() }
   }
 
   private func delete(_ sign: Sign) {
