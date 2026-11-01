@@ -14,7 +14,8 @@ The website and the server behind it are in
 ## What's here
 
 The app so far is the reading half of the game: a Home feed of everyone's
-signs, newest first, each with its photo and its math drawn the way a math
+signs, newest first (kept on the phone, so with no signal Home still has
+the signs from last time, and says when they were read), each with its photo and its math drawn the way a math
 book would; a sign's own page with every way it has been solved; and a Map
 of where the signs were found. You can sign in (email, then the code or the
 link), pick the name that goes on your signs, and see yourself under You,
@@ -24,6 +25,9 @@ takes it down if it agrees) or blocks whoever posted it, and deletes a sign
 of your own. Settings lists the players you blocked, takes a one-line bio for
 your page, and has Help (How to play, and Send feedback, which emails Jamie)
 and About (the privacy page, the about page and the licenses).
+
+A new player gets a How to play card on Home until they close it or post
+a sign; it's in Settings, under Help, after that.
 
 Capture is here too: the green camera button opens the camera, sideways or
 upright, marked "Passenger mode" as a reminder that the shot is the

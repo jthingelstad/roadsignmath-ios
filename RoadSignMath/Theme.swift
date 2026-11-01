@@ -28,6 +28,8 @@ extension Color {
   static let wayInk = Color(light: 0x1F3A2E, dark: 0xCDE8DA)
   /// A selected pin's ring.
   static let signYellow = Color(light: 0xF2B300, dark: 0xF2B300)
+  /// Words on sign yellow: dark in dark mode too.
+  static let yellowInk = Color(light: 0x18201C, dark: 0x18201C)
   static let photoGround = Color(light: 0xDDE3DD, dark: 0x222A25)
 
   init(light: UInt32, dark: UInt32) {

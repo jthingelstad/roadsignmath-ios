@@ -1,5 +1,6 @@
 import CoreLocation
 import Foundation
+import Network
 import Observation
 import RoadSignMathAPI
 
@@ -32,6 +33,14 @@ final class Store {
   // Latest: the newest signs, a page at a time.
   private(set) var latest: [Sign] = []
   private(set) var latestLoad: Load = .idle
+  /// When the signs in Latest were read.
+  private(set) var latestReadAt: Date?
+  /// Latest's signs are the ones kept on the phone, not read yet this time.
+  private(set) var latestKept = false
+  /// The last read of Latest failed while it had signs to show: Home says
+  /// so over them, with when they were read.
+  private(set) var latestTrouble: Trouble?
+  enum Trouble: Equatable { case noSignal, notAnswering }
   private var nextCursor: String?
   /// Bumped each time the feed is read afresh.
   private var feedGeneration = 0
@@ -60,10 +69,23 @@ final class Store {
 
   /// The app's screen views on their way to the site's analytics.
   let views: ViewCounter
+  /// Latest's first page as last read, for opening with no signal.
+  @ObservationIgnored private let keptFeed: KeptFeedFile?
+  @ObservationIgnored private let monitor = NWPathMonitor()
 
   init(client: APIClient = APIClient(base: Store.server)) {
     self.client = client
     views = ViewCounter { paths in try await client.countViews(paths) }
+    keptFeed = KeptFeedFile.standard(server: client.base)
+    // Signal back while Home is showing old signs: read them again.
+    monitor.pathUpdateHandler = { [weak self] path in
+      guard path.status == .satisfied else { return }
+      Task { @MainActor in
+        guard let self, self.latestTrouble != nil else { return }
+        await self.loadLatest()
+      }
+    }
+    monitor.start(queue: DispatchQueue(label: "xyz.roadsignmath.store.network"))
     #if DEBUG
       // For screenshots and UI checks: `-RSMTab map`, `-RSMOpen /signs/<slug>`,
       // `-RSMFocus <sign id>` as launch arguments.
@@ -97,9 +119,19 @@ final class Store {
 
   func loadLatest() async {
     if latestLoad == .loading { return }
+    // Opening: the signs kept from last time show while the server is read.
+    if latest.isEmpty, let kept = keptFeed?.load(reader: reader) {
+      latest = kept.signs
+      latestReadAt = kept.readAt
+      latestKept = true
+    }
     if latest.isEmpty { latestLoad = .loading }
     let started = Date()
     do {
+      #if DEBUG
+        // `-RSMNoSignal YES`: Latest's reads fail as if there's no signal.
+        if Script.flag("RSMNoSignal") { throw URLError(.notConnectedToInternet) }
+      #endif
       let page = try await read { try await self.client.signs(limit: 20, token: $0) }
       latest = page.signs
       settleHearts(page.signs, readAt: started)
@@ -107,10 +139,33 @@ final class Store {
       // A later page still being read belongs to the feed this replaced.
       feedGeneration += 1
       latestLoad = .loaded
+      latestReadAt = started
+      latestKept = false
+      latestTrouble = nil
+      keepLatest()
     } catch {
-      latestLoad = Self.cancelled(error) ? (latest.isEmpty ? .idle : .loaded) : (latest.isEmpty ? .failed(Self.say(error)) : .loaded)
+      if Self.cancelled(error) {
+        // Read again when Home next shows, even over the kept signs.
+        latestLoad = latest.isEmpty || latestKept ? .idle : .loaded
+      } else if latest.isEmpty {
+        latestLoad = .failed(Self.say(error))
+      } else {
+        latestLoad = .loaded
+        latestTrouble = Self.offline(error) ? .noSignal : .notAnswering
+      }
     }
     if players.isEmpty { await loadPlayers() }
+  }
+
+  /// Whose hearts a read carries: the signed-in player's handle.
+  private var reader: String? {
+    account?.signedIn == true ? account?.me?.handle : nil
+  }
+
+  /// Latest's first page, as now shown, kept on the phone for next time.
+  private func keepLatest() {
+    guard let keptFeed, let latestReadAt, !latestKept else { return }
+    keptFeed.save(KeptFeed(readAt: latestReadAt, reader: reader, signs: latest))
   }
 
   func loadMore() async {
@@ -343,6 +398,7 @@ final class Store {
     pins.removeAll { $0.id == id }
     for key in details.keys where details[key]?.sign.id == id { details[key] = nil }
     withNewWays[id] = nil
+    keepLatest()
   }
 
   /// The players blocked or unblocked on this phone since signing in, by
@@ -366,6 +422,7 @@ final class Store {
     popular.removeAll(where: theirs)
     complex.removeAll(where: theirs)
     pins.removeAll { ids.contains($0.id) }
+    keepLatest()
     readAgain()
   }
 
@@ -454,6 +511,14 @@ final class Store {
   /// A read the screen gave up on (it went away), not one that failed.
   static func cancelled(_ error: any Error) -> Bool {
     error is CancellationError || (error as? URLError)?.code == .cancelled
+  }
+
+  /// A read that failed for want of a network, not the server's answer.
+  static func offline(_ error: any Error) -> Bool {
+    switch (error as? URLError)?.code {
+    case .notConnectedToInternet, .networkConnectionLost, .dataNotAllowed, .internationalRoamingOff: true
+    default: false
+    }
   }
 
   static func say(_ error: any Error) -> String {

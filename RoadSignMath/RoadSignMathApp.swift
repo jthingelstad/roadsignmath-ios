@@ -10,6 +10,11 @@ struct RoadSignMathApp: App {
   @Environment(\.scenePhase) private var phase
 
   init() {
+    // Room on disk for the feed's photos, so the signs Home keeps for no
+    // signal show their pictures too. A shown photo never changes (the
+    // server says so for a year), so a kept one is read from here.
+    URLCache.shared.memoryCapacity = 16 * 1024 * 1024
+    URLCache.shared.diskCapacity = 200 * 1024 * 1024
     let account = Account(client: APIClient(base: Store.server))
     let store = Store()
     store.account = account

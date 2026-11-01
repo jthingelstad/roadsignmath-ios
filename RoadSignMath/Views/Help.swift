@@ -86,6 +86,104 @@ private struct HowToExample: View {
   }
 }
 
+/// How to play on Home, for a new player: shown until it's closed (or its
+/// camera opened) or they've posted a sign. After that it lives in
+/// Settings, under Help.
+struct HowToPlayCard: View {
+  let name: String?
+  let done: () -> Void
+  let openCamera: () -> Void
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 16) {
+      HStack(alignment: .top, spacing: 12) {
+        VStack(alignment: .leading, spacing: 2) {
+          Text(welcome)
+            .face(.metaBold)
+            .textCase(.uppercase)
+            .foregroundStyle(Color.greenInk)
+          Text("How to play")
+            .face(.title)
+            .foregroundStyle(Color.ink)
+            .accessibilityAddTraits(.isHeader)
+        }
+        Spacer(minLength: 0)
+        Button(action: done) {
+          Image(systemName: "xmark")
+            .font(.system(size: 14, weight: .bold))
+            .foregroundStyle(Color.ink2)
+            .frame(width: 36, height: 36)
+            .background(Color.ground, in: Circle())
+            .frame(width: 44, height: 44)
+            .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .padding(.top, -4)
+        .padding(.trailing, -4)
+        .accessibilityLabel("Close How to play")
+      }
+      HowToPlaySteps()
+      // Side by side, "Got it" as wide as its words; stacked at large text.
+      ViewThatFits(in: .horizontal) {
+        HStack(spacing: 10) {
+          gotIt.fixedSize(horizontal: true, vertical: false)
+          camera
+        }
+        VStack(spacing: 10) {
+          camera
+          gotIt
+        }
+      }
+      Text("You’ll find it again in Settings, under Help.")
+        .face(.meta)
+        .foregroundStyle(Color.ink3)
+        .frame(maxWidth: .infinity)
+        .multilineTextAlignment(.center)
+    }
+    .padding(.horizontal, 16)
+    .padding(.top, 18)
+    .padding(.bottom, 14)
+    .background(Color.card, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    .overlay { RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(Color.rule) }
+    .shadow(color: Color.signGreen.opacity(0.10), radius: 11, y: 8)
+    .padding(.horizontal, 12)
+    .padding(.top, 10)
+    .padding(.bottom, 6)
+  }
+
+  private var welcome: String {
+    guard let name = name?.trimmingCharacters(in: .whitespaces), !name.isEmpty else { return "Welcome" }
+    return "Welcome, \(name)"
+  }
+
+  private var gotIt: some View {
+    Button(action: done) {
+      Text("Got it")
+        .face(.button)
+        .foregroundStyle(Color.ink)
+        .lineLimit(1)
+        .padding(.horizontal, 24)
+        .frame(maxWidth: .infinity, minHeight: 50)
+        .background(Color.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay { RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.ruleStrong) }
+    }
+    .buttonStyle(CardPress())
+  }
+
+  private var camera: some View {
+    Button(action: openCamera) {
+      Label("Open the camera", systemImage: "camera.fill")
+        .face(.button)
+        .foregroundStyle(.white)
+        .lineLimit(1)
+        .padding(.horizontal, 18)
+        .frame(maxWidth: .infinity, minHeight: 50)
+        .background(Color.signGreen, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+    .buttonStyle(CardPress())
+  }
+}
+
 /// How to play, from Settings' Help.
 struct HowToPlayView: View {
   var body: some View {
