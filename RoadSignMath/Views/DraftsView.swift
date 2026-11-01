@@ -1,8 +1,9 @@
 import SignCapture
 import SwiftUI
 
-/// Drafts: the signs saved for later, newest first. A tap picks one up
-/// where it was left; a swipe lets it go. They stay on this phone.
+/// Drafts: the signs saved for later, newest first, each known by where
+/// its photo was taken. A tap picks one up where it was left; a swipe
+/// lets it go. They stay on this phone.
 struct DraftsView: View {
   @Environment(CaptureFlow.self) private var flow
   @Environment(\.dismiss) private var dismiss
@@ -40,6 +41,7 @@ struct DraftsView: View {
       }
       .navigationTitle("Drafts")
       .navigationBarTitleDisplayMode(.inline)
+      .task { await flow.drafts.findPlaces() }
       .toolbar {
         ToolbarItem(placement: .confirmationAction) {
           Button("Done") { dismiss() }
@@ -66,16 +68,17 @@ private struct DraftRow: View {
       .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
       .accessibilityHidden(true)
       VStack(alignment: .leading, spacing: 3) {
-        Text(draft.numbersText)
+        Text(draft.heading)
           .face(.name)
           .foregroundStyle(Color.ink)
           .lineLimit(1)
+        Text(draft.details())
+          .face(.meta)
+          .foregroundStyle(Color.ink2)
+          .lineLimit(2)
         Text(state)
           .face(.metaBold)
-          .foregroundStyle(draft.solved ? Color.greenInk : Color.ink2)
-        Text("Saved \(draft.savedAt.formatted(.relative(presentation: .named)))")
-          .face(.meta)
-          .foregroundStyle(Color.ink3)
+          .foregroundStyle(draft.solved ? Color.greenInk : Color.ink3)
       }
       Spacer(minLength: 0)
       Image(systemName: "chevron.right")

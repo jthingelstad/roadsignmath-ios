@@ -16,9 +16,15 @@ public struct Draft: Codable, Sendable, Hashable, Identifiable {
   public var numbers: NumberList?
   /// The math as far as it got on Solve.
   public var way: WayDraft?
+  /// The town at the photo's own GPS spot, `Twin Lakes, MN`, looked up
+  /// once it was saved. Nil when the photo doesn't say where (the app's
+  /// own camera never does) or it couldn't be looked up yet. Drafts saved
+  /// before it was kept read as nil.
+  public var place: String?
 
   public init(
-    id: UUID = UUID(), savedAt: Date = .now, source: Source, takenAt: Date?, numbers: NumberList?, way: WayDraft?
+    id: UUID = UUID(), savedAt: Date = .now, source: Source, takenAt: Date?, numbers: NumberList?, way: WayDraft?,
+    place: String? = nil
   ) {
     self.id = id
     self.savedAt = savedAt
@@ -26,6 +32,51 @@ public struct Draft: Codable, Sendable, Hashable, Identifiable {
     self.takenAt = takenAt
     self.numbers = numbers
     self.way = way.flatMap { $0.isEmpty ? nil : $0 }
+    self.place = place
+  }
+
+  /// What the list calls it: where it was taken, else where it came from.
+  public var heading: String {
+    if let place, !place.isEmpty { return place }
+    switch source {
+    case .library: return "From your photos"
+    case .camera: return "From the camera"
+    case .sample: return "The sample sign"
+    }
+  }
+
+  /// The line under it: when it was taken (or saved, when the photo
+  /// doesn't say) and its numbers, "Taken Saturday ∙ 2, 5 and 1". A photo
+  /// from the library with no place says so instead of numbers not read.
+  public func details(now: Date = .now, calendar: Calendar = .current) -> String {
+    var parts = [takenAt.map { "Taken " + Self.day($0, now: now, calendar: calendar) }
+      ?? "Saved " + Self.day(savedAt, now: now, calendar: calendar)]
+    if let numbers, !numbers.kept.isEmpty {
+      parts.append(numbersText)
+    } else if place == nil, source == .library {
+      parts.append("no place in the photo")
+    }
+    return parts.joined(separator: " \u{2219} ")
+  }
+
+  /// "today", "yesterday", the weekday within the week ("Saturday"), the
+  /// day this year ("Aug 14") and the day with its year before that.
+  public static func day(_ date: Date, now: Date = .now, calendar: Calendar = .current) -> String {
+    let start = calendar.startOfDay(for: now)
+    let then = calendar.startOfDay(for: date)
+    let days = calendar.dateComponents([.day], from: then, to: start).day ?? 0
+    var style = Date.FormatStyle(date: .omitted, time: .omitted, locale: calendar.locale ?? .current, calendar: calendar,
+                                 timeZone: calendar.timeZone)
+    switch days {
+    case 0: return "today"
+    case 1: return "yesterday"
+    case 2...6:
+      style = style.weekday(.wide)
+    default:
+      style = style.month(.abbreviated).day()
+      if calendar.component(.year, from: date) != calendar.component(.year, from: now) { style = style.year() }
+    }
+    return date.formatted(style)
   }
 
   /// The math works.

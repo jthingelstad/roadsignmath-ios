@@ -81,4 +81,54 @@ import Testing
     #expect(text(["8", "7", "82", "90"]) == "8, 7, 82 and 90")
     #expect(text(SampleSign.numbers) == "8, 7, 82 and 2 more")
   }
+
+  /// Central time, US English, Gregorian: the list's days don't move with
+  /// the Mac running the tests.
+  var central: Calendar {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(identifier: "America/Chicago")!
+    calendar.locale = Locale(identifier: "en_US")
+    return calendar
+  }
+
+  /// Friday 2025-10-31, 8 PM Central.
+  let now = Date(timeIntervalSince1970: 1_761_958_800)
+
+  func daysBefore(_ days: Int) -> Date { now.addingTimeInterval(-Double(days) * 86_400) }
+
+  @Test func daysInWords() {
+    #expect(Draft.day(now, now: now, calendar: central) == "today")
+    #expect(Draft.day(daysBefore(1), now: now, calendar: central) == "yesterday")
+    #expect(Draft.day(daysBefore(6), now: now, calendar: central) == "Saturday")
+    #expect(Draft.day(daysBefore(7), now: now, calendar: central) == "Oct 24")
+    #expect(Draft.day(Date(timeIntervalSince1970: 1_755_180_000), now: now, calendar: central) == "Aug 14")
+    #expect(Draft.day(Date(timeIntervalSince1970: 1_723_640_400), now: now, calendar: central) == "Aug 14, 2024")
+  }
+
+  @Test func aDraftIsKnownByWhereItWasTaken() {
+    var draft = Draft(source: .library, takenAt: daysBefore(6), numbers: nil, way: nil, place: "Twin Lakes, MN")
+    #expect(draft.heading == "Twin Lakes, MN")
+    var list = NumberList()
+    for n in ["2", "5", "1"] { try! list.add(n) }
+    draft.numbers = list
+    #expect(draft.details(now: now, calendar: central) == "Taken Saturday \u{2219} 2, 5 and 1")
+  }
+
+  @Test func noPlaceSaysWhereItCameFrom() {
+    let photos = Draft(savedAt: daysBefore(1), source: .library, takenAt: nil, numbers: nil, way: nil)
+    #expect(photos.heading == "From your photos")
+    #expect(photos.details(now: now, calendar: central) == "Saved yesterday \u{2219} no place in the photo")
+    // The app's camera never knows the place, so there's nothing to explain.
+    let camera = Draft(source: .camera, takenAt: now, numbers: nil, way: nil)
+    #expect(camera.heading == "From the camera")
+    #expect(camera.details(now: now, calendar: central) == "Taken today")
+    #expect(Draft(source: .sample, takenAt: nil, numbers: nil, way: nil).heading == "The sample sign")
+  }
+
+  @Test func aDraftSavedBeforePlacesStillReads() throws {
+    let old = #"{"id":"8C7B0E35-6D0C-4B2E-9B8A-3F1D2C4E5A6B","savedAt":800000000,"source":"library"}"#
+    let draft = try JSONDecoder().decode(Draft.self, from: Data(old.utf8))
+    #expect(draft.place == nil)
+    #expect(draft.heading == "From your photos")
+  }
 }

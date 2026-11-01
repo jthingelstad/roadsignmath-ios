@@ -77,6 +77,8 @@ final class CaptureFlow {
   /// The draft this shot was opened from: saving again updates it, and
   /// posting it takes it off the shelf.
   private(set) var draftID: UUID?
+  /// The town that draft's photo was taken in, kept as it's saved again.
+  private var draftPlace: String?
 
   /// Bumped by every new photo, so a slow reading of an earlier one is
   /// dropped.
@@ -137,6 +139,7 @@ final class CaptureFlow {
         file: file, picture: UIImage(cgImage: show), readable: read, source: source,
         takenAt: source == .camera ? (time ?? .now) : file.facts.takenAt)
       draftID = saved?.id
+      draftPlace = saved?.place
       numbers = saved?.numbers ?? NumberList()
       draft = saved?.way
       way = nil
@@ -193,8 +196,17 @@ final class CaptureFlow {
     guard let shot else { return false }
     let saved = Draft(
       id: draftID ?? UUID(), source: shot.source, takenAt: shot.takenAt,
-      numbers: reading == .reading || reading == .idle ? nil : numbers, way: draft)
+      numbers: reading == .reading || reading == .idle ? nil : numbers, way: draft, place: draftPlace)
     guard drafts.save(saved, photo: draftID == nil ? shot.file.data : nil) else { return false }
+    // Drafts are known by where they were taken: the town at the photo's
+    // own GPS spot, looked up now (Drafts tries again if this can't).
+    if saved.place == nil, let latitude = shot.file.facts.latitude, let longitude = shot.file.facts.longitude {
+      let drafts = drafts
+      let id = saved.id
+      Task {
+        if let town = await Places.town(latitude: latitude, longitude: longitude) { drafts.setPlace(town.label, for: id) }
+      }
+    }
     finishPosting()
     path = []
     return true
@@ -217,6 +229,7 @@ final class CaptureFlow {
     way = nil
     reviewing = false
     draftID = nil
+    draftPlace = nil
   }
 
   /// Back to the live camera, keeping the shot behind its thumbnail.
