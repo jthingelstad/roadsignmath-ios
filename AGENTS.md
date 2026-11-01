@@ -278,6 +278,14 @@ The website and the server behind it are in
   math is begun) and a swipe deletes it. `RoadSignMath/DraftShelf.swift`
   is the list the screens watch; saving again updates the same draft, and
   posting it (into the outbox) removes it. They never leave the phone.
+  "Snap a road sign" (`SnapIntent.swift`) is an App Intent with its App
+  Shortcut, for Siri, Shortcuts, Spotlight and the Action button: it opens
+  the app on the camera and nothing more (the passenger still takes the
+  photo). `Snap.shared.ask()` asks `RootView`, which closes a sheet in the
+  way first (You, a report, "Find another way", a player's badge: each
+  carries `.closesForSnap()`), waits for a sign-in under way, and leaves
+  Capture where it is when it's already open. A Control Center control
+  comes later.
   `Views/AnotherWayView.swift` is "Find another way": from a Home card or
   the sign page (the `findWay` environment, set by `.findsAnotherWay()` on
   each tab's stack), a sheet with the sign, its ways so far and Solve's
@@ -333,6 +341,16 @@ The website and the server behind it are in
   `Theme.swift` is the boards' colors and type: Overpass (bundled, SIL
   OFL, its license beside it in `Fonts/`) for words, Latin Modern for
   math.
+- `RoadSignMath/PrivacyInfo.xcprivacy` is the privacy manifest: no
+  tracking; what the app sends that the server keeps (the email, name and
+  handle, photos, a photo's own place, what players post, feedback, all
+  linked to the player, and screen views, not linked); and UserDefaults
+  (reason CA92.1, the app's own settings). Near you's location answers
+  that one request and is kept nowhere (the server logs no paths or
+  queries), so it isn't listed. A new API on Apple's required-reason list,
+  or a new kind of data kept, goes in it and in App Store Connect's
+  answers (`docs/DISTRIBUTION.md`). The app icon has its dark and tinted
+  looks beside it in `AppIcon.appiconset`, the same plate recolored.
 - `Config/`: `Info.plist` (it also claims the `roadsignmath://` scheme,
   so `roadsignmath://signin?l=<login>&t=<token>` finishes a sign-in where
   a universal link can't), the entitlements (Associated Domains for
@@ -344,10 +362,13 @@ The website and the server behind it are in
   (`Config/ExportOptions-TestFlight.plist`, internal only unless
   `--external`); `docs/DISTRIBUTION.md` is the road from there to the App
   Store and `docs/PHONE-TEST.md` the pass each build gets on a phone.
-- `scripts/version.sh`: the version a build carries, by Your Version
-  Number's arithmetic from 30 October 2026 (`scripts/version.sh test`
-  checks it). A build phase stamps it, the commit count and the commit into
-  the built Info.plist.
+- `scripts/version.sh`: the version a build carries, the one in `VERSION`
+  (0.9.0 now), set by hand when Jamie names a release (Jamie, 2026-10-31:
+  "we will determine this in our own way.. Lets call this version 0.9.0";
+  the date arithmetic was only ever Changelog's). `scripts/version.sh test`
+  checks its form. A build phase stamps it, the commit count (the build
+  number) and the commit into the built Info.plist. Apple takes each build
+  number once per version, and the commit count only goes up.
 
 ## Rules
 
@@ -393,7 +414,8 @@ The website and the server behind it are in
   bar), `-RSMHowToPlay YES` (the first-run card, even for a player who
   has closed it or posted),
   `-RSMOpen /signs/<slug>`, `-RSMFocus <sign id>`, `-RSMSearch <words>`,
-  `-RSMMine YES` (the Map's Mine chip),
+  `-RSMMine YES` (the Map's Mine chip), `-RSMSnap YES` ("Snap a road
+  sign" three seconds after launch, over whatever else is open),
   and for sign-in `-RSMSignIn <email>` (opens sign-in and sends the
   email), `-RSMCode <digits>`, `-RSMName <name>` (`-RSMNameSave YES`
   saves it) and `-RSMMe YES` (opens You; `-RSMLook photos` shows the

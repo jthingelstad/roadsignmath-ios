@@ -29,6 +29,9 @@ and About (the privacy page, the about page and the licenses).
 A new player gets a How to play card on Home until they close it or post
 a sign; it's in Settings, under Help, after that.
 
+"Snap a road sign" opens the app on the camera from Siri, Shortcuts,
+Spotlight or the Action button. The icon has dark and tinted looks.
+
 Capture is here too: the green camera button opens the camera, sideways or
 upright, marked "Passenger mode" as a reminder that the shot is the
 passenger's job. Take a photo, or pick one you took earlier, and every number

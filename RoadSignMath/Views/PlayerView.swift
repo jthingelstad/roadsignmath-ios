@@ -46,6 +46,7 @@ struct PlayerView: View {
         self.badge = nil
         opener?.sign(id)
       }
+      .closesForSnap()
     }
     .task { if player == nil { await load() } }
     .refreshable { await load() }
