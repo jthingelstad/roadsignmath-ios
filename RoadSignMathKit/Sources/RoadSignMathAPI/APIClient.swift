@@ -63,8 +63,10 @@ public struct APIClient: Sendable {
     try await send(on ? "PUT" : "DELETE", ["signs", signId, "heart"], token: token)
   }
 
-  /// Every sign's pin, and the years they were found in.
-  public func map() async throws -> MapPins { try await get(["map"]) }
+  /// Every sign's pin, and the years they were found in. With your token
+  /// it leaves out the signs of players you blocked, and is never cached
+  /// for anyone else.
+  public func map(token: String? = nil) async throws -> MapPins { try await get(["map"], token: token) }
 
   public func players() async throws -> [Player] {
     let players: Players = try await get(["players"])

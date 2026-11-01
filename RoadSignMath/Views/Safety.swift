@@ -284,7 +284,7 @@ struct BlockedPlayersView: View {
       do {
         try await account.unblock(player.handle)
         withAnimation { players?.removeAll { $0.handle == player.handle } }
-        store.unblocked()
+        store.unblocked(player.handle)
       } catch {
         problem = Account.say(error)
       }

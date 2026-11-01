@@ -155,7 +155,7 @@ final class Store {
     if mapLoad == .loading { return }
     if pins.isEmpty { mapLoad = .loading }
     do {
-      let map = try await client.map()
+      let map = try await read { try await self.client.map(token: $0) }
       pins = map.pins
       years = map.years
       mapLoad = .loaded
@@ -310,10 +310,11 @@ final class Store {
   /// changed, so the kept reads go and Home reads again.
   func signedInChanged() {
     heartsGiven = [:]
+    blockedHandles = []
     readAgain()
   }
 
-  /// The kept sign pages go, and Home's lists read again.
+  /// The kept sign pages go, and Home's lists and the map read again.
   private func readAgain() {
     details = [:]
     Task {
@@ -321,6 +322,7 @@ final class Store {
       if nearLoad == .loaded, !locationDenied { await loadNear() }
       if popularLoad == .loaded { await loadPopular() }
       if complexLoad == .loaded { await loadComplex() }
+      if mapLoad == .loaded { await loadMap() }
     }
   }
 
@@ -343,19 +345,36 @@ final class Store {
     withNewWays[id] = nil
   }
 
-  /// A player blocked: their signs leave the lists at once, and every
-  /// read after leaves their signs and ways out, so the lists read again.
+  /// The players blocked or unblocked on this phone since signing in, by
+  /// handle. A player's page kept from before leaves the blocked ones'
+  /// signs out at once, and reads again when this changes.
+  private(set) var blockedHandles: Set<String> = []
+  private(set) var blockChanges = 0
+
+  /// A player blocked: their signs leave the lists and the map at once,
+  /// and every read after leaves their signs and ways out, so the lists
+  /// and the map read again (the map with your token, which the server
+  /// filters).
   func blocked(_ handle: String) {
+    blockedHandles.insert(handle)
+    blockChanges += 1
     let theirs = { (sign: Sign) in sign.postedBy == handle }
+    var ids = Set((latest + near + popular + complex).filter(theirs).map(\.id))
+    ids.formUnion(details.values.map(\.sign).filter(theirs).map(\.id))
     latest.removeAll(where: theirs)
     near.removeAll(where: theirs)
     popular.removeAll(where: theirs)
     complex.removeAll(where: theirs)
+    pins.removeAll { ids.contains($0.id) }
     readAgain()
   }
 
   /// A player unblocked: their signs and ways come back with the next read.
-  func unblocked() { readAgain() }
+  func unblocked(_ handle: String) {
+    blockedHandles.remove(handle)
+    blockChanges += 1
+    readAgain()
+  }
 
   /// A read with your token when signed in. A 401 tells `Account`, which
   /// checks and signs out if the token has ended, and reads again without.

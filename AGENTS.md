@@ -262,7 +262,12 @@ The website and the server behind it are in
   takes an optional note, sends "Inappropriate" or "Inappropriate: <note>",
   and shows the moderator's answer and note, with "Block <poster> too".
   Blocking confirms first and says they aren't told; a blocked player's
-  signs leave Home at once (`Store.blocked`) and every list reads again.
+  signs leave Home and the map at once (`Store.blocked`), and every list and
+  the map read again. The map reads with your token when signed in (API
+  `GET /map` leaves out blocked players' signs for that reader and is
+  never cached for anyone else). A player's page kept from before leaves
+  out signs posted by a player blocked since (`Store.blockedHandles`) and
+  reads again on any block or unblock (`Store.blockChanges`).
   Deleting confirms with what goes, counting the ways other players found
   (Jamie, 2026-10-31: yes, deleting takes them too, and the confirm says
   so). A deleted sign, or one a report took down, leaves every list, the

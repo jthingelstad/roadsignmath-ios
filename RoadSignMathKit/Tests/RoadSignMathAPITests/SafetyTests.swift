@@ -46,6 +46,14 @@ import Testing
     #expect(stub.requests.first?.path == "/api/v1/me/blocks")
   }
 
+  @Test func theMapReadsWithYourTokenSoBlocksApply() async throws {
+    let stub = Stub(status: 200, body: #"{"pins":[],"years":[]}"#)
+    _ = try await stub.client.map(token: "rsm_x")
+    _ = try await stub.client.map()
+    #expect(stub.requests.map(\.path) == ["/api/v1/map", "/api/v1/map"])
+    #expect(stub.requests.map(\.authorization) == ["Bearer rsm_x", nil])
+  }
+
   @Test func deletesASign() async throws {
     let stub = Stub(status: 204, body: "")
     try await stub.client.deleteSign("01sign", token: "rsm_x")

@@ -132,8 +132,11 @@ struct ProfileSigns: View {
   let open: (Sign) -> Void
   @Environment(Store.self) private var store
 
-  /// Leaves out a sign deleted or taken down since the list was read.
-  private var shown: [Sign] { signs.filter { !store.gone.contains($0.id) } }
+  /// Leaves out a sign deleted or taken down since the list was read, and
+  /// the signs of a player blocked since.
+  private var shown: [Sign] {
+    signs.filter { !store.gone.contains($0.id) && !store.blockedHandles.contains($0.postedBy ?? "") }
+  }
 
   var body: some View {
     looks
