@@ -103,6 +103,13 @@ private struct EmailStep: View {
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)
             .fixedSize(horizontal: false, vertical: true)
+          HStack(spacing: 22) {
+            Link("Privacy", destination: SitePage.privacy)
+            Link("About", destination: SitePage.about)
+          }
+          .face(.metaBold)
+          .foregroundStyle(Color.greenInk)
+          .frame(maxWidth: .infinity, minHeight: 32)
         }
         .padding(.horizontal, 24)
         .padding(.top, 28)

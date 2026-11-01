@@ -82,7 +82,11 @@ The website and the server behind it are in
     answers with `ReportOutcome`, hidden or kept with the moderator's note;
     `block` and `unblock` send `POST` and `DELETE /players/{handle}/block`;
     `blocks` reads `GET /me/blocks`; `deleteSign` sends `DELETE
-    /signs/{id}`, a 503 meaning the sign is still there), screen views (`ScreenViews.swift`: `ViewPath`
+    /signs/{id}`, a 503 meaning the sign is still there), feedback and
+    the bio (`Feedback.swift`, API 1.10.0: `sendFeedback` sends `POST
+    /feedback` a message of at most 2000 characters, `reply_ok` and an
+    app line of at most 120, answered 202, ten a day; `updateMe(token:bio:)`
+    sends `PATCH /me` a bio of at most 160, empty taking it away), screen views (`ScreenViews.swift`: `ViewPath`
     makes and checks a screen's path as the server's `VIEW_PATH` does,
     `countViews` sends `POST /app/views` with no token, and `ViewCounter`
     batches them, the first a few seconds after a view and then at most
@@ -155,13 +159,30 @@ The website and the server behind it are in
   401 on any signed-in call signs out with a word why; deleting and
   reinstalling the app signs out, since the Keychain outlives the app).
   `Views/SignInView.swift` is the sign-in screen (email, code, name,
-  welcome), shown on first launch with "Look around first", and
+  welcome), shown on first launch with "Look around first", with Privacy
+  and About links to the website under the email step, and
   `Views/MeView.swift` is You: your profile (signs, states, the year of
   your first sign), your signs as Home's timeline (the same cards, newest
   posted first) or a grid of photos (a tap opens the sign; held or hidden
   ones only you see say why instead), a warm empty state that opens Capture, and the settings
-  sheet (profile photo, name, email, sign out, delete my account, and the build at
-  the bottom). The profile photo (`Views/ProfilePhoto.swift`): "Choose a
+  sheet (profile photo, name, bio, email, Blocked players with a count,
+  Help, About, sign out, delete my account, and the build at the bottom).
+  The bio (`BioView`) is one line of at most 160 characters, Return
+  being Done. `Views/Help.swift` holds the rest: `HowToPlaySteps` (Spot
+  it, Snap it, Solve it and the EXIT 2, COUNTY 5, 1 MILE example, √(5 − 1)
+  = 2, the copy from the 1.0 canvas, shared with the first-run card),
+  `FeedbackView` (Send feedback: emailed to Jamie, the address being the
+  server's `FEEDBACK_TO`, with the player's name and page and
+  `Account.feedbackApp`, the build line, the iOS version and the phone's
+  model; "Jamie can write back to <email>" is on to start and sends
+  `reply_ok`, the only way the email goes along, as the Reply-To),
+  `LicensesView` (Overpass, Latin Modern Math, SwiftMath with iosMath,
+  and CC BY 4.0 for what players post, each license's whole text read
+  from the bundle) and `SitePage`, the website pages the app links to,
+  always the live site. `RoadSignMath/Licenses/` holds the license texts
+  copied from SwiftMath's checkout (its MIT, iosMath's MIT and the GUST
+  Font License); a new dependency's license goes there and on
+  `LicensesView`. The profile photo (`Views/ProfilePhoto.swift`): "Choose a
   photo" (PhotosPicker), "Take a photo" (UIKit's camera picker, front
   first; hidden where there's no camera) and "Remove photo", from
   settings or a tap on your own avatar on You (the camera badge), then
@@ -394,7 +415,14 @@ The website and the server behind it are in
   sends it), `-RSMBlock YES` the block confirm (`-RSMBlock send` blocks),
   and `-RSMDelete YES` the delete confirm on your own sign; `-RSMBlocked
   YES` with `-RSMMe YES -RSMSettings YES` opens Blocked players. Sending
-  or blocking only ever against `npm run dev`. To see the
+  or blocking only ever against `npm run dev`. With `-RSMMe YES
+  -RSMSettings YES`: `-RSMBio YES` opens the bio (`-RSMBioText <words>`
+  writes it, `-RSMBioSave YES` saves it), and `-RSMHelp
+  play|feedback|licenses` opens How to play, Send feedback
+  (`-RSMFeedbackText <words>` writes it, `-RSMFeedbackReply NO` turns
+  the reply off, `-RSMFeedbackSend YES` sends it; its mail lands in
+  the dev server's `.data/mail/`) or Licenses. Saving a bio or sending
+  feedback only ever against `npm run dev`. To see the
   You dot or the flip on You, write the seen record with `xcrun simctl
   spawn <sim> defaults write "$(xcrun simctl get_app_container <sim>
   xyz.roadsignmath.app data)/Library/Preferences/xyz.roadsignmath.app"
