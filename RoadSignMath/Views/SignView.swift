@@ -34,6 +34,27 @@ struct SignView: View {
   private var sign: Sign? { (detail?.sign ?? store.knownSign(id)).map(store.current) }
 
   var body: some View {
+    asking(shown)
+    .signInFirst($askSignIn, title: afterSignIn == .block ? "Sign in to block" : "Sign in to report it",
+                 waiting: afterSignIn == .block ? "Blocking is for players. Sign in, then block whoever posted this sign."
+                   : "Reports come from players. Sign in, then tell us what’s wrong with this sign.") {
+      switch afterSignIn {
+      case .report: reporting = true
+      case .block: if let sign, let poster = Poster(of: sign, players: store.players), !isMine(sign) { confirmBlock = poster }
+      case nil: break
+      }
+      afterSignIn = nil
+    }
+    .task { await load() }
+    .refreshable { await load(fresh: true) }
+    .countsView(sign.flatMap { ViewPath.sign($0.slug) })
+    // A way just added from here goes on the list at once.
+    .onChange(of: store.details[id]) { _, now in if let now { detail = now } }
+  }
+
+  /// The page, its bar and the report sheet, apart from the questions
+  /// below, so the compiler checks each in good time.
+  private var shown: some View {
     Group {
       if let sign {
         page(sign)
@@ -80,6 +101,11 @@ struct SignView: View {
         .closesForSnap()
       }
     }
+  }
+
+  /// The ⋯ menu's questions, and the alert when something didn't work.
+  private func asking(_ content: some View) -> some View {
+    content
     .confirmationDialog(confirmBlock.map { "Block \($0.name)?" } ?? "", isPresented: Binding(get: { confirmBlock != nil }, set: { if !$0 { confirmBlock = nil } }),
                         titleVisibility: .visible, presenting: confirmBlock) { poster in
       Button("Block \(poster.name)", role: .destructive) { block(poster) }
@@ -102,21 +128,6 @@ struct SignView: View {
     } message: { problem in
       Text(problem)
     }
-    .signInFirst($askSignIn, title: afterSignIn == .block ? "Sign in to block" : "Sign in to report it",
-                 waiting: afterSignIn == .block ? "Blocking is for players. Sign in, then block whoever posted this sign."
-                   : "Reports come from players. Sign in, then tell us what’s wrong with this sign.") {
-      switch afterSignIn {
-      case .report: reporting = true
-      case .block: if let sign, let poster = Poster(of: sign, players: store.players), !isMine(sign) { confirmBlock = poster }
-      case nil: break
-      }
-      afterSignIn = nil
-    }
-    .task { await load() }
-    .refreshable { await load(fresh: true) }
-    .countsView(sign.flatMap { ViewPath.sign($0.slug) })
-    // A way just added from here goes on the list at once.
-    .onChange(of: store.details[id]) { _, now in if let now { detail = now } }
   }
 
   // MARK: The ⋯ menu

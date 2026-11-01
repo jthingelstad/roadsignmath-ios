@@ -482,10 +482,11 @@ final class Store {
 
   /// A sign already in hand, by id or slug, from either feed or a detail read.
   func knownSign(_ id: String) -> Sign? {
-    details[id]?.sign ?? latest.first { $0.id == id || $0.slug == id } ?? near.first { $0.id == id || $0.slug == id }
-      ?? popular.first { $0.id == id || $0.slug == id }
-      ?? complex.first { $0.id == id || $0.slug == id }
-      ?? details.values.first { $0.sign.slug == id }?.sign
+    if let sign = details[id]?.sign { return sign }
+    for list in [latest, near, popular, complex] {
+      if let sign = list.first(where: { $0.id == id || $0.slug == id }) { return sign }
+    }
+    return details.values.first { $0.sign.slug == id }?.sign
   }
 
   /// A tab chosen from the bar: a second tap on Home goes back to the top.
