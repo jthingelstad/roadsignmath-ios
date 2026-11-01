@@ -28,7 +28,10 @@ number() {
 
 case "${1:-}" in
   test)
-    echo "version $(number): ok"
+    # Assigned first, so a bad VERSION fails the check (an echo around
+    # $(number) would succeed anyway).
+    version=$(number)
+    echo "version $version: ok"
     ;;
   stamp)
     plist=${2:?the built Info.plist}
