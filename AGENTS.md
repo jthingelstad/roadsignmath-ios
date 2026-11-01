@@ -50,7 +50,9 @@ The website and the server behind it are in
     for "Find another way". `Draft` and `DraftFolder` (`Drafts.swift`)
     are Drafts: a sign saved for later, its photo as taken, its numbers
     as checked (nil when saved before they were read, so opening it
-    reads again) and the math so far (`WayDraft` is `Codable`), a folder
+    reads again), the math so far (`WayDraft` is `Codable`) and its
+    place, the town the photo's own GPS was taken in (nil for the
+    camera's shots, which have none), a folder
     each in Application Support (`Drafts/`, which the phone's backup
     keeps, unlike the outbox) with a small `thumb.jpg` for the list.
   - `MathArt`: draws a way's LaTeX (the `tex` the server and `Equation`
@@ -278,6 +280,15 @@ The website and the server behind it are in
   math is begun) and a swipe deletes it. `RoadSignMath/DraftShelf.swift`
   is the list the screens watch; saving again updates the same draft, and
   posting it (into the outbox) removes it. They never leave the phone.
+  Each row is known by where the sign was (`Draft.heading`: the town
+  from the photo's GPS, else "From your photos", "From the camera" or
+  "The sample sign") and says when and how far (`Draft.details`: "Taken
+  Sunday" or "Saved today", a library photo's own day being the day
+  taken, then the numbers so far, or "no place in the photo"), with
+  Solved, Math begun or Numbers checked beside. The town is looked up
+  once, as it's saved; the list looks up any draft from your photos
+  saved before that (`DraftShelf.findPlaces`), and tries again next
+  time if the lookup fails.
   `Views/AnotherWayView.swift` is "Find another way": from a Home card or
   the sign page (the `findWay` environment, set by `.findsAnotherWay()` on
   each tab's stack), a sheet with the sign, its ways so far and Solve's

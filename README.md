@@ -36,7 +36,9 @@ it reads gets a yellow box. Check the numbers next: untick the ones you don't
 want, fix a misread one, and add one it missed by tapping the photo where it
 is or typing it. Then write the math, name the sign, say something about
 it if you like, and post it. Posted! takes you to your sign, shares its link
-or opens the camera for the next one.
+or opens the camera for the next one. A sign you can't solve yet can wait:
+"Save for later" keeps it in Drafts, each one known by the town the photo
+was taken in and the day, ready to pick up where you left off.
 
 `RoadSignMathKit` is a Swift package for the code that isn't a screen.
 `SignReading` reads the numbers on a photo of a sign with Apple's Vision and
