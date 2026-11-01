@@ -88,7 +88,13 @@ The website and the server behind it are in
     the bio (`Feedback.swift`, API 1.10.0: `sendFeedback` sends `POST
     /feedback` a message of at most 2000 characters, `reply_ok` and an
     app line of at most 120, answered 202, ten a day; `updateMe(token:bio:)`
-    sends `PATCH /me` a bio of at most 160, empty taking it away), screen views (`ScreenViews.swift`: `ViewPath`
+    sends `PATCH /me` a bio of at most 160, empty taking it away), what's
+    new on your signs (`Activity.swift`, API 1.10.0: `myActivity` reads
+    `GET /me/activity`, the ways other players found and the hearts they
+    gave on your signs in the last 30 days; `ActivityRow.rows` makes each
+    way a row and gathers a sign's hearts into one, new ones apart from
+    the ones seen, "Pat and 2 others"; `ActivityRow.when` says "2h",
+    "Yesterday", "Oct 27"; a kind it doesn't know is left out), screen views (`ScreenViews.swift`: `ViewPath`
     makes and checks a screen's path as the server's `VIEW_PATH` does,
     `countViews` sends `POST /app/views` with no token, and `ViewCounter`
     batches them, the first a few seconds after a view and then at most
@@ -209,7 +215,18 @@ The website and the server behind it are in
   `Photos.shared`, at the size shown), wherever the app draws one: the
   Home header, cards, the sign page, Post it's finders, You and player
   pages; `Store.photo(for:)` finds a finder's by handle in `/players`.
-  Under the profile is the Badges row (shown with none earned too, so "See all" says how to earn the first): the newest six earned,
+  Under the profile is "On your signs" (`Views/OnYourSigns.swift`;
+  Jamie, 2026-10-31: "Yes! This is great!"): what's new on your signs,
+  read by `Account.refresh` (each time the app opens, and after a block),
+  the newest five rows with "Show all", a way's math on its plate, hearts
+  gathered by sign, and the ones since you last looked marked new (a
+  tint, a dot and the New pill) for that visit; a tap opens the sign. It
+  isn't shown with nothing in the last 30 days. How far you've looked is
+  kept on the phone (`Account.activitySeen`, UserDefaults per server and
+  handle); the first read on a phone arrives seen, as badges do. No push
+  and no running count: while something's new, Home's You avatar
+  carries the dot new badges use, and it goes once You has shown it.
+  Under that is the Badges row (shown with none earned too, so "See all" says how to earn the first): the newest six earned,
   a red dot on any not seen on this phone, and "See all", the shelves
   (`Views/BadgesView.swift`: five shelves, earned in color with the step,
   the day and the sign, a tap opens that sign; not earned faded with how,
