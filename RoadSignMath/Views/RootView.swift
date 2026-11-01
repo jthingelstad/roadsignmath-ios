@@ -66,6 +66,7 @@ struct RootView: View {
       Task {
         await store.loadLatest()
         if store.popularLoad == .loaded { await store.loadPopular() }
+        if store.complexLoad == .loaded { await store.loadComplex() }
         await store.loadMap()
       }
       // A post can earn a badge; reading you again puts its dot on Home.

@@ -47,6 +47,14 @@ public struct APIClient: Sendable {
     return popular.signs
   }
 
+  /// The signs with the most complex math (API 1.9.0): scored by the
+  /// operators in a sign's most complex way, ties newest first, unsolved
+  /// signs last. The score orders signs; it is never shown.
+  public func complexSigns(token: String? = nil) async throws -> [Sign] {
+    let complex: NearSigns = try await get(["signs", "complex"], [], token: token)
+    return complex.signs
+  }
+
   // MARK: Hearts
 
   /// Hearts a shown sign, or takes your heart back. Doing it twice changes

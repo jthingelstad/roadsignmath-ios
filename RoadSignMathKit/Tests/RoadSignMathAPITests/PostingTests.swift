@@ -79,6 +79,15 @@ import Testing
     #expect(sent.path == "/api/v1/signs/popular")
   }
 
+  @Test func asksForTheMostComplexSigns() async throws {
+    let stub = Stub(status: 200, body: try fixture("near"))
+    let signs = try await stub.client.complexSigns()
+    #expect(!signs.isEmpty)
+    let sent = try #require(stub.requests.first)
+    #expect(sent.method == "GET")
+    #expect(sent.path == "/api/v1/signs/complex")
+  }
+
   @Test func asksForSimilarSigns() async throws {
     let stub = Stub(status: 200, body: try fixture("near"))
     let signs = try await stub.client.similarSigns(latitude: 44.857, longitude: -93.29, numbers: ["90", "82", "8", "7"])
