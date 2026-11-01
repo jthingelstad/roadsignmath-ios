@@ -263,9 +263,11 @@ final class Account {
     }
   }
 
-  /// Looked at on You, up to `date` (the newest shown).
+  /// Looked at on You, up to `date` (the newest shown). The first time
+  /// it's kept even when it's `.distantPast` (nothing yet), so what comes
+  /// next counts as new.
   func seeActivity(upTo date: Date?) {
-    guard let date, let handle = me?.handle, date > activitySeen ?? .distantPast else { return }
+    guard let date, let handle = me?.handle, activitySeen.map({ date > $0 }) ?? true else { return }
     activitySeen = date
     defaults.set(date.timeIntervalSince1970, forKey: activityKey(handle))
   }

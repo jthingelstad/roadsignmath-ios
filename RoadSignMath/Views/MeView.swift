@@ -112,6 +112,9 @@ struct MeView: View {
     .tint(.greenInk)
     .onAppear { showing = true }
     .onDisappear { showing = false }
+    // Read again while You is open (back from the background): what it
+    // shows is seen, so Home's dot doesn't come back for it.
+    .onChange(of: account.activity?.newest) { seeActivity() }
     .countsView(ViewPath.you)
     .task {
       // Opened while signed out (the token ended a moment ago): nothing to show.
