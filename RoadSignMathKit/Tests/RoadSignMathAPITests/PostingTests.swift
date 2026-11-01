@@ -64,6 +64,16 @@ import Testing
     #expect(json["caption"] == nil)
   }
 
+  @Test func aCaptionGoesAlongWhenThereIsOne() throws {
+    let post = SignPost(
+      photoIds: ["01up"], title: "Gantry Math", numbers: [PostNumber(value: "90")],
+      place: PostPlace(label: "Bloomington, MN", approximate: false), foundOn: "2025-09-01",
+      caption: "Two exits, one mile apart.")
+    let json = try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(post)) as? [String: Any])
+    #expect(json["caption"] as? String == "Two exits, one mile apart.")
+    #expect(APIClient.captionMax == 500)
+  }
+
   @Test func findersAreAHandleOrAName() throws {
     let finders: [PostFinder] = [.player("zoe", .tookPhoto), .named("Tyler", .spotted)]
     let json = try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(finders)) as? [[String: String]])

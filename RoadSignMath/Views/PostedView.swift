@@ -207,10 +207,14 @@ struct PostedView: View {
       case .posted:
         if let sign = item?.posted {
           BigButton(label: "See your sign", symbol: "signpost.right.fill", busy: false, enabled: true) { see(sign) }
+          ShareLink(item: sign.url, subject: Text(sign.title)) {
+            plainLabel("Share it", symbol: "square.and.arrow.up")
+          }
+          .buttonStyle(CardPress())
         }
-        plain("Find another", symbol: "camera") { another() }
+        plain("Snap another sign", symbol: "camera") { another() }
       case .held:
-        BigButton(label: "Find another", symbol: "camera", busy: false, enabled: true) { another() }
+        BigButton(label: "Snap another sign", symbol: "camera", busy: false, enabled: true) { another() }
         plain("Done", symbol: "checkmark") { done() }
       case .waiting:
         BigButton(label: "Done", symbol: "checkmark", busy: false, enabled: true) { done() }
@@ -225,15 +229,17 @@ struct PostedView: View {
   }
 
   private func plain(_ label: String, symbol: String, action: @escaping () -> Void) -> some View {
-    Button(action: action) {
-      Label(label, systemImage: symbol)
-        .face(.button)
-        .foregroundStyle(Color.ink)
-        .frame(maxWidth: .infinity, minHeight: 52)
-        .background(Color.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay { RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.ruleStrong, lineWidth: 1.5) }
-    }
-    .buttonStyle(CardPress())
+    Button(action: action) { plainLabel(label, symbol: symbol) }
+      .buttonStyle(CardPress())
+  }
+
+  private func plainLabel(_ label: String, symbol: String) -> some View {
+    Label(label, systemImage: symbol)
+      .face(.button)
+      .foregroundStyle(Color.ink)
+      .frame(maxWidth: .infinity, minHeight: 52)
+      .background(Color.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+      .overlay { RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.ruleStrong, lineWidth: 1.5) }
   }
 
   private var numbers: [String] { item.map { Array($0.post.numbers.prefix(10).map(\.value)) } ?? [] }

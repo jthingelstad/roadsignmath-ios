@@ -30,7 +30,9 @@ upright, marked "Passenger mode" as a reminder that the shot is the
 passenger's job. Take a photo, or pick one you took earlier, and every number
 it reads gets a yellow box. Check the numbers next: untick the ones you don't
 want, fix a misread one, and add one it missed by tapping the photo where it
-is or typing it. Then write the math and post it.
+is or typing it. Then write the math, name the sign, say something about
+it if you like, and post it. Posted! takes you to your sign, shares its link
+or opens the camera for the next one.
 
 `RoadSignMathKit` is a Swift package for the code that isn't a screen.
 `SignReading` reads the numbers on a photo of a sign with Apple's Vision and

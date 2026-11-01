@@ -115,6 +115,8 @@ extension APIClient {
   /// The largest photo `POST /photos` takes.
   public static let photoBytes = 4 * 1024 * 1024
   public static let titleMax = 60
+  /// The longest caption a post takes (the server's `captionMax`).
+  public static let captionMax = 500
   public static let placeMax = 120
   public static let findersMax = 6
   public static let finderNameMax = 40
