@@ -38,6 +38,7 @@ struct PostView: View {
   @Environment(Outbox.self) private var outbox
   @Environment(\.verticalSizeClass) private var height
   @State private var title = ""
+  @State private var caption = ""
   @State private var place = Where.finding
   @State private var foundOn = Date.now
   @State private var spotters: [String] = []
@@ -54,13 +55,14 @@ struct PostView: View {
   @State private var scroll = ScrollPosition(edge: .top)
   @FocusState private var field: Field?
 
-  enum Field: Hashable { case title, spotter, name }
+  enum Field: Hashable { case title, caption, spotter, name }
 
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 22) {
         top
         nameIt
+        saySomething
         whereIs
         when
         who
@@ -154,6 +156,55 @@ struct PostView: View {
   }
 
   private var suggestion: String? { PostParts.title(near: place.place?.label) }
+
+  // MARK: Say something
+
+  /// The caption: optional, a few words under the title for everyone.
+  /// One paragraph, as the server keeps it, so Return finishes.
+  private var saySomething: some View {
+    Part(title: "Say something") {
+      VStack(alignment: .leading, spacing: 8) {
+        TextField("Where you were headed, or how the math jumped out", text: $caption, axis: .vertical)
+          .face(.field)
+          .foregroundStyle(Color.ink)
+          .lineLimit(2...6)
+          .focused($field, equals: .caption)
+          .submitLabel(.done)
+          .padding(.horizontal, 14)
+          .padding(.vertical, 13)
+          .background(Color.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+          .overlay {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+              .strokeBorder(field == .caption ? Color.signGreen : Color.ruleStrong, lineWidth: 1.5)
+          }
+          .onChange(of: caption) { _, now in
+            if now.contains(where: \.isNewline) {
+              caption = String(now.map { $0.isNewline ? " " : $0 }.prefix(APIClient.captionMax))
+              field = nil
+            } else if now.count > APIClient.captionMax {
+              caption = String(now.prefix(APIClient.captionMax))
+            }
+          }
+          .accessibilityLabel("Caption")
+        HStack(alignment: .firstTextBaseline) {
+          Text("Optional. It shows under the title, for everyone.")
+            .fixedSize(horizontal: false, vertical: true)
+          Spacer(minLength: 12)
+          if !caption.isEmpty {
+            Text("\(APIClient.captionMax - caption.count) left")
+              .foregroundStyle(APIClient.captionMax - caption.count < 20 ? Color.warn : Color.ink3)
+          }
+        }
+        .face(.meta)
+        .foregroundStyle(Color.ink3)
+      }
+    }
+  }
+
+  private var trimmedCaption: String? {
+    let words = caption.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+    return words.isEmpty ? nil : words
+  }
 
   // MARK: Where
 
@@ -427,7 +478,7 @@ struct PostView: View {
       let post = SignPost(
         title: trimmedTitle, numbers: PostParts.numbers(flow.numbers.kept), place: where_, foundOn: day(foundOn),
         finders: PostParts.finders(poster: handle, spotters: spotters, players: Set(store.players.keys)),
-        way: flow.way)
+        way: flow.way, caption: trimmedCaption)
       guard let id = try? outbox.add(post, photo: photo, picture: shot.picture, handle: handle) else {
         problem = "Your phone couldn’t keep this post to send. Free up some space, then try again."
         return
@@ -501,6 +552,7 @@ struct PostView: View {
   }
 
   /// Debug builds' launch arguments for screenshots: `-RSMTitle <name>`,
+  /// `-RSMCaption <words>`,
   /// `-RSMSpotted <a,b>`, `-RSMSayWhere YES` (opens the town search, with
   /// `-RSMTown <words>` typed), `-RSMPostName <name>` and `-RSMPostIt YES`
   /// (posts once the form is ready; `-RSMTownPick YES` picks the town
@@ -509,6 +561,7 @@ struct PostView: View {
   private func script() {
     #if DEBUG
       if let text = Script.text("RSMTitle") { title = text }
+      if let text = Script.text("RSMCaption") { caption = text }
       if let list = Script.text("RSMSpotted") {
         spotters = list.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
       }

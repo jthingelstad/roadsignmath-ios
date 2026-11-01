@@ -234,7 +234,10 @@ The website and the server behind it are in
   operator keypad with no digits, and a live "It works"; the board,
   reading, tiles and keypad are `WayEditor.swift`, which "Find another
   way" shares; `WayDraft` in `SignCapture` is the math being written and
-  asks `Equation` whether it's true), then posting: `PostView.swift` (Post it: name it, the place from
+  asks `Equation` whether it's true), then posting: `PostView.swift` (Post it: name it; "Say something", an optional
+  caption of up to 500 characters in one paragraph (`APIClient.captionMax`,
+  the server's cap; Return ends typing) that shows under the title for
+  everyone; the place from
   the photo's own GPS reverse-geocoded to a town, or, when the photo has
   none, "Where was it?", a town search; the day found; who found it and
   who spotted it; your name if you've none yet; and "Posted already?",
@@ -242,8 +245,9 @@ The website and the server behind it are in
   which starts from the player's own math when its numbers are all on
   that sign), `PostedView.swift` (the post
   on its way, then "Posted!" with its numbers bursting out and any new
-  badge flipping in with a heavy tap, "New badge: Square Root", or why it
-  waits, is held or was refused; `NewBadgesCard` is that card, which
+  badge flipping in with a heavy tap, "New badge: Square Root", and three
+  buttons, "See your sign", "Share it" (its link) and "Snap another sign";
+  or why it waits, is held or was refused; `NewBadgesCard` is that card, which
   "Find another way" shares), `Places.swift` (MapKit's reverse
   geocode and town search; never the phone's own location),
   `Outbox.swift` (the queue on the phone: it sends one post at a time,
@@ -392,7 +396,7 @@ The website and the server behind it are in
   and `-RSMLandscape YES` to turn sideways. Drafts: `-RSMSaveDraft YES`
   saves the read shot (with `-RSMWay`'s math), `-RSMDrafts YES` opens the
   list on the camera and `-RSMDrafts open` picks up the newest. On Post it: `-RSMTitle
-  <name>`, `-RSMSpotted <a,b>`, `-RSMPostName <name>`, `-RSMSayWhere YES`
+  <name>`, `-RSMCaption <words>`, `-RSMSpotted <a,b>`, `-RSMPostName <name>`, `-RSMSayWhere YES`
   (the town search, `-RSMTown <words>` typed in it, `-RSMTownPick YES`
   picks the first), `-RSMScrollEnd YES` (to the bottom once "Posted
   already?" has its answer), `-RSMPostIt YES` (posts once the form is
