@@ -64,6 +64,7 @@ struct SignView: View {
           leaveAfterReport = true
         }
         .presentationDetents([.medium, .large])
+        .closesForSnap()
       }
     }
     .confirmationDialog(confirmBlock.map { "Block \($0.name)?" } ?? "", isPresented: Binding(get: { confirmBlock != nil }, set: { if !$0 { confirmBlock = nil } }),

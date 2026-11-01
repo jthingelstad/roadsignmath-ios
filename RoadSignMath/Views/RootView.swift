@@ -12,6 +12,10 @@ struct RootView: View {
   /// they ask for it.
   @AppStorage("lookedAround") private var lookedAround = false
   @State private var firstRun = false
+  /// "Snap a road sign" asks for Capture through this.
+  private let snap = Snap.shared
+  /// How many of its asks have been answered.
+  @State private var snapsAnswered = 0
 
   var body: some View {
     @Bindable var account = account
@@ -52,6 +56,10 @@ struct RootView: View {
     }
     .overlay(alignment: .top) { NoticeToast() }
     .onAppear(perform: welcome)
+    // "Snap a road sign" (Siri, Shortcuts, the Action button): Capture, once
+    // sign-in is out of the way.
+    .onChange(of: snap.asked, initial: true) { answerSnap() }
+    .onChange(of: account.signingIn) { answerSnap() }
     // Home or the Map coming into view (chosen, or back from a sign).
     .onChange(of: store.rootScreen, initial: true) { _, now in
       if let now { store.saw(now) }
@@ -74,12 +82,39 @@ struct RootView: View {
     }
   }
 
+  /// Opens Capture for "Snap a road sign". Already on Capture, it stays on
+  /// whatever screen it's at; a sheet in the way (You, a report, "Find
+  /// another way") closes first; a sign-in under way finishes first.
+  private func answerSnap() {
+    guard snap.asked > snapsAnswered, !account.signingIn else { return }
+    snapsAnswered = snap.asked
+    guard !flow.open else { return }
+    let covered = UIApplication.shared.connectedScenes
+      .compactMap { ($0 as? UIWindowScene)?.keyWindow?.rootViewController?.presentedViewController }
+      .first != nil
+    guard covered else { return flow.begin() }
+    snap.clear()
+    Task {
+      // Let the sheet go before Capture covers the screen.
+      try? await Task.sleep(for: .milliseconds(500))
+      flow.begin()
+    }
+  }
+
   /// The first time, the app opens on sign-in, with "Look around first"
   /// for anyone who'd rather see the signs. A sign-in left waiting for its
   /// code (the app closed while you were in Mail) picks up where it was.
   private func welcome() {
     flow.script()
     #if DEBUG
+      // `-RSMSnap YES`: "Snap a road sign" run three seconds after launch,
+      // over whatever the other arguments opened.
+      if Script.flag("RSMSnap") {
+        Task {
+          try? await Task.sleep(for: .seconds(3))
+          snap.ask()
+        }
+      }
       if let ids = Script.value("RSMUnlocked") {
         Task {
           let picture = SampleSign.photo().flatMap { UIImage(data: $0.data) }

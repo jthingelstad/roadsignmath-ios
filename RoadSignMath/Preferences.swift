@@ -7,7 +7,7 @@ enum BuildInfo {
   static var build: String { info("CFBundleVersion") ?? "?" }
   static var commit: String? { info("RoadSignMathCommit").flatMap { $0.isEmpty ? nil : String($0.prefix(7)) } }
 
-  /// "Road Sign Math 0.0.1 · build 52 · 1a2b3c4"
+  /// "Road Sign Math 0.9.0 · build 52 · 1a2b3c4"
   static var line: String {
     ["Road Sign Math \(version)", "build \(build)", commit].compactMap { $0 }.joined(separator: .dot)
   }

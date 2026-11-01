@@ -368,6 +368,6 @@ private struct AnotherWayHost: ViewModifier {
   func body(content: Content) -> some View {
     content
       .environment(\.findWay, FindWay { sign = $0 })
-      .sheet(item: $sign) { AnotherWayView(sign: $0) }
+      .sheet(item: $sign) { AnotherWayView(sign: $0).closesForSnap() }
   }
 }

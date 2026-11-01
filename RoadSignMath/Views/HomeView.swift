@@ -73,7 +73,7 @@ struct HomeView: View {
     .findsAnotherWay()
     .environment(\.opener, Opener(sign: { store.homePath.append($0) }, player: { store.homePath.append(PlayerPath.of($0)) }))
     .task { if store.latestLoad == .idle { await store.loadLatest() } }
-    .sheet(isPresented: $showingMe) { MeView() }
+    .sheet(isPresented: $showingMe) { MeView().closesForSnap() }
     .sensoryFeedback(.selection, trigger: which)
     .onChange(of: which) { _, now in
       if now == .near, store.nearLoad == .idle { Task { await store.loadNear() } }

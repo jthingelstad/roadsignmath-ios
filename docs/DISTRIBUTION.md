@@ -23,8 +23,9 @@ Jamie's call.
 `scripts/testflight.sh` archives a clean commit on main and uploads it,
 marked internal only (`testFlightInternalTestingOnly` in
 `Config/ExportOptions-TestFlight.plist`). Internal builds need no review
-from Apple. The version is the day's (`scripts/version.sh`); the build
-number is the commit count, so a commit uploads once. Each build gets
+from Apple. The version is the one in `VERSION` (`scripts/version.sh`),
+set by hand; the build number is the commit count, so a commit uploads
+once. Each build gets
 [a pass on a real phone](PHONE-TEST.md).
 
 ## 2. The public beta
@@ -52,7 +53,32 @@ external testers. It takes:
 
 ## 3. The App Store
 
-Later, on Jamie's go: the listing, screenshots, the privacy details
-(email for sign-in; photos, places and names posted publicly), age
-rating, and App Review. Delete my account is already in the app, as
-Apple requires.
+Later, on Jamie's go. What the listing needs, ready to fill in:
+
+- **Privacy** (App Privacy in App Store Connect), the same as
+  `RoadSignMath/PrivacyInfo.xcprivacy`. No tracking. Linked to the
+  player, for App Functionality: Contact Info (email address, for
+  sign-in), Name, Identifiers (user id: the handle), User Content
+  (photos; other content: titles, captions, the math, the bio; customer
+  support: Send feedback), Location (precise: a photo's own place, posted
+  with the sign). Not linked, for Analytics: Usage Data (product
+  interaction: screen views, counted with nothing about who looked).
+  Near you's location answers one request and is kept nowhere, so it
+  isn't collected in Apple's sense.
+- **Age rating.** The questionnaire counts player posts: user-generated
+  content, with reporting, blocking and moderation (Claude holds or hides
+  a post; Report and Block are on every sign). The rating it gives is
+  Jamie's to accept.
+- **URLs.** Marketing: roadsignmath.xyz. Privacy policy:
+  roadsignmath.xyz/privacy. Support needs a page with a way to reach
+  Jamie; the site takes no mail in, so which page and which address is
+  Jamie's call (the app's Send feedback already reaches Jamie).
+- **Screenshots** at 6.9 inches (1320 by 2868), taken from a Debug build
+  in a Pro Max simulator (its screenshots are that size) with the launch arguments in
+  `AGENTS.md`, against `npm run dev` and its seeded signs.
+- **The words**: name, subtitle (30 characters), description and
+  keywords. What the listing promises is Jamie's call.
+- **App Review**: the same sign-in note as the beta (any email, the code
+  arrives there; "Look around first" needs none). Delete my account,
+  reporting, blocking and contact are in the app, as Apple asks of an app
+  where players post.
