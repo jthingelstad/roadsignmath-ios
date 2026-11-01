@@ -17,14 +17,14 @@ extension APIClient {
   public func sendFeedback(_ message: String, replyOK: Bool, app: String?, token: String) async throws {
     var request = request("POST", ["feedback"], token: token)
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-    let text = String(message.trimmingCharacters(in: .whitespacesAndNewlines).prefix(APIClient.feedbackMax))
-    request.httpBody = try JSONEncoder().encode(FeedbackPost(message: text, replyOk: replyOK, app: app.map { String($0.prefix(120)) }))
+    let text = message.trimmingCharacters(in: .whitespacesAndNewlines).clipped(to: APIClient.feedbackMax)
+    request.httpBody = try JSONEncoder().encode(FeedbackPost(message: text, replyOk: replyOK, app: app.map { $0.clipped(to: 120) }))
     let _: FeedbackSent = try await answer(to: request)
   }
 
   /// Sets your bio, the line on your page; empty takes it off.
   public func updateMe(token: String, bio: String) async throws -> Me {
-    let text = String(bio.trimmingCharacters(in: .whitespacesAndNewlines).prefix(APIClient.bioMax))
+    let text = bio.trimmingCharacters(in: .whitespacesAndNewlines).clipped(to: APIClient.bioMax)
     return try await answer(to: request("PATCH", ["me"], body: ["bio": text], token: token))
   }
 }

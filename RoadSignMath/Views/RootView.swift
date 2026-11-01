@@ -35,6 +35,9 @@ struct RootView: View {
       // Below the screens, not over them, so nothing hides behind it; the
       // raised Capture button still rises over their bottom edge.
       TabBar(capture: { flow.begin() })
+        // Like the system's tab bars: the standard size at every text size,
+        // with the large content viewer (touch and hold) for larger ones.
+        .dynamicTypeSize(...DynamicTypeSize.large)
         .zIndex(1)
     }
     .ignoresSafeArea(.keyboard, edges: .bottom)
@@ -89,16 +92,25 @@ struct RootView: View {
     guard snap.asked > snapsAnswered, !account.signingIn else { return }
     snapsAnswered = snap.asked
     guard !flow.open else { return }
-    let covered = UIApplication.shared.connectedScenes
-      .compactMap { ($0 as? UIWindowScene)?.keyWindow?.rootViewController?.presentedViewController }
-      .first != nil
     guard covered else { return flow.begin() }
     snap.clear()
     Task {
-      // Let the sheet go before Capture covers the screen.
-      try? await Task.sleep(for: .milliseconds(500))
-      flow.begin()
+      // Capture opens once what was up has gone. Something Snap can't
+      // close (a share sheet, an alert, a sign-in to heart a sign) stays,
+      // and Capture doesn't open under it, where it couldn't show and the
+      // Capture button would be left stuck.
+      for _ in 0..<15 {
+        try? await Task.sleep(for: .milliseconds(100))
+        if !covered { return flow.begin() }
+      }
     }
+  }
+
+  /// Something is presented over Home and the Map.
+  private var covered: Bool {
+    UIApplication.shared.connectedScenes
+      .compactMap { ($0 as? UIWindowScene)?.keyWindow?.rootViewController?.presentedViewController }
+      .first != nil
   }
 
   /// The first time, the app opens on sign-in, with "Look around first"
@@ -188,6 +200,7 @@ private struct TabBar: View {
       .offset(y: -18)
       .frame(maxWidth: .infinity)
       .accessibilityLabel("Capture a sign")
+      .accessibilityShowsLargeContentViewer { Label("Capture a sign", systemImage: "camera") }
       .sensoryFeedback(.impact(weight: .medium), trigger: store.tab)
       item(.map, "Map", symbol: "map", chosen: "map.fill")
     }
@@ -220,6 +233,7 @@ private struct TabBar: View {
     .buttonStyle(.plain)
     .frame(maxWidth: .infinity)
     .accessibilityAddTraits(on ? .isSelected : [])
+    .accessibilityShowsLargeContentViewer { Label(label, systemImage: on ? chosen : symbol) }
     .sensoryFeedback(.selection, trigger: on)
   }
 }

@@ -28,7 +28,7 @@ public enum PostParts {
     kept.prefix(NumberList.limit).map { number in
       let value = number.valueText
       let source = number.sourceText ?? number.text
-      let text = source == value ? nil : String(source.prefix(40))
+      let text = source == value ? nil : source.clipped(to: 40)
       return PostNumber(value: value, text: text, why: why(number, value: value, text: text), box: number.box.map(box))
     }
   }
@@ -38,7 +38,7 @@ public enum PostParts {
     if number.isFixed { return "Fixed by hand" }
     guard number.isRead else { return nil }
     let why = number.why
-    return why == "Read from the photo" ? nil : String(why.prefix(60))
+    return why == "Read from the photo" ? nil : why.clipped(to: 60)
   }
 
   /// A box kept inside the photo, as the server checks it.
@@ -63,7 +63,7 @@ public enum PostParts {
   public static func title(near label: String?) -> String? {
     guard let town = label?.split(separator: ",").first?.trimmingCharacters(in: .whitespaces), !town.isEmpty
     else { return nil }
-    return String("\(town) Math".prefix(APIClient.titleMax))
+    return "\(town) Math".clipped(to: APIClient.titleMax)
   }
 
   /// Who found it. Alone, the poster is its finder, which the server
@@ -82,7 +82,7 @@ public enum PostParts {
         guard seen.insert(handle).inserted else { continue }
         finders.append(.player(handle, .spotted))
       } else {
-        let name = String(text.prefix(APIClient.finderNameMax))
+        let name = text.clipped(to: APIClient.finderNameMax)
         guard seen.insert("name:" + name.lowercased()).inserted else { continue }
         finders.append(.named(name, .spotted))
       }

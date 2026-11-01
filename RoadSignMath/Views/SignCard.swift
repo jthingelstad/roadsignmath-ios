@@ -21,6 +21,7 @@ struct SignCard: View {
 
   @Environment(Store.self) private var store
   @Environment(\.findWay) private var findWay
+  @Environment(\.dynamicTypeSize) private var typeSize
   @ScaledMetric(relativeTo: .body) private var bodySize: CGFloat = 15
 
   var body: some View {
@@ -54,17 +55,24 @@ struct SignCard: View {
       Avatar(name: sign.leadFinder?.name ?? "?", color: store.color(for: sign.leadFinder?.handle), photo: store.photo(for: sign.leadFinder?.handle))
       VStack(alignment: .leading, spacing: 1) {
         Text(sign.finderNames).face(.name).foregroundStyle(Color.ink)
-        Text(sign.place.label).face(.meta).foregroundStyle(Color.ink3).lineLimit(1)
+        Text(sign.place.label).face(.meta).foregroundStyle(Color.ink3).lineLimit(typeSize.isAccessibilitySize ? 2 : 1)
+        // At the largest text sizes the day goes under the place, so the
+        // names keep the width instead of breaking letter by letter.
+        if typeSize.isAccessibilitySize { when }
       }
       Spacer(minLength: 8)
-      Text(showMiles ? (sign.milesText ?? sign.foundShort) : sign.foundShort)
-        .face(showMiles ? .miles : .meta)
-        .foregroundStyle(Color.ink3)
-        .lineLimit(1)
-        .fixedSize()
+      if !typeSize.isAccessibilitySize { when.fixedSize() }
     }
     .padding(.horizontal, 16)
     .padding(.vertical, 10)
+  }
+
+  /// The day it was found, or how far it is on Near you.
+  private var when: some View {
+    Text(showMiles ? (sign.milesText ?? sign.foundShort) : sign.foundShort)
+      .face(showMiles ? .miles : .meta)
+      .foregroundStyle(Color.ink3)
+      .lineLimit(1)
   }
 
   @ViewBuilder private var photo: some View {
@@ -129,10 +137,13 @@ struct SignCard: View {
     .accessibilityLabel("Share \(sign.title)")
   }
 
+  /// The title and the start of its caption: four lines at most, since a
+  /// caption can run to 500 letters; the sign's page has the rest.
   private var words: some View {
     (Text(sign.title).font(Face.bodyBold.font(size: bodySize)).foregroundStyle(Color.ink)
       + Text(sign.caption.map { "  " + $0 } ?? "").font(Face.body.font(size: bodySize)).foregroundStyle(Color.ink2))
       .lineSpacing(3)
+      .lineLimit(4)
       .padding(.horizontal, 16)
       .padding(.bottom, 14)
       .frame(maxWidth: .infinity, alignment: .leading)

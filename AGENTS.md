@@ -186,6 +186,9 @@ The website and the server behind it are in
   ones only you see say why instead), a warm empty state that opens Capture, and the settings
   sheet (profile photo, name, bio, email, Blocked players with a count,
   Help, About, sign out, delete my account, and the build at the bottom).
+  Every text limit counts as the server does, in UTF-16 units
+  (`String.serverLength` and `clipped(to:)` in `TextLength.swift`, which
+  never cut through a character), so an emoji counts two.
   The bio (`BioView`) is one line of at most 160 characters, Return
   being Done. `Views/Help.swift` holds the rest: `HowToPlaySteps` (Spot
   it, Snap it, Solve it and the EXIT 2, COUNTY 5, 1 MILE example, √(5 − 1)
@@ -251,7 +254,8 @@ The website and the server behind it are in
   and a `roadsignmath.xyz/players/<handle>` link (`-RSMOpen
   /players/jamie`) opens one. You reads `GET /me` and your own
   `GET /players/{handle}` with your token, which carries your held and
-  hidden signs. `Preferences.swift` holds `BuildInfo`, the stamped
+  hidden signs; their photos are `/api/v1/me/photos/…`, which `Photos`
+  reads with your token (every other photo is read without one). `Preferences.swift` holds `BuildInfo`, the stamped
   version, build and commit. Capture always shows "Passenger mode": a
   reminder, never a lock, with no setting to hide it (Jamie, 2026-10-30:
   "passenger mode leave on").
@@ -268,7 +272,7 @@ The website and the server behind it are in
   asks `Equation` whether it's true), then posting: `PostView.swift` (Post it: name it; "Say something", an optional
   caption of up to 500 characters in one paragraph (`APIClient.captionMax`,
   the server's cap; Return ends typing) that shows under the title for
-  everyone; the place from
+  everyone (a Home card shows its first four lines); the place from
   the photo's own GPS reverse-geocoded to a town, or, when the photo has
   none, "Where was it?", a town search; the day found; who found it and
   who spotted it; your name if you've none yet; and "Posted already?",
@@ -311,8 +315,11 @@ The website and the server behind it are in
   the app on the camera and nothing more (the passenger still takes the
   photo). `Snap.shared.ask()` asks `RootView`, which closes a sheet in the
   way first (You, a report, "Find another way", a player's badge: each
-  carries `.closesForSnap()`), waits for a sign-in under way, and leaves
-  Capture where it is when it's already open. A Control Center control
+  carries `.closesForSnap()`; the sign page's Block and Delete questions
+  close too), waits for a sign-in under way, and leaves Capture where it
+  is when it's already open. Capture opens only once nothing is presented
+  (up to a second and a half): under a share sheet or an alert it couldn't
+  show, and the Capture button would stick. A Control Center control
   comes later.
   `Views/AnotherWayView.swift` is "Find another way": from a Home card or
   the sign page (the `findWay` environment, set by `.findsAnotherWay()` on

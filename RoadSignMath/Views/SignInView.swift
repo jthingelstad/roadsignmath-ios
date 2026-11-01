@@ -449,7 +449,7 @@ private struct NameStep: View {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
               .strokeBorder(typing ? Color.greenInk : Color.ruleStrong, lineWidth: typing ? 2 : 1.5)
           }
-          .onChange(of: name) { _, now in if now.count > 40 { name = String(now.prefix(40)) } }
+          .onChange(of: name) { _, now in if now.serverLength > APIClient.nameMax { name = now.clipped(to: APIClient.nameMax) } }
         address
         if let problem { ProblemLine(text: problem) }
         BigButton(label: "That’s me", symbol: "checkmark", busy: saving, enabled: !trimmed.isEmpty, action: save)

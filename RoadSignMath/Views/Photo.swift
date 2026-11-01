@@ -11,6 +11,9 @@ final class Photos {
 
   private let kept = NSCache<NSString, UIImage>()
   private var reading: [String: Task<UIImage?, Never>] = [:]
+  /// For a held or hidden sign's photo (`/api/v1/me/photos/…`), which the
+  /// server gives only to its poster, with their token.
+  weak var account: Account?
 
   init() { kept.countLimit = 120 }
 
@@ -20,8 +23,13 @@ final class Photos {
     let key = Self.key(url, pixels)
     if let image = kept.object(forKey: key as NSString) { return image }
     if let task = reading[key] { return await task.value }
-    let task = Task.detached(priority: .userInitiated) { () -> UIImage? in
-      guard let (data, response) = try? await URLSession.shared.data(from: url),
+    var request = URLRequest(url: url)
+    if url.path.contains("/api/v1/me/photos/") {
+      guard let token = account?.readToken else { return nil }
+      request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+    }
+    let task = Task.detached(priority: .userInitiated) { [request] () -> UIImage? in
+      guard let (data, response) = try? await URLSession.shared.data(for: request),
             (response as? HTTPURLResponse)?.statusCode == 200
       else { return nil }
       return Photos.decode(data, pixels: pixels)

@@ -99,7 +99,7 @@ struct MeView: View {
         Button("OK", role: .cancel) {}
         Button("Delete this sign", role: .destructive) { delete(sign) }
       } message: { sign in
-        Text((sign.moderationNote ?? "It isn’t on the feed or the map.") + "\n\nYou can delete it. That can’t be undone.")
+        Text((sign.moderationNote ?? "No one else sees it on the feed or the map.") + "\n\nYou can delete it. That can’t be undone.")
       }
       .alert("That didn’t work", isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } }), presenting: problem) { _ in
         Button("OK", role: .cancel) {}
@@ -609,7 +609,7 @@ private struct BioView: View {
   @FocusState private var typing: Bool
 
   private var trimmed: String { bio.trimmingCharacters(in: .whitespacesAndNewlines) }
-  private var left: Int { APIClient.bioMax - bio.count }
+  private var left: Int { APIClient.bioMax - bio.serverLength }
 
   var body: some View {
     NavigationStack {
@@ -626,12 +626,13 @@ private struct BioView: View {
               .strokeBorder(typing ? Color.greenInk : Color.ruleStrong, lineWidth: typing ? 2 : 1.5)
           }
           .onChange(of: bio) { _, now in
-            // One line: Return is Done, not a new line.
+            // One line: Return is Done, not a new line, and a pasted
+            // line break is a space, as in a caption.
             if now.contains(where: \.isNewline) {
-              bio = String(now.filter { !$0.isNewline }.prefix(APIClient.bioMax))
+              bio = String(now.map { $0.isNewline ? " " : $0 }).clipped(to: APIClient.bioMax)
               typing = false
-            } else if now.count > APIClient.bioMax {
-              bio = String(now.prefix(APIClient.bioMax))
+            } else if now.serverLength > APIClient.bioMax {
+              bio = now.clipped(to: APIClient.bioMax)
             }
           }
           .accessibilityLabel("Bio")
@@ -716,7 +717,7 @@ private struct RenameView: View {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
               .strokeBorder(typing ? Color.greenInk : Color.ruleStrong, lineWidth: typing ? 2 : 1.5)
           }
-          .onChange(of: name) { _, now in if now.count > 40 { name = String(now.prefix(40)) } }
+          .onChange(of: name) { _, now in if now.serverLength > APIClient.nameMax { name = now.clipped(to: APIClient.nameMax) } }
         Group {
           if first, let handle = Handle.preview(for: trimmed), let me = account.me {
             Text("Your page will be at \(Text(ProfileHeader.address(me.url.deletingLastPathComponent().appending(path: handle))).bold()), and that address stays for good.")

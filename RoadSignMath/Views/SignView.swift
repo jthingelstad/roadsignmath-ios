@@ -49,6 +49,19 @@ struct SignView: View {
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {
       if let sign {
+        // The whole title, on two lines and smaller before it's cut short:
+        // a 60-letter title doesn't fit the bar's one line, and the page
+        // shows it nowhere else.
+        ToolbarItem(placement: .principal) {
+          Text(sign.title)
+            .font(sign.title.count > 28 ? .subheadline.weight(.semibold) : .headline)
+            .foregroundStyle(Color.ink)
+            .multilineTextAlignment(.center)
+            .lineLimit(2)
+            .minimumScaleFactor(0.8)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityAddTraits(.isHeader)
+        }
         ToolbarItem(placement: .topBarTrailing) { menu(sign) }
       }
     }
@@ -57,11 +70,11 @@ struct SignView: View {
         ReportSheet(sign: sign, poster: Poster(of: sign, players: store.players)) { outcome in
           if outcome.outcome == .hidden {
             store.signGone(sign.id)
-            leaveAfterReport = true
+            leaveOnceReported()
           }
         } blocked: {
           if let poster = Poster(of: sign, players: store.players) { store.blocked(poster.handle) }
-          leaveAfterReport = true
+          leaveOnceReported()
         }
         .presentationDetents([.medium, .large])
         .closesForSnap()
@@ -72,6 +85,11 @@ struct SignView: View {
       Button("Block \(poster.name)", role: .destructive) { block(poster) }
     } message: { _ in
       Text(BlockWords.what + " Unblock them in Settings whenever you like.")
+    }
+    // "Snap a road sign" closes the ⋯ menu's questions, as it does the sheets.
+    .onChange(of: Snap.shared.clearing) {
+      confirmBlock = nil
+      confirmDelete = false
     }
     .alert("Delete this sign?", isPresented: $confirmDelete, presenting: sign) { sign in
       Button("Delete this sign", role: .destructive) { delete(sign) }
@@ -173,6 +191,12 @@ struct SignView: View {
     default: ways = "every way found on it, including \(others) ways other players found"
     }
     return "This takes down the sign, \(photos), its hearts and \(ways). It can’t be undone."
+  }
+
+  /// The sign is gone for you: leave it once the sheet has closed, or now
+  /// if it already has ("Snap a road sign" can close it mid-send).
+  private func leaveOnceReported() {
+    if reporting { leaveAfterReport = true } else { dismiss() }
   }
 
   private func delete(_ sign: Sign) {
