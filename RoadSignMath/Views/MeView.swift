@@ -492,6 +492,15 @@ private struct SettingsView: View {
         Text("A problem, an idea or a hello. It reaches Jamie.").face(.meta)
       }
       Section {
+        ForEach(FollowAccount.allCases) { account in
+          Link(destination: account.url) { followRow(account) }
+        }
+      } header: {
+        Text("Follow").face(.metaBold)
+      } footer: {
+        Text("Every new sign is posted there too.").face(.meta)
+      }
+      Section {
         Link(destination: SitePage.privacy) { row("Privacy", "", link: true) }
         Link(destination: SitePage.about) { row("About Road Sign Math", "", link: true) }
         Button {
@@ -551,6 +560,26 @@ private struct SettingsView: View {
       }
     }
     .scrollContentBackground(.hidden)
+  }
+
+  /// An account new signs go to: its name, and its whole handle under it
+  /// (a Mastodon handle is too long to sit beside the name).
+  private func followRow(_ account: FollowAccount) -> some View {
+    HStack(spacing: 10) {
+      VStack(alignment: .leading, spacing: 2) {
+        Text(account.name).face(.bodyBold).foregroundStyle(Color.ink)
+        Text(account.handle).face(.meta).foregroundStyle(Color.ink2)
+      }
+      Spacer(minLength: 8)
+      Image(systemName: "arrow.up.right")
+        .font(.system(size: 13, weight: .semibold))
+        .foregroundStyle(Color.ink3)
+        .accessibilityHidden(true)
+    }
+    .padding(.vertical, 3)
+    .contentShape(Rectangle())
+    .accessibilityElement(children: .combine)
+    .accessibilityAddTraits(.isLink)
   }
 
   private func row(_ label: String, _ value: String, chevron: Bool = false, nudge: Bool = false, link: Bool = false) -> some View {
