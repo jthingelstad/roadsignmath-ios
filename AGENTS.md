@@ -185,8 +185,10 @@ The website and the server behind it are in
   posted first) or a grid of photos (a tap opens the sign; held or hidden
   ones only you see say why instead), a warm empty state that opens Capture, and the settings
   sheet (profile photo, name, bio, email, Blocked players with a count,
-  App icon, Help, About, sign out, delete my account, and the build at the
-  bottom).
+  App icon, Help, Follow, About, sign out, delete my account, and the build at the
+  bottom). Follow is `FollowAccount` (`Views/Help.swift`): the Mastodon
+  (@roadsignmath@mastodon.social) and Bluesky (@roadsignmath.xyz)
+  accounts new signs are syndicated to, the same two the website names.
   Every text limit counts as the server does, in UTF-16 units
   (`String.serverLength` and `clipped(to:)` in `TextLength.swift`, which
   never cut through a character), so an emoji counts two.

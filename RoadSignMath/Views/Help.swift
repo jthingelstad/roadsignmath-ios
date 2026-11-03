@@ -9,6 +9,35 @@ enum SitePage {
   static let ccBy = URL(string: "https://creativecommons.org/licenses/by/4.0/")!
 }
 
+/// Where new signs are syndicated: Road Sign Math's own accounts, the
+/// same two the website's footer and About page name.
+enum FollowAccount: CaseIterable, Identifiable {
+  case mastodon, bluesky
+
+  var id: Self { self }
+
+  var name: String {
+    switch self {
+    case .mastodon: "Mastodon"
+    case .bluesky: "Bluesky"
+    }
+  }
+
+  var handle: String {
+    switch self {
+    case .mastodon: "@roadsignmath@mastodon.social"
+    case .bluesky: "@roadsignmath.xyz"
+    }
+  }
+
+  var url: URL {
+    switch self {
+    case .mastodon: URL(string: "https://mastodon.social/@roadsignmath")!
+    case .bluesky: URL(string: "https://bsky.app/profile/roadsignmath.xyz")!
+    }
+  }
+}
+
 // MARK: How to play
 
 /// The game in three steps and an example: How to play in Settings, and
