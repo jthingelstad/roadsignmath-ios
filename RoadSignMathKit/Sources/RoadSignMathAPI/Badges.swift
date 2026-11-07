@@ -8,9 +8,10 @@ import Foundation
 /// Each shelf is drawn as a family of road signs: white plates for the
 /// firsts, green guide signs and interstate shields for places, yellow
 /// diamonds for the math, brown for the seasons, blue service signs for
-/// the secret ones.
+/// the secret ones, orange plates for the years (API 1.11.0: a badge for
+/// each year a player found a sign, `year-2005`, its mark the year).
 public enum BadgeShelf: String, Codable, Sendable, Hashable, CaseIterable {
-  case firsts, places, math, seasons, secret
+  case firsts, places, math, seasons, secret, years
   /// A shelf this app doesn't know yet, from a newer server.
   case other
 
@@ -18,8 +19,8 @@ public enum BadgeShelf: String, Codable, Sendable, Hashable, CaseIterable {
     self = BadgeShelf(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .other
   }
 
-  /// The five shelves, in the order the server lists them.
-  public static let shown: [BadgeShelf] = [.firsts, .places, .math, .seasons, .secret]
+  /// The shelves, in the order the server lists them.
+  public static let shown: [BadgeShelf] = [.firsts, .places, .math, .seasons, .secret, .years]
 }
 
 /// A badge in `GET /badges`. A secret one is only its id and shelf until
@@ -148,9 +149,21 @@ public enum Badges {
     }
     let order = BadgeShelf.shown + [.other]
     return order.compactMap { shelf in
-      let mine = slots.filter { $0.badge.shelf == shelf }
+      var mine = slots.filter { $0.badge.shelf == shelf }
+      // The catalog lists only this year's; the earned ones go in with it, oldest first.
+      if shelf == .years { mine.sort { $0.id < $1.id } }
       return mine.isEmpty ? nil : (shelf, mine)
     }
+  }
+
+  /// The years a player found a sign, oldest first: each a badge of its own.
+  public static func years(_ earned: [EarnedBadge]) -> [EarnedBadge] {
+    earned.filter { $0.shelf == .years }.sorted { $0.id < $1.id }
+  }
+
+  /// Every badge but the years, which a profile shows in a row of their own.
+  public static func others(_ earned: [EarnedBadge]) -> [EarnedBadge] {
+    earned.filter { $0.shelf != .years }
   }
 
   /// The newest earned first (by the day, then the catalog's order), for

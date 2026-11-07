@@ -113,6 +113,19 @@ import Testing
     #expect(Badges.shelves(catalog: [], earned: [secret]).map(\.shelf) == [.secret])
   }
 
+  @Test func yearsReadAndSitOnTheirOwnShelfOldestFirst() throws {
+    let json = #"{"badges":[{"id":"year-2026","shelf":"years","secret":false,"name":"2026","how":"Find a sign in 2026.","mark":"2026","steps":null}]}"#
+    let catalog: BadgeCatalog = try APIClient.answer(Data(json.utf8), status: 200)
+    #expect(catalog.badges.first?.shelf == .years)
+    let mine = [earned("year-2006", on: "2006-03-01", shelf: .years), earned("plus"), earned("year-2005", on: "2005-03-07", shelf: .years)]
+    let shelves = Badges.shelves(catalog: catalog.badges, earned: mine)
+    let years = try #require(shelves.first { $0.shelf == .years })
+    #expect(years.slots.map(\.id) == ["year-2005", "year-2006", "year-2026"])
+    #expect(years.slots.last?.earned == nil)
+    #expect(Badges.years(mine).map(\.id) == ["year-2005", "year-2006"])
+    #expect(Badges.others(mine).map(\.id) == ["plus"])
+  }
+
   @Test func newestFirstThenCatalogOrder() {
     let list = [earned("a", on: "2024-01-01"), earned("b", on: "2025-06-01"), earned("c", on: "2025-06-01")]
     #expect(Badges.newest(list).map(\.id) == ["b", "c", "a"])

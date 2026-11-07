@@ -18,6 +18,8 @@ struct SignView: View {
   @Environment(\.dismiss) private var dismiss
   /// The ⋯ menu's report sheet, block and delete confirms.
   @State private var reporting = false
+  /// The ⋯ menu's "Report a duplicate" sheet.
+  @State private var duplicating = false
   @State private var confirmBlock: Poster?
   @State private var confirmDelete = false
   @State private var deleting = false
@@ -29,17 +31,16 @@ struct SignView: View {
   /// its poster is blocked.
   @State private var leaveAfterReport = false
 
-  enum AfterSignIn { case report, block }
+  enum AfterSignIn { case report, duplicate, block }
 
   private var sign: Sign? { (detail?.sign ?? store.knownSign(id)).map(store.current) }
 
   var body: some View {
     asking(shown)
-    .signInFirst($askSignIn, title: afterSignIn == .block ? "Sign in to block" : "Sign in to report it",
-                 waiting: afterSignIn == .block ? "Blocking is for players. Sign in, then block whoever posted this sign."
-                   : "Reports come from players. Sign in, then tell us what’s wrong with this sign.") {
+    .signInFirst($askSignIn, title: signInTitle, waiting: signInWords) {
       switch afterSignIn {
       case .report: reporting = true
+      case .duplicate: duplicating = true
       case .block: if let sign, let poster = Poster(of: sign, players: store.players), !isMine(sign) { confirmBlock = poster }
       case nil: break
       }
@@ -50,6 +51,22 @@ struct SignView: View {
     .countsView(sign.flatMap { ViewPath.sign($0.slug) })
     // A way just added from here goes on the list at once.
     .onChange(of: store.details[id]) { _, now in if let now { detail = now } }
+  }
+
+  private var signInTitle: String {
+    switch afterSignIn {
+    case .block: "Sign in to block"
+    case .duplicate: "Sign in to report a duplicate"
+    default: "Sign in to report it"
+    }
+  }
+
+  private var signInWords: String {
+    switch afterSignIn {
+    case .block: "Blocking is for players. Sign in, then block whoever posted this sign."
+    case .duplicate: "Reports come from players. Sign in, then pick the sign this one is the same as."
+    default: "Reports come from players. Sign in, then tell us what’s wrong with this sign."
+    }
   }
 
   /// The page, its bar and the report sheet, apart from the questions
@@ -101,6 +118,12 @@ struct SignView: View {
         .closesForSnap()
       }
     }
+    .sheet(isPresented: $duplicating) {
+      if let sign {
+        DuplicateSheet(sign: sign)
+          .closesForSnap()
+      }
+    }
   }
 
   /// The ⋯ menu's questions, and the alert when something didn't work.
@@ -133,10 +156,14 @@ struct SignView: View {
   // MARK: The ⋯ menu
 
   /// Share, then for someone else's sign Report and Block, for yours Delete.
+  /// Any shown sign, yours too, can be reported as a duplicate.
   private func menu(_ sign: Sign) -> some View {
     Menu {
       ShareLink(item: sign.url, subject: Text(sign.title)) {
         Label("Share this sign", systemImage: "square.and.arrow.up")
+      }
+      if sign.visibility == .shown {
+        Button { ask(.duplicate) } label: { Label("Report a duplicate", systemImage: "square.on.square") }
       }
       if isMine(sign) {
         Section {
@@ -173,6 +200,7 @@ struct SignView: View {
     }
     switch next {
     case .report: reporting = true
+    case .duplicate: duplicating = true
     case .block: confirmBlock = poster
     }
   }
@@ -233,11 +261,13 @@ struct SignView: View {
       if store.players.isEmpty { await store.loadPlayers() }
       #if DEBUG
         if !fresh, Script.flag("RSMFindWay"), let findWay, let sign = detail?.sign { findWay.open(sign) }
-        // `-RSMReport YES`, `-RSMBlock YES`, `-RSMDelete YES`: the ⋯ menu's
+        // `-RSMReport YES`, `-RSMDuplicate YES`, `-RSMBlock YES`,
+        // `-RSMDelete YES`: the ⋯ menu's
         // sheet and confirms, as if chosen (`-RSMBlock send` blocks the
         // poster, only ever against `npm run dev`).
         if !fresh, let sign = detail?.sign {
           if Script.flag("RSMReport") { ask(.report) }
+          if Script.flag("RSMDuplicate") { ask(.duplicate) }
           if Script.value("RSMBlock") == "send", let poster = Poster(of: sign, players: store.players) {
             block(poster)
           } else if Script.flag("RSMBlock") {

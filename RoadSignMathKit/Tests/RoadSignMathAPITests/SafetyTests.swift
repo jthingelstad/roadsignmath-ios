@@ -31,6 +31,24 @@ import Testing
     #expect(error?.code == "unavailable")
   }
 
+  @Test func reportsADuplicateWithANote() async throws {
+    let stub = Stub(status: 200, body: #"{"same_as":"genesis","note":"Same sign, posted twice"}"#)
+    let answer = try await stub.client.reportDuplicate("01sign", sameAs: "genesis", note: " Same sign, posted twice ", token: "rsm_x")
+    #expect(answer == DuplicateReceived(sameAs: "genesis", note: "Same sign, posted twice"))
+    let sent = try #require(stub.requests.first)
+    #expect(sent.method == "POST")
+    #expect(sent.path == "/api/v1/signs/01sign/duplicate")
+    #expect(sent.authorization == "Bearer rsm_x")
+    #expect(sent.body == ["same_as": "genesis", "note": "Same sign, posted twice"])
+  }
+
+  @Test func aDuplicateWithoutANoteSendsNone() async throws {
+    let stub = Stub(status: 200, body: #"{"same_as":"genesis","note":null}"#)
+    let answer = try await stub.client.reportDuplicate("01sign", sameAs: "genesis", note: "  ", token: "rsm_x")
+    #expect(answer.note == nil)
+    #expect(stub.requests.first?.body == ["same_as": "genesis"])
+  }
+
   @Test func blocksAndUnblocks() async throws {
     let stub = Stub(status: 204, body: "")
     try await stub.client.block("sam", token: "rsm_x")

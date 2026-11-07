@@ -74,7 +74,11 @@ struct PlayerView: View {
         ProfileHeader(name: player.name, avatarColor: player.avatarColor, avatarUrl: player.avatarUrl, page: player.url, linked: true,
                       pageWords: "\(player.name)’s page", bio: player.bio,
                       signCount: player.signCount, states: player.states, firstYear: player.firstYear)
-        if let badges = player.badges, !badges.isEmpty {
+        let years = Badges.years(player.badges ?? [])
+        if !years.isEmpty {
+          YearsSection(years: years, who: player.name) { badge = $0 }
+        }
+        if let badges = player.badges.map(Badges.others), !badges.isEmpty {
           VStack(alignment: .leading, spacing: 10) {
             Text("Badges")
               .face(.section)

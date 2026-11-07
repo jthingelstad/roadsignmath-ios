@@ -84,7 +84,10 @@ The website and the server behind it are in
     answers with `ReportOutcome`, hidden or kept with the moderator's note;
     `block` and `unblock` send `POST` and `DELETE /players/{handle}/block`;
     `blocks` reads `GET /me/blocks`; `deleteSign` sends `DELETE
-    /signs/{id}`, a 503 meaning the sign is still there), feedback and
+    /signs/{id}`, a 503 meaning the sign is still there; API 1.12.0:
+    `reportDuplicate` sends `POST /signs/{id}/duplicate` the sign it is the
+    same as and an optional note, answering with `DuplicateReceived`),
+    feedback and
     the bio (`Feedback.swift`, API 1.10.0: `sendFeedback` sends `POST
     /feedback` a message of at most 2000 characters, `reply_ok` and an
     app line of at most 120, answered 202, ten a day; `updateMe(token:bio:)`
@@ -103,7 +106,9 @@ The website and the server behind it are in
     `Badges.swift`: `badges()` reads the `GET /badges` catalog, secret
     ones only an id and shelf; `badges` on `Player` and `Me`; `unlocked`
     on a post's answer; `Badges.shelves` puts the catalog and the earned
-    ones on the five shelves, `Badges.newest` orders the few on You, and
+    ones on the shelves, `Badges.newest` orders the few on You,
+    `Badges.years` and `Badges.others` split off the year badges (API
+    1.11.0, ids `year-YYYY` on the `years` shelf, oldest first), and
     `SeenBadges` is which ones this phone has shown, per step).
     `SignInLink` reads the email's link, `Handle.preview` ports
     the server's handle slug so the name step can show the address a name
@@ -232,9 +237,14 @@ The website and the server behind it are in
   handle); the first read on a phone arrives seen, as badges do. No push
   and no running count: while something's new, Home's You avatar
   carries the dot new badges use, and it goes once You has shown it.
+  Above it is the Years row (`YearsSection` and `YearRow` in
+  `Views/BadgeArt.swift`), shown only when there is one: an orange plate
+  per year the player found a sign, oldest first, a tap opening the
+  badge's sheet (Jamie, 2026-11-07: "a special category of badge that
+  would show on a person's profile"). Players' pages show it the same way.
   Under that is the Badges row (shown with none earned too, so "See all" says how to earn the first): the newest six earned,
   a red dot on any not seen on this phone, and "See all", the shelves
-  (`Views/BadgesView.swift`: five shelves, earned in color with the step,
+  (`Views/BadgesView.swift`: the shelves, Years last, earned in color with the step,
   the day and the sign, a tap opens that sign; not earned faded with how,
   a stepped one showing its first step; secret ones a blank plate
   until earned; each badge's own `BadgeSheet`). `Views/BadgeArt.swift`
@@ -337,13 +347,20 @@ The website and the server behind it are in
   takes it back with a light one; signed out it asks "Sign in to heart
   it"; a failure says so in the notice toast. The count is the website's
   and the app's hearts together, hidden when there are none.
-  The sign page's ⋯ menu (`SignView.menu`) has Share, then for someone
+  The sign page's ⋯ menu (`SignView.menu`) has Share, Report a duplicate
+  on any shown sign, yours too, then for someone
   else's shown sign Report this sign and Block <poster>, and for your own
   (`posted_by` is your handle) Delete this sign. Reporting has one reason,
   inappropriate (Jamie, 2026-10-31: "we don't need that much yuck… just
   report it as inappropriate"): `Views/Safety.swift`'s `ReportSheet`
   takes an optional note, sends "Inappropriate" or "Inappropriate: <note>",
   and shows the moderator's answer and note, with "Block <poster> too".
+  Report a duplicate (Jamie, 2026-11-07: "A duplicate sign should be
+  submitted as a 'report a duplicate', similar to the other report
+  function… we can figure out later what we do with that"):
+  `DuplicateSheet` lists up to 12 signs within 25 miles, nearest first,
+  with an optional note; the report is only kept, neither sign changes and
+  the moderator never sees it. A sign with no pin has nothing to pick.
   Blocking confirms first and says they aren't told; a blocked player's
   signs leave Home and the map at once (`Store.blocked`), and every list and
   the map read again. The map reads with your token when signed in (API
@@ -356,7 +373,8 @@ The website and the server behind it are in
   so). A deleted sign, or one a report took down, leaves every list, the
   map and the timelines at once (`Store.signGone`, `Store.gone`), and the
   page closes. A held or hidden sign has no page, so You's "Only you can
-  see this one" alert has Delete this sign. Signed out, Report and Block
+  see this one" alert has Delete this sign. Signed out, Report, Report a
+  duplicate and Block
   ask you to sign in first. Settings has Blocked players
   (`BlockedPlayersView`), each with Unblock.
   Screen views: `countsView(_:)` (`Views/ScreenViews.swift`) counts a

@@ -6,8 +6,8 @@ import SwiftUI
 /// plates for the firsts, green guide signs, an interstate shield for
 /// States and a mile post for Mile Markers, yellow diamonds for the math,
 /// brown for the seasons, blue service signs for the secret ones and the
-/// 66 route shield. Real signs keep their colors in the dark, so these do
-/// too.
+/// 66 route shield, orange plates for the years. Real signs keep their
+/// colors in the dark, so these do too.
 struct BadgeArt: View {
   enum Look { case earned, faded, blank }
 
@@ -40,6 +40,7 @@ struct BadgeArt: View {
   private static let brown = Color(light: 0x6B3E1E, dark: 0x6B3E1E)
   private static let blue = Color(light: 0x00539B, dark: 0x00539B)
   private static let white = Color(light: 0xFFFFFF, dark: 0xFFFFFF)
+  private static let orange = Color(light: 0xF28C28, dark: 0xF28C28)
 
   /// The mark's size, so a word fits where a symbol would.
   static func markSize(_ mark: String) -> CGFloat {
@@ -130,6 +131,11 @@ struct BadgeArt: View {
       text(mark, ink, y: 34, size: 22)
     case .secret:
       plate(blue, edge: white, ink: white)
+    case .years:
+      // A wide orange plate, the year on it, as the website draws it.
+      context.fill(rect(2, 14, 60, 36, 5), with: .color(orange))
+      context.stroke(rect(5, 17, 54, 30, 3), with: .color(ink), lineWidth: 1.5 * s)
+      text(mark, ink, y: 32.5, size: 19)
     }
   }
 }
@@ -179,6 +185,7 @@ extension BadgeShelf {
     case .math: "Math"
     case .seasons: "Seasons"
     case .secret: "Secret"
+    case .years: "Years"
     case .other: "More"
     }
   }
@@ -210,6 +217,67 @@ struct BadgeRow: View {
       .padding(.horizontal, 16)
     }
     .scrollIndicators(.hidden)
+  }
+}
+
+/// The years a player found a sign, oldest first: a row of orange plates,
+/// each its own badge. A tap opens the badge.
+struct YearRow: View {
+  let years: [EarnedBadge]
+  /// The ones not seen on this phone yet get a dot.
+  var fresh: Set<String> = []
+  var open: ((EarnedBadge) -> Void)?
+  @ScaledMetric(relativeTo: .body) private var size: CGFloat = 68
+
+  var body: some View {
+    ScrollView(.horizontal) {
+      HStack(spacing: 6) {
+        ForEach(years, id: \.self) { year in
+          let new = fresh.contains(SeenBadges.key(year))
+          Button {
+            open?(year)
+          } label: {
+            BadgeArt(year, size: size)
+              .overlay(alignment: .topTrailing) { if new { NewDot().offset(x: -2, y: 8) } }
+          }
+          .buttonStyle(CardPress())
+          .disabled(open == nil)
+          .accessibilityElement(children: .ignore)
+          .accessibilityLabel((new ? "New: " : "") + "\(year.name). First sign that year: \(year.sign.title), \(year.longDay).")
+          .accessibilityAddTraits(open == nil ? [] : .isButton)
+        }
+      }
+      .padding(.horizontal, 16)
+    }
+    .scrollIndicators(.hidden)
+  }
+}
+
+/// A profile's Years section: a heading, a line and the plates.
+struct YearsSection: View {
+  let years: [EarnedBadge]
+  /// "you" on your own page, else the player's name.
+  let who: String
+  var fresh: Set<String> = []
+  var open: ((EarnedBadge) -> Void)?
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 6) {
+      HStack(spacing: 8) {
+        Text("Years")
+          .face(.section)
+          .foregroundStyle(Color.ink)
+          .accessibilityAddTraits(.isHeader)
+        if !fresh.isEmpty { NewDot() }
+      }
+      .padding(.horizontal, 16)
+      Text("A badge for every year \(who) found a sign. They are not easy to find.")
+        .face(.meta)
+        .foregroundStyle(Color.ink3)
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(.horizontal, 16)
+      YearRow(years: years, fresh: fresh, open: open)
+    }
   }
 }
 
