@@ -3,14 +3,14 @@
 // steps to outside testers that Xcode doesn't take (docs/DISTRIBUTION.md):
 //
 //   scripts/asc.swift GET '/v1/apps?filter[bundleId]=xyz.roadsignmath.app'
-//   scripts/asc.swift PATCH /v1/betaAppReviewDetails/<id> body.json [--token-file <file>]
+//   scripts/asc.swift POST /v1/betaAppReviewSubmissions body.json
 //
 // The key's ids come from Config/AppStoreConnect.local, as scripts/
 // testflight.sh reads them, and the key from ~/.appstoreconnect. The key is
-// read here and never printed. With --token-file, each {{REVIEW_TOKEN}} in
-// the body becomes that file's contents (the review account's token), and
-// what comes back has every token and demo password blanked, so neither
-// reaches a terminal or a log.
+// read here and never printed. Road Sign Math has no review account (anyone
+// can sign up), so no body ever carries a credential; in case one is ever
+// set, what comes back has any demo password and anything shaped like the
+// app's sign-in token (rsm_<player>_<secret>) blanked.
 
 import CryptoKit
 import Foundation
@@ -20,15 +20,9 @@ func fail(_ message: String) -> Never {
   exit(1)
 }
 
-var args = Array(CommandLine.arguments.dropFirst())
-var tokenFile: String?
-if let i = args.firstIndex(of: "--token-file") {
-  guard i + 1 < args.count else { fail("--token-file needs a file.") }
-  tokenFile = args[i + 1]
-  args.removeSubrange(i...(i + 1))
-}
+let args = Array(CommandLine.arguments.dropFirst())
 guard args.count == 2 || args.count == 3 else {
-  fail("Usage: scripts/asc.swift METHOD PATH [body.json] [--token-file <file>]")
+  fail("Usage: scripts/asc.swift METHOD PATH [body.json]")
 }
 let method = args[0].uppercased()
 let path = args[1]
@@ -62,13 +56,7 @@ let jwt = signing + "." + base64URL(signature.rawRepresentation)
 
 var body: Data?
 if args.count == 3 {
-  guard var text = try? String(contentsOfFile: args[2], encoding: .utf8) else { fail("\(args[2]) can't be read.") }
-  if let tokenFile {
-    guard let token = try? String(contentsOfFile: tokenFile, encoding: .utf8)
-      .trimmingCharacters(in: .whitespacesAndNewlines), !token.isEmpty
-    else { fail("\(tokenFile) can't be read.") }
-    text = text.replacingOccurrences(of: "{{REVIEW_TOKEN}}", with: token)
-  }
+  guard let text = try? String(contentsOfFile: args[2], encoding: .utf8) else { fail("\(args[2]) can't be read.") }
   guard (try? JSONSerialization.jsonObject(with: Data(text.utf8))) != nil else { fail("\(args[2]) isn't JSON.") }
   body = Data(text.utf8)
 }
@@ -83,7 +71,7 @@ if let body {
   request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 }
 
-/// Blanks a demo password and anything shaped like a Release Notes token.
+/// Blanks a demo password and anything shaped like a Road Sign Math token.
 func blank(_ value: Any) -> Any {
   switch value {
   case let object as [String: Any]:
@@ -92,7 +80,7 @@ func blank(_ value: Any) -> Any {
     }
   case let array as [Any]: return array.map(blank)
   case let text as String:
-    return text.replacingOccurrences(of: "rn_[A-Za-z0-9_-]{16,}", with: "rn_(blanked)", options: .regularExpression)
+    return text.replacingOccurrences(of: "rsm_[A-Za-z0-9_-]{16,}", with: "rsm_(blanked)", options: .regularExpression)
   default: return value
   }
 }
