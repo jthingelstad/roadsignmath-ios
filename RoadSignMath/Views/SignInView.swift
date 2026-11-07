@@ -79,7 +79,7 @@ private struct EmailStep: View {
             ProblemLine(text: problem)
           }
           BigButton(label: "Email me a sign-in code", symbol: "envelope", busy: sending, enabled: plausible, action: send)
-          Text("No password. We email you a 6-digit code to type here, and a link that signs you in when you tap it on this iPhone.")
+          Text("No password. We email you a 6-digit code to type here, and a link that signs you in when you tap it on this iPhone. Players also get the occasional Road Sign Math newsletter, with a link to unsubscribe in each one.")
             .face(.body)
             .foregroundStyle(Color.ink2)
             .multilineTextAlignment(.center)

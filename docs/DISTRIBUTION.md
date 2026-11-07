@@ -45,6 +45,12 @@ external testers. It takes:
   address, so reviewers sign in with their own and get the 6-digit code
   there; no demo account. "Look around first" shows the signs without
   signing in. The review notes say both.
+- **The group and the review.** An upload joins no group by itself.
+  `scripts/asc.swift` takes the rest: `POST
+  /v1/betaGroups/<id>/relationships/builds` puts the build in Beta,
+  `POST /v1/betaBuildLocalizations` (or `PATCH` an existing one) sets
+  What to Test, and `POST /v1/betaAppReviewSubmissions` sends it to
+  review.
 - **Review.** The first external build gets a full Beta App Review, about
   a day. A build stays installable for 90 days. Apple reviews one build
   per version at a time.
@@ -58,7 +64,8 @@ Later, on Jamie's go. What the listing needs, ready to fill in:
 - **Privacy** (App Privacy in App Store Connect), the same as
   `RoadSignMath/PrivacyInfo.xcprivacy`. No tracking. Linked to the
   player, for App Functionality: Contact Info (email address, for
-  sign-in), Name, Identifiers (user id: the handle), User Content
+  sign-in; also for Developer's Advertising or Marketing, because every
+  player gets the Road Sign Math newsletter, sent by Buttondown), Name, Identifiers (user id: the handle), User Content
   (photos; other content: titles, captions, the math, the bio; customer
   support: Send feedback), Location (precise: a photo's own place, posted
   with the sign). Not linked, for Analytics: Usage Data (product
