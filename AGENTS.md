@@ -184,7 +184,9 @@ The website and the server behind it are in
   reinstalling the app signs out, since the Keychain outlives the app).
   `Views/SignInView.swift` is the sign-in screen (email, code, name,
   welcome), shown on first launch with "Look around first", with Privacy
-  and About links to the website under the email step, and
+  and About links to the website under the email step (its note under
+  the button says players also get the occasional newsletter: the server
+  adds every player to Buttondown at first sign-in, Jamie, 2026-11-07), and
   `Views/MeView.swift` is You: your profile (signs, states, the year of
   your first sign), your signs as Home's timeline (the same cards, newest
   posted first) or a grid of photos (a tap opens the sign; held or hidden
@@ -398,7 +400,8 @@ The website and the server behind it are in
   OFL, its license beside it in `Fonts/`) for words, Latin Modern for
   math.
 - `RoadSignMath/PrivacyInfo.xcprivacy` is the privacy manifest: no
-  tracking; what the app sends that the server keeps (the email, name and
+  tracking; what the app sends that the server keeps (the email, for
+  sign-in and for the newsletter, Developer Advertising; the name and
   handle, photos, a photo's own place, what players post, feedback, all
   linked to the player, and screen views, not linked); and UserDefaults
   (reason CA92.1, the app's own settings). Near you's location answers
@@ -437,6 +440,10 @@ The website and the server behind it are in
   (`Config/ExportOptions-TestFlight.plist`, internal only unless
   `--external`); `docs/DISTRIBUTION.md` is the road from there to the App
   Store and `docs/PHONE-TEST.md` the pass each build gets on a phone.
+  `scripts/asc.swift METHOD PATH [body.json]` makes one App Store Connect
+  API call with the same key (never printed), for the steps an upload
+  doesn't take: adding a build to the Beta group, What to Test, and
+  submitting it for Beta App Review.
 - `scripts/version.sh`: the version a build carries, the one in `VERSION`
   (0.9.0 now), set by hand when Jamie names a release (Jamie, 2026-10-31:
   "we will determine this in our own way.. Lets call this version 0.9.0";
