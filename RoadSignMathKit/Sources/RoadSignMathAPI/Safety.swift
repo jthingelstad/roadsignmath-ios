@@ -23,6 +23,18 @@ public struct ReportOutcome: Codable, Sendable, Hashable {
   }
 }
 
+/// `POST /signs/{id}/duplicate`'s answer (API 1.12.0): the other sign's
+/// slug and the note kept with it.
+public struct DuplicateReceived: Codable, Sendable, Hashable {
+  public var sameAs: String
+  public var note: String?
+
+  public init(sameAs: String, note: String?) {
+    self.sameAs = sameAs
+    self.note = note
+  }
+}
+
 /// A player you blocked, from `GET /me/blocks`.
 public struct BlockedPlayer: Codable, Sendable, Hashable, Identifiable {
   public var handle: String
@@ -45,6 +57,17 @@ extension APIClient {
   /// nothing changed.
   public func report(_ signId: String, reason: String, token: String) async throws -> ReportOutcome {
     try await answer(to: request("POST", ["signs", signId, "report"], body: ["reason": reason.clipped(to: APIClient.reportMax)], token: token))
+  }
+
+  /// Says a sign is the same road sign as another one, posted separately
+  /// (`sameAs`, its id or slug), with an optional note. It's kept for
+  /// later and changes nothing now; the moderator never sees it. Any sign,
+  /// your own too. Sending another replaces your earlier one.
+  public func reportDuplicate(_ signId: String, sameAs: String, note: String, token: String) async throws -> DuplicateReceived {
+    var body = ["same_as": sameAs]
+    let note = note.trimmingCharacters(in: .whitespacesAndNewlines)
+    if !note.isEmpty { body["note"] = note.clipped(to: APIClient.reportMax) }
+    return try await answer(to: request("POST", ["signs", signId, "duplicate"], body: body, token: token))
   }
 
   /// Blocks a player: their signs and ways are left out of everything you

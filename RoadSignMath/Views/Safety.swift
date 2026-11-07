@@ -201,6 +201,216 @@ struct ReportSheet: View {
   }
 }
 
+/// Reporting a duplicate (Jamie, 2026-11-07: "A duplicate sign should be
+/// submitted as a 'report a duplicate', similar to the other report
+/// function… we can figure out later what we do with that"): pick the
+/// sign it's the same as from the ones nearest it, add a note if you
+/// like. It's only kept: neither sign changes, and the moderator never
+/// sees it.
+struct DuplicateSheet: View {
+  let sign: Sign
+
+  @Environment(Account.self) private var account
+  @Environment(Store.self) private var store
+  @Environment(\.dismiss) private var dismiss
+  @State private var nearby: [Sign]?
+  @State private var loadProblem: String?
+  @State private var chosen: String?
+  @State private var note = ""
+  @State private var sending = false
+  @State private var sent = false
+  @State private var problem: String?
+  @FocusState private var typing: Bool
+
+  /// How far a duplicate is looked for, and how many are offered.
+  static let miles = 25.0
+  static let most = 12
+
+  var body: some View {
+    NavigationStack {
+      ScrollView {
+        VStack(alignment: .leading, spacing: 14) {
+          if sent { thanks } else { form }
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+      }
+      .background(Color.ground)
+      .navigationTitle("Report a duplicate")
+      .navigationBarTitleDisplayMode(.inline)
+      .toolbar {
+        if sent {
+          ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() }.face(.action) }
+        } else {
+          ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.disabled(sending) }
+        }
+      }
+    }
+    .tint(.greenInk)
+    .interactiveDismissDisabled(sending)
+    .sensoryFeedback(.success, trigger: sent)
+    .task { await load() }
+  }
+
+  /// The signs nearest this one, nearest first, itself left out.
+  static func choices(_ near: [Sign], leaving id: String) -> [Sign] {
+    Array(near.filter { $0.id != id && ($0.miles ?? 0) <= miles }.prefix(most))
+  }
+
+  private func load() async {
+    guard let lat = sign.place.lat, let lng = sign.place.lng else {
+      nearby = []
+      return
+    }
+    do {
+      let near = try await store.signs(nearLatitude: lat, longitude: lng)
+      nearby = DuplicateSheet.choices(near, leaving: sign.id)
+      loadProblem = nil
+      #if DEBUG
+        // `-RSMDuplicatePick YES` picks the nearest, for a screenshot.
+        if Script.flag("RSMDuplicatePick") { chosen = nearby?.first?.id }
+      #endif
+    } catch {
+      if !Store.cancelled(error) { loadProblem = Store.say(error) }
+    }
+  }
+
+  @ViewBuilder private var form: some View {
+    Text("Is this the same road sign as one posted before? Pick that one. Neither sign changes; your report is kept for later.")
+      .face(.body)
+      .foregroundStyle(Color.ink2)
+      .fixedSize(horizontal: false, vertical: true)
+    if let loadProblem {
+      ProblemLine(text: loadProblem)
+      Button("Try again") { self.loadProblem = nil; Task { await load() } }.face(.action)
+    } else if let nearby {
+      if nearby.isEmpty {
+        Text(sign.place.lat == nil ? "This sign has no pin on the map, so there are no signs near it to choose from."
+             : "No other sign is within \(Int(DuplicateSheet.miles)) miles of this one.")
+          .face(.body)
+          .foregroundStyle(Color.ink3)
+          .fixedSize(horizontal: false, vertical: true)
+      } else {
+        Text("The same sign as").face(.label).foregroundStyle(Color.ink)
+        VStack(spacing: 8) {
+          ForEach(nearby) { other in choice(other) }
+        }
+        noteField
+        if let problem { ProblemLine(text: problem) }
+        Button(action: send) {
+          HStack(spacing: 8) {
+            if sending { ProgressView().tint(.white) }
+            Text(sending ? "Sending…" : "Report as a duplicate")
+          }
+          .face(.button)
+          .foregroundStyle(Color.card)
+          .frame(maxWidth: .infinity, minHeight: 50)
+          .background(chosen == nil ? Color.ink3 : Color.greenInk, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .buttonStyle(CardPress())
+        .disabled(sending || chosen == nil)
+        .padding(.top, 4)
+      }
+    } else {
+      ProgressView().frame(maxWidth: .infinity).padding(.top, 20)
+    }
+  }
+
+  private func choice(_ other: Sign) -> some View {
+    let picked = chosen == other.id
+    return Button {
+      chosen = other.id
+    } label: {
+      HStack(spacing: 12) {
+        if let photo = other.photos.first {
+          PhotoView(url: photo.thumbUrl, alt: photo.alt, pixels: 160)
+            .frame(width: 56, height: 56)
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
+        VStack(alignment: .leading, spacing: 2) {
+          Text(other.title).face(.name).foregroundStyle(Color.ink).lineLimit(2)
+          Text(DuplicateSheet.where(other))
+            .face(.meta).foregroundStyle(Color.ink3).lineLimit(2)
+        }
+        Spacer(minLength: 0)
+        Image(systemName: picked ? "checkmark.circle.fill" : "circle")
+          .font(.system(size: 22, weight: .semibold))
+          .foregroundStyle(picked ? Color.greenInk : Color.ruleStrong)
+          .accessibilityHidden(true)
+      }
+      .padding(10)
+      .background(Color.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+      .overlay {
+        RoundedRectangle(cornerRadius: 12, style: .continuous)
+          .strokeBorder(picked ? Color.greenInk : Color.rule, lineWidth: picked ? 2 : 1)
+      }
+      .contentShape(Rectangle())
+    }
+    .buttonStyle(.plain)
+    .accessibilityElement(children: .combine)
+    .accessibilityAddTraits(picked ? [.isButton, .isSelected] : .isButton)
+  }
+
+  /// "0.4 mi away · found by Jamie · Nov 26, 2006".
+  static func `where`(_ other: Sign) -> String {
+    var parts: [String] = []
+    if let miles = other.milesText { parts.append(miles == "here" ? "Right here" : "\(miles) away") }
+    parts.append("found by \(other.finderNames)")
+    parts.append(other.foundMonth)
+    return parts.joined(separator: String.dot)
+  }
+
+  private var noteField: some View {
+    VStack(alignment: .leading, spacing: 6) {
+      Text("Anything to add?").face(.label).foregroundStyle(Color.ink)
+      TextField("Optional", text: $note, axis: .vertical)
+        .face(.field)
+        .lineLimit(2...5)
+        .focused($typing)
+        .padding(12)
+        .background(Color.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay {
+          RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .strokeBorder(typing ? Color.greenInk : Color.ruleStrong, lineWidth: typing ? 2 : 1.5)
+        }
+        .onChange(of: note) { _, now in
+          if now.serverLength > APIClient.reportMax { note = now.clipped(to: APIClient.reportMax) }
+        }
+    }
+  }
+
+  @ViewBuilder private var thanks: some View {
+    Image(systemName: "checkmark.circle.fill")
+      .font(.system(size: 44, weight: .semibold))
+      .foregroundStyle(Color.greenInk)
+      .accessibilityHidden(true)
+    Text("Thanks, it’s noted")
+      .face(.title)
+      .foregroundStyle(Color.ink)
+      .accessibilityAddTraits(.isHeader)
+    Text("Both signs stay as they are. Your report is kept for later.")
+      .face(.body)
+      .foregroundStyle(Color.ink2)
+      .fixedSize(horizontal: false, vertical: true)
+  }
+
+  private func send() {
+    guard let chosen, !sending else { return }
+    sending = true
+    problem = nil
+    typing = false
+    Task {
+      do {
+        _ = try await account.reportDuplicate(sign.id, sameAs: chosen, note: note)
+        withAnimation(.smooth) { sent = true }
+      } catch {
+        problem = Account.say(error)
+      }
+      sending = false
+    }
+  }
+}
+
 /// What blocking does, said the same everywhere.
 enum BlockWords {
   static let what = "You won’t see their signs or the ways they find. They aren’t told."

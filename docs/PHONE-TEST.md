@@ -55,6 +55,12 @@ already in your library.
 
 ## 5. Odds and ends
 
+- [ ] Open a finder of a first-era sign (Todd Southworth, H B Elkins):
+      their page shows a Years row of orange plates, oldest first, above
+      Badges; a tap opens the year's sheet with the first sign that year.
+- [ ] On a sign page, ⋯ > Report a duplicate lists nearby signs, nearest
+      first. Pick one and Cancel; don't send one unless it really is a
+      duplicate (a sent report is kept on the live server).
 - [ ] Turn on airplane mode, post a sign, turn it off: it goes when the
       phone is back online.
 - [ ] Larger Text (Settings > Accessibility) and dark mode both read well.

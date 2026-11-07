@@ -366,6 +366,12 @@ final class Account {
   /// The longest note a report takes after "Inappropriate: ".
   static let reportNoteMax = APIClient.reportMax - "Inappropriate: ".serverLength
 
+  /// Says a sign is the same road sign as another one (API 1.12.0). It's
+  /// kept for later and changes nothing now.
+  func reportDuplicate(_ signId: String, sameAs: String, note: String) async throws -> DuplicateReceived {
+    try await authorized { try await client.reportDuplicate(signId, sameAs: sameAs, note: note, token: $0) }
+  }
+
   /// Blocks a player; reads what's new on your signs again, which leaves
   /// them out.
   func block(_ handle: String) async throws {

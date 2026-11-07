@@ -517,6 +517,12 @@ final class Store {
     tab = .map
   }
 
+  /// The signs nearest a spot, nearest first: the choices when reporting a
+  /// duplicate.
+  func signs(nearLatitude lat: Double, longitude lng: Double) async throws -> [Sign] {
+    try await read { try await self.client.signs(nearLatitude: lat, longitude: lng, token: $0) }
+  }
+
   /// A read the screen gave up on (it went away), not one that failed.
   static func cancelled(_ error: any Error) -> Bool {
     error is CancellationError || (error as? URLError)?.code == .cancelled

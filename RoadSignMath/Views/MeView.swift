@@ -201,7 +201,14 @@ struct MeView: View {
         }
         // Shown with none earned too, so the shelves say how to earn the
         // first; a server before 1.6.0 sends no badges at all.
-        if let badges = me.badges { badgesRow(badges) }
+        if let badges = me.badges {
+          let years = Badges.years(badges)
+          if !years.isEmpty {
+            let fresh = Set(account.newBadges.filter { $0.shelf == .years }.map(SeenBadges.key))
+            YearsSection(years: years, who: "you", fresh: fresh) { badge = $0 }
+          }
+          badgesRow(Badges.others(badges))
+        }
         switch load {
         case .loading where signs.isEmpty:
           placeholder
@@ -232,7 +239,7 @@ struct MeView: View {
   /// Your newest few badges, a dot on any not seen yet, and "See all" for
   /// the shelves.
   private func badgesRow(_ badges: [EarnedBadge]) -> some View {
-    let fresh = Set(account.newBadges.map(SeenBadges.key))
+    let fresh = Set(Badges.others(account.newBadges).map(SeenBadges.key))
     return VStack(alignment: .leading, spacing: 10) {
       HStack(alignment: .firstTextBaseline) {
         Text("Badges")
