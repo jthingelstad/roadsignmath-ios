@@ -5,6 +5,10 @@ import Foundation
 /// The rules, in the order they claim text (a rule never sees text an earlier
 /// one claimed):
 ///
+/// 0. An up arrow read as 1 is no number: a lone `1` starting a line, before
+///    a word that isn't a unit (`1 Collins`, `1 SARATOGA 14`), is the arrow
+///    pointing to that place, where a distance would come after the name.
+///    `1 MILE`, `1 MI`, `1 PM` and `1 LANE` stay 1.
 /// 1. Time ranges split in two: `6AM-10AM` and `6-10 PM` give 6 and 10.
 /// 2. Clock times split in two: `7:30` gives 7 and 30.
 /// 3. Fractions: `1/2`, `½`, `1½`. A slash is a fraction only with
@@ -79,6 +83,13 @@ public struct NumberExtractor: Sendable {
 
   static func signRules(_ text: String) -> [Found] {
     var scan = Scan(text)
+
+    // 0. An up arrow read as "1" before a place's name: claimed, so no rule
+    // reads it, and nothing found.
+    scan.claim(#"^\s*1(?=\s+([A-Za-z]{3,})(?![A-Za-z0-9]))"#) { match in
+      guard let word = match.group(1), !unitWords.contains(word.text.lowercased()) else { return nil }
+      return []
+    }
 
     // 1. Time ranges: "6AM-10AM", "6-10AM", "7 AM TO 9 AM", "6:30-9 PM".
     scan.claim(
@@ -231,6 +242,17 @@ public struct NumberExtractor: Sendable {
     }
     return found
   }
+
+  /// Words a real 1 is followed by at the start of a line, so a `1` before
+  /// one of them is never taken for an arrow.
+  static let unitWords: Set<String> = [
+    "mile", "miles", "kms", "feet", "yds", "yard", "yards", "mph", "kph", "hrs", "hour", "hours", "min", "mins",
+    "minute", "minutes", "sec", "secs", "second", "seconds", "day", "days", "night", "nights", "week", "weeks",
+    "ton", "tons", "lbs", "lane", "lanes", "block", "blocks", "way", "exit", "exits", "and", "or", "of", "to",
+    "thru", "through", "per", "person", "persons", "people", "passenger", "passengers", "car", "cars",
+    "vehicle", "vehicles", "axle", "axles", "truck", "trucks", "bus", "buses", "only", "max", "space", "spaces",
+    "stall", "stalls", "lot", "lots", "level", "floor", "bed", "beds", "room", "rooms",
+  ]
 
   static let vulgarFractions: [String: Decimal] = [
     "½": Decimal(1) / 2, "⅓": Decimal(1) / 3, "⅔": Decimal(2) / 3, "¼": Decimal(1) / 4,

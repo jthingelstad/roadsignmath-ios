@@ -81,10 +81,14 @@ The two misses, from looking at the photos:
 - **On the way to the airport**: the second "3" (Williston) sits against a bolt on the sign and
   is read as part of it.
 
-The extras are mostly real: arrows read as "1" (up arrows beside place names),
-other numbers on the sign that the equation didn't use, and once a licence
-plate on a car in the photo ("902"). On "Check the numbers" the player removes
-those.
+The extras are mostly real: other numbers on the sign that the equation didn't
+use, and once a licence plate on a car in the photo ("902"). On "Check the
+numbers" the player removes those. Up arrows beside place names were read as
+"1" too (Bolivar, Fair Play, Fair Grove, Saratoga); since 2026-11-10 the sign
+rules drop a lone "1" before a place's name and keep it before a unit or word
+like "MILE", "LANE" or "TO". On that day's run the app's variant went from 18
+extras to 11 on the new-era signs and 136 to 135 on the archive's 191, with
+full hits (14 of 16, 109 of 191) and recall (97%, 77%) unchanged.
 
 ## Method
 
