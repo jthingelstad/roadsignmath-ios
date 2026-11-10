@@ -158,6 +158,11 @@ private func decimal(_ text: String) -> Decimal {
     ("21 Bolivar", [21]),
     ("1 Bolivar2", [1, 2]),
     ("Bolivar 1 Collins", [1]),
+    ("1 NORTH", [1]),
+    ("1 South", [1]),
+    ("1 WESTBOUND", [1]),
+    ("1 AVE", [1]),
+    ("1 HWY", [1]),
   ] as [(String, [Decimal])])
   func aRealOneStays(text: String, expected: [Decimal]) {
     #expect(values(text) == expected)

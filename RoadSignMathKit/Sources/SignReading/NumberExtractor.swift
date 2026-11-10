@@ -243,8 +243,9 @@ public struct NumberExtractor: Sendable {
     return found
   }
 
-  /// Words a real 1 is followed by at the start of a line, so a `1` before
-  /// one of them is never taken for an arrow.
+  /// Words a real 1 is followed by at the start of a line (units, joining
+  /// words, a route's direction, road words), so a `1` before one of them is
+  /// never taken for an arrow.
   static let unitWords: Set<String> = [
     "mile", "miles", "kms", "feet", "yds", "yard", "yards", "mph", "kph", "hrs", "hour", "hours", "min", "mins",
     "minute", "minutes", "sec", "secs", "second", "seconds", "day", "days", "night", "nights", "week", "weeks",
@@ -252,6 +253,10 @@ public struct NumberExtractor: Sendable {
     "thru", "through", "per", "person", "persons", "people", "passenger", "passengers", "car", "cars",
     "vehicle", "vehicles", "axle", "axles", "truck", "trucks", "bus", "buses", "only", "max", "space", "spaces",
     "stall", "stalls", "lot", "lots", "level", "floor", "bed", "beds", "room", "rooms",
+    // A route's direction and the road words after a number: "1 NORTH", "1 AVE".
+    "north", "south", "east", "west", "northbound", "southbound", "eastbound", "westbound",
+    "ave", "avenue", "street", "road", "hwy", "highway", "route", "blvd", "boulevard", "bypass", "business", "alt",
+    "loop", "spur", "trail", "parkway", "pkwy", "drive",
   ]
 
   static let vulgarFractions: [String: Decimal] = [
