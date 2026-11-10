@@ -127,6 +127,26 @@ final class Outbox {
     kick()
   }
 
+  // MARK: Off the screen
+
+  /// A post is going, or is due within a few seconds: worth asking the
+  /// system for time as the app leaves the screen. Not one waiting for
+  /// sign-in, or backing off for longer (it goes when the app is back).
+  var busy: Bool {
+    guard account.signedIn, let handle = account.me?.handle else { return false }
+    return sending != nil || running || items.hasPostDue(for: handle, within: 10)
+  }
+
+  /// Returns once nothing is going or due soon, or when cancelled (the
+  /// system's time ran out). Cancelling ends the wait, never a post on
+  /// the wire: cut off there, it may have made its sign, and the next try
+  /// looks for it before sending again.
+  func settle() async {
+    while busy, !Task.isCancelled {
+      try? await Task.sleep(for: .milliseconds(250))
+    }
+  }
+
   // MARK: Sending
 
   private func connection(_ satisfied: Bool) {

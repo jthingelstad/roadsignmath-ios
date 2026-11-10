@@ -8,6 +8,7 @@ struct RootView: View {
   @Environment(Account.self) private var account
   @Environment(Outbox.self) private var outbox
   @State private var flow = CaptureFlow()
+  @Environment(\.scenePhase) private var phase
   /// Someone chose "Look around first" (or "Not now"): sign-in waits until
   /// they ask for it.
   @AppStorage("lookedAround") private var lookedAround = false
@@ -63,6 +64,12 @@ struct RootView: View {
     // sign-in is out of the way.
     .onChange(of: snap.asked, initial: true) { answerSnap() }
     .onChange(of: account.signingIn) { answerSnap() }
+    // Off the screen, the system may end the app without a word: a shot
+    // that isn't posted or saved waits in Drafts until the player is back.
+    .onChange(of: phase) { _, now in
+      if now == .background { flow.keepSafe() }
+      if now == .active { flow.takeBack() }
+    }
     // Home or the Map coming into view (chosen, or back from a sign).
     .onChange(of: store.rootScreen, initial: true) { _, now in
       if let now { store.saw(now) }

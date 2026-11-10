@@ -11,7 +11,9 @@ import UIKit
 /// `numbers.kept`.
 ///
 /// The last shot stays while the app is open, so closing Capture and coming
-/// back finds it behind the camera's thumbnail.
+/// back finds it behind the camera's thumbnail. While the app is off the
+/// screen, where the system may end it, a shot that isn't posted is kept in
+/// Drafts (`keepSafe`), and taken back out when the player returns.
 @MainActor @Observable
 final class CaptureFlow {
   typealias Source = Draft.Source
@@ -79,6 +81,8 @@ final class CaptureFlow {
   private(set) var draftID: UUID?
   /// The town that draft's photo was taken in, kept as it's saved again.
   private var draftPlace: String?
+  /// What `keepSafe` put in Drafts while the app is off the screen.
+  private var safekept: Safekept?
 
   /// Bumped by every new photo, so a slow reading of an earlier one is
   /// dropped.
@@ -188,16 +192,26 @@ final class CaptureFlow {
     return UIImage(cgImage: cropped)
   }
 
-  /// Saves the shot as it stands to Drafts, for later, and goes back to the
-  /// live camera for the next sign. Saved before its reading finished, it's
-  /// read again when it's opened.
-  @discardableResult
-  func saveDraft() -> Bool {
-    guard let shot else { return false }
-    let saved = Draft(
+  /// The shot as a draft, as it stands, and its photo when Drafts doesn't
+  /// hold it yet (a new shot, or one whose draft was deleted since it was
+  /// opened). Saved before its reading finished, it's read again when it's
+  /// opened.
+  private var asDraft: (draft: Draft, photo: Data?)? {
+    guard let shot else { return nil }
+    let kept = draftID.map { id in drafts.all.contains { $0.id == id } } ?? false
+    let draft = Draft(
       id: draftID ?? UUID(), source: shot.source, takenAt: shot.takenAt, takenOn: shot.foundOn,
       numbers: reading == .reading || reading == .idle ? nil : numbers, way: draft, place: draftPlace)
-    guard drafts.save(saved, photo: draftID == nil ? shot.file.data : nil) else { return false }
+    return (draft, kept ? nil : shot.file.data)
+  }
+
+  /// Saves the shot as it stands to Drafts, for later, and goes back to the
+  /// live camera for the next sign.
+  @discardableResult
+  func saveDraft() -> Bool {
+    takeBack()
+    guard let shot, let (saved, photo) = asDraft else { return false }
+    guard drafts.save(saved, photo: photo) else { return false }
     // Drafts are known by where they were taken: the town at the photo's
     // own GPS spot, looked up now (Drafts tries again if this can't).
     if saved.place == nil, let latitude = shot.file.facts.latitude, let longitude = shot.file.facts.longitude {
@@ -212,8 +226,28 @@ final class CaptureFlow {
     return true
   }
 
+  /// The app is leaving the screen, where the system may end it without a
+  /// word: a shot that's neither posted nor saved goes to Drafts as it
+  /// stands, so the photo isn't lost with the app. Nothing on screen
+  /// changes, and `takeBack` undoes it if the player comes back first.
+  func keepSafe() {
+    // Once it's posted, the outbox has it.
+    let inOutbox = path.contains { if case .posted = $0 { true } else { false } }
+    guard safekept == nil, !inOutbox, let (draft, photo) = asDraft else { return }
+    safekept = drafts.keepSafe(draft, photo: photo)
+  }
+
+  /// The player is back (or the shot was posted or saved meanwhile):
+  /// Drafts are as they were before `keepSafe`.
+  func takeBack() {
+    guard let kept = safekept else { return }
+    safekept = nil
+    drafts.takeBack(kept)
+  }
+
   /// The post is in the outbox: its draft, if it had one, is done with.
   func posted() {
+    takeBack()
     if let draftID { drafts.remove(draftID) }
     draftID = nil
   }

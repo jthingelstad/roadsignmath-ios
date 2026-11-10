@@ -313,9 +313,25 @@ public enum Backoff {
   }
 }
 
+extension Collection where Element == OutboxItem {
+  /// Whether `handle` has a post to send now or within `soon` seconds:
+  /// what's worth asking the system for a little more time for as the app
+  /// leaves the screen. A post waiting for sign-in, or backing off for
+  /// longer, isn't.
+  public func hasPostDue(for handle: String?, within soon: TimeInterval = 0, now: Date = .now) -> Bool {
+    guard let handle else { return false }
+    return contains { $0.handle == handle && $0.isDue(at: now.addingTimeInterval(soon)) }
+  }
+}
+
 /// The outbox on disk: `outbox.json` with every post, and each post's
 /// photo beside it as `<id>.jpg`. In Application Support, so it outlives a
 /// relaunch and isn't cleared like a cache.
+///
+/// A post this build can't read (written by a newer build, or damaged) is
+/// never dropped: it moves to `unreadable.json` beside the list, its photo
+/// staying where it is, and the posts that do read still go. Every load
+/// tries those again, so a build that knows their shape sends them.
 public struct OutboxFolder: Sendable {
   public let url: URL
 
@@ -337,15 +353,81 @@ public struct OutboxFolder: Sendable {
   }
 
   private var index: URL { url.appendingPathComponent("outbox.json") }
+  /// The posts no build on this phone has been able to read yet.
+  var unreadable: URL { url.appendingPathComponent("unreadable.json") }
 
+  /// The posts this build can read. Ones it can't are set aside first
+  /// (see above), so the `save` that follows never writes over them.
   public func load() -> [OutboxItem] {
-    guard let data = try? Data(contentsOf: index) else { return [] }
-    return (try? JSONDecoder().decode([OutboxItem].self, from: data)) ?? []
+    let list = Listed(index)
+    let aside = Listed(unreadable)
+    var items = list.items
+    // Set aside by an earlier build, readable by this one: back in line.
+    for item in aside.items where !items.contains(where: { $0.id == item.id }) { items.append(item) }
+    guard !list.raw.isEmpty || !aside.items.isEmpty else { return items }
+    // Not twice, when an earlier load stopped part way.
+    let fresh = list.raw.filter { post in !aside.all.contains { ($0 as AnyObject).isEqual(post) } }
+    let kept = aside.raw + fresh
+    do {
+      // In this order, so that stopped part way a post is in both files
+      // (the next load sorts that out) and never in neither.
+      if !fresh.isEmpty { try write(aside.all + fresh, to: unreadable) }
+      try save(items)
+      if kept.isEmpty {
+        try? FileManager.default.removeItem(at: unreadable)
+      } else {
+        try write(kept, to: unreadable)
+      }
+    } catch {
+      // The phone is full, most likely. What reads still goes; the rest is
+      // as safe as this try could make it.
+    }
+    return items
   }
 
   public func save(_ items: [OutboxItem]) throws {
     try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
     try JSONEncoder().encode(items).write(to: index, options: .atomic)
+  }
+
+  private func write(_ posts: [Any], to file: URL) throws {
+    try JSONSerialization.data(withJSONObject: posts, options: [.fragmentsAllowed]).write(to: file, options: .atomic)
+  }
+
+  /// A list file read post by post: the ones that decode, and the rest as
+  /// the JSON they are. A file that isn't a list at all is moved aside
+  /// whole, as `<name>-damaged-<time>.json`, since nothing in it can be
+  /// told apart.
+  private struct Listed {
+    var items: [OutboxItem] = []
+    /// The posts that didn't decode.
+    var raw: [Any] = []
+    /// Every post in the file, as JSON.
+    var all: [Any] = []
+
+    init(_ file: URL) {
+      guard FileManager.default.fileExists(atPath: file.path) else { return }
+      guard let data = try? Data(contentsOf: file),
+        let posts = try? JSONSerialization.jsonObject(with: data) as? [Any],
+        let slots = try? JSONDecoder().decode([Slot].self, from: data), slots.count == posts.count
+      else {
+        let name = file.deletingPathExtension().lastPathComponent
+        let aside = file.deletingLastPathComponent()
+          .appendingPathComponent("\(name)-damaged-\(Int(Date.now.timeIntervalSince1970)).json")
+        try? FileManager.default.moveItem(at: file, to: aside)
+        return
+      }
+      all = posts
+      for (slot, post) in zip(slots, posts) {
+        if let item = slot.item { items.append(item) } else { raw.append(post) }
+      }
+    }
+
+    /// One place in the list: the post, or nil when it doesn't decode.
+    private struct Slot: Decodable {
+      let item: OutboxItem?
+      init(from decoder: any Decoder) throws { item = try? OutboxItem(from: decoder) }
+    }
   }
 
   public func photoURL(_ id: UUID) -> URL { url.appendingPathComponent(id.uuidString.lowercased() + ".jpg") }

@@ -28,6 +28,55 @@ import Testing
     #expect(sign.postedAt == Date(timeIntervalSince1970: 1_756_771_213))
   }
 
+  /// A fixture with the first sign's `visibility` and its first finder's
+  /// `role` changed, as a newer server might send them.
+  func fixture(_ name: String, visibility: String, role: String) throws -> Data {
+    var page = try #require(JSONSerialization.jsonObject(with: fixture(name)) as? [String: Any])
+    var signs = try #require(page["signs"] as? [[String: Any]])
+    var finders = try #require(signs[0]["finders"] as? [[String: Any]])
+    finders[0]["role"] = role
+    signs[0]["finders"] = finders
+    signs[0]["visibility"] = visibility
+    page["signs"] = signs
+    return try JSONSerialization.data(withJSONObject: page)
+  }
+
+  @Test func aWordFromANewerServerNeverEmptiesTheFeed() throws {
+    let page: SignPage = try APIClient.answer(fixture("signs", visibility: "featured", role: "drove"), status: 200)
+    // Every sign still reads, the strange one too.
+    #expect(page.signs.count == 2)
+    let strange = try #require(page.signs.first)
+    #expect(strange.slug == "i-35w-at-82nd-street")
+    // Only `shown` is ever on the map for everyone: a visibility this
+    // build doesn't know is not that.
+    #expect(strange.visibility == .other)
+    #expect(strange.visibility != .shown)
+    // The finder is still named, after anyone who found it.
+    #expect(strange.finders.first?.role == .other)
+    #expect(strange.foundBy.map(\.name) == strange.finders.filter { $0.role == .found }.map(\.name)
+      + strange.finders.filter { $0.role != .found }.map(\.name))
+    #expect(strange.foundBy.count == strange.finders.count)
+    #expect(page.signs[1].visibility == .shown)
+
+    // Kept on the phone (Home's signs for no signal) and read back, it's
+    // the same.
+    let kept = try JSONDecoder().decode(Sign.self, from: JSONEncoder().encode(strange))
+    #expect(kept == strange)
+  }
+
+  @Test func theWordsThisBuildKnows() throws {
+    func visibility(_ word: String) throws -> Visibility { try JSONDecoder().decode(Visibility.self, from: Data("\"\(word)\"".utf8)) }
+    func role(_ word: String) throws -> Finder.Role { try JSONDecoder().decode(Finder.Role.self, from: Data("\"\(word)\"".utf8)) }
+    #expect(try visibility("shown") == .shown)
+    #expect(try visibility("held") == .held)
+    #expect(try visibility("hidden") == .hidden)
+    #expect(try visibility("") == .other)
+    #expect(try role("found") == .found)
+    #expect(try role("took_photo") == .tookPhoto)
+    #expect(try role("spotted") == .spotted)
+    #expect(try role("Found") == .other)
+  }
+
   @Test func readsASignWithItsWays() throws {
     let detail: SignDetail = try APIClient.answer(fixture("sign"), status: 200)
     #expect(detail.sign.title == "I-35W at 82nd Street")

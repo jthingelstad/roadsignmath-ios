@@ -1,3 +1,4 @@
+import Posting
 import RoadSignMathAPI
 import SwiftUI
 
@@ -45,11 +46,18 @@ struct RoadSignMathApp: App {
             Task { await account.refresh() }
             outbox.wakeUp()
           }
-          // Views still waiting go before the app sleeps, given the few
-          // seconds the system allows to send them.
           if now == .background {
+            // Views still waiting go before the app sleeps, given the few
+            // seconds the system allows to send them.
             let store = store
-            BackgroundSend().start { await store.views.sendNow() }
+            BackgroundTime.start("Screen views") { await store.views.sendNow() }
+            // A post on its way (Post it, then the phone locked or put
+            // down) keeps going for as long as the system allows. One cut
+            // off anyway is picked up when the app is next opened.
+            if outbox.busy {
+              let outbox = outbox
+              BackgroundTime.start("Posting a sign") { await outbox.settle() }
+            }
           }
         }
     }
@@ -64,29 +72,19 @@ struct RoadSignMathApp: App {
   }
 }
 
-/// Work given the few seconds the system allows after the app goes to the
-/// background. When they run out first, the work is cancelled (views not
-/// sent wait for the next batch) and the time is handed back, once, so
-/// the system suspends the app instead of ending it.
-@MainActor
-private final class BackgroundSend {
-  private var asked = UIBackgroundTaskIdentifier.invalid
-  private var work: Task<Void, Never>?
-
-  func start(_ job: @escaping @MainActor () async -> Void) {
-    asked = UIApplication.shared.beginBackgroundTask(withName: "Screen views") { [self] in
-      work?.cancel()
-      end()
-    }
-    work = Task { [self] in
-      await job()
-      end()
-    }
-  }
-
-  private func end() {
-    guard asked != .invalid else { return }
-    UIApplication.shared.endBackgroundTask(asked)
-    asked = .invalid
+extension BackgroundTime<UIBackgroundTaskIdentifier> {
+  /// Runs `work` in the time the system allows after the app goes to the
+  /// background. When that runs out first, the work is cancelled (views
+  /// not sent wait for the next batch; a post on the wire is left to
+  /// finish or be picked up later) and the time is handed back, once, so
+  /// the system suspends the app instead of ending it.
+  static func start(_ name: String, work: @escaping @MainActor () async -> Void) {
+    BackgroundTime().start(
+      begin: { expired in
+        let asked = UIApplication.shared.beginBackgroundTask(withName: name, expirationHandler: expired)
+        return asked == .invalid ? nil : asked
+      },
+      end: { UIApplication.shared.endBackgroundTask($0) },
+      work: work)
   }
 }
