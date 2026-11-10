@@ -208,7 +208,10 @@ The website and the server behind it are in
   welcome), shown on first launch with "Look around first", with Privacy
   and About links to the website under the email step (its note under
   the button says players also get the occasional newsletter: the server
-  adds every player to Buttondown at first sign-in, Jamie, 2026-11-07), and
+  adds every player to Buttondown at first sign-in, Jamie, 2026-11-07, and
+  a line under it, "By signing in you agree to the house rules.", links
+  roadsignmath.xyz/rules, Jamie, 2026-11-10; Settings' About links the
+  rules too), and
   `Views/MeView.swift` is You: your profile (signs, states, the year of
   your first sign), your signs as Home's timeline (the same cards, newest
   posted first) or a grid of photos (a tap opens the sign; held or hidden
@@ -483,10 +486,12 @@ The website and the server behind it are in
   doesn't take: adding a build to the Beta group, What to Test, and
   submitting it for Beta App Review.
 - `scripts/version.sh`: the version a build carries, the one in `VERSION`
-  (0.9.0 now), set by hand when Jamie names a release (Jamie, 2026-10-31:
-  "we will determine this in our own way.. Lets call this version 0.9.0";
-  the date arithmetic was only ever Changelog's). `scripts/version.sh test`
-  checks its form. A build phase stamps it, the commit count (the build
+  (1.0 now, for the App Store, Jamie's go on 2026-11-10), set by hand
+  when Jamie names a release (Jamie, 2026-10-31: "we will determine this
+  in our own way.. Lets call this version 0.9.0"; the date arithmetic was
+  only ever Changelog's). `scripts/version.sh test` checks its form,
+  MAJOR.MINOR or MAJOR.MINOR.PATCH: 1.0 is written as App Store Connect
+  names the version, so the build matches it exactly. A build phase stamps it, the commit count (the build
   number) and the commit into the built Info.plist. Apple takes each build
   number once per version, and the commit count only goes up.
 

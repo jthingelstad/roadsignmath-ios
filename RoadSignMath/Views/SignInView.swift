@@ -85,6 +85,14 @@ private struct EmailStep: View {
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)
             .fixedSize(horizontal: false, vertical: true)
+          // Jamie, 2026-11-10: one line at sign-in, the rules on the website.
+          Text(Self.rulesLine)
+            .face(.body)
+            .foregroundStyle(Color.ink2)
+            .tint(Color.greenInk)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
+            .fixedSize(horizontal: false, vertical: true)
           Spacer(minLength: 24)
           Button(action: close) {
             Text(firstRun ? "Look around first" : "Not now")
@@ -147,6 +155,14 @@ private struct EmailStep: View {
     .frame(maxWidth: .infinity)
     // Up under the status bar, and above it when the page is pulled down.
     .background { Color.ground.padding(.top, -600).ignoresSafeArea(edges: .top) }
+  }
+
+  /// "By signing in you agree to the house rules.", the last two words
+  /// linking the website's rules.
+  private static var rulesLine: AttributedString {
+    var rules = AttributedString("house rules")
+    rules.link = SitePage.rules
+    return AttributedString("By signing in you agree to the ") + rules + AttributedString(".")
   }
 
   private func send() {

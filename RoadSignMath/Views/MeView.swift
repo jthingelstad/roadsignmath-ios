@@ -509,6 +509,7 @@ private struct SettingsView: View {
       }
       Section {
         Link(destination: SitePage.privacy) { row("Privacy", "", link: true) }
+        Link(destination: SitePage.rules) { row("House rules", "", link: true) }
         Link(destination: SitePage.about) { row("About Road Sign Math", "", link: true) }
         Button {
           page = .licenses

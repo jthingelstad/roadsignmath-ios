@@ -6,6 +6,7 @@ import SwiftUI
 enum SitePage {
   static let privacy = URL(string: "https://roadsignmath.xyz/privacy")!
   static let about = URL(string: "https://roadsignmath.xyz/about")!
+  static let rules = URL(string: "https://roadsignmath.xyz/rules")!
   static let ccBy = URL(string: "https://creativecommons.org/licenses/by/4.0/")!
 }
 
