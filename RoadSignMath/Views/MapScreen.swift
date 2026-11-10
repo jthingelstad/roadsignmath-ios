@@ -25,7 +25,8 @@ struct MapScreen: View {
     @Bindable var store = store
     NavigationStack(path: $store.mapPath) {
       ZStack(alignment: .top) {
-        SignMap(pins: shown, selected: $selected, together: $together, focus: $focus)
+        SignMap(pins: shown, everySign: year == nil && !mine && query.split(separator: " ").isEmpty,
+                selected: $selected, together: $together, focus: $focus)
           .ignoresSafeArea(edges: .top)
           .onTapGesture { searching = false }
         controls

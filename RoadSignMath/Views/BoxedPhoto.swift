@@ -84,9 +84,12 @@ struct BoxedPhoto: View {
     return CGRect(x: (space.width - width) / 2, y: (space.height - height) / 2, width: width, height: height)
   }
 
-  /// Where each number's tag goes: above its ring, else below, else left
-  /// off where it would cover another tag or number on a crowded sign (the ring stays, and the
-  /// list says what it is). The focused number's tag is placed first.
+  /// Where each number's tag goes: above its ring, else below, else beside
+  /// it, the first spot clear of the tags placed so far and of the other
+  /// numbers' rings, on the photo if it can be. On a sign so crowded that no
+  /// spot is clear (Mason's 36, between its 5 and 136), the first spot clear
+  /// of the other tags, so every number keeps its tag. The focused number's
+  /// tag is placed first.
   static func tags(_ numbers: [CheckedNumber], in frame: CGRect, focus: CheckedNumber.ID?) -> [CheckedNumber.ID: CGRect] {
     var placed: [CGRect] = []
     var places: [CheckedNumber.ID: CGRect] = [:]
@@ -98,15 +101,16 @@ struct BoxedPhoto: View {
       let size = CGSize(width: 14 + 8 * CGFloat(number.text.count), height: 19)
       let above = CGRect(x: ring.minX, y: ring.minY - 3 - size.height, width: size.width, height: size.height)
       let below = CGRect(x: ring.minX, y: ring.maxY + 3, width: size.width, height: size.height)
-      let room = above.minY >= frame.minY ? [above, below] : [below, above]
-      // Clear of the tags placed so far and of every other number's ring.
-      let free = room.first { spot in
-        !placed.contains { $0.insetBy(dx: -1, dy: -1).intersects(spot) }
-          && !rings.contains { $0.0 != number.id && $0.1.intersects(spot) }
-      }
-      if let free {
-        placed.append(free)
-        places[number.id] = free
+      let middle = ring.midY - size.height / 2
+      let right = CGRect(x: ring.maxX + 3, y: middle, width: size.width, height: size.height)
+      let left = CGRect(x: ring.minX - 3 - size.width, y: middle, width: size.width, height: size.height)
+      let room = [above, below, right, left]
+      let spots = room.filter { frame.contains($0) } + room.filter { !frame.contains($0) }
+      let clearOfTags = { (spot: CGRect) in !placed.contains { $0.insetBy(dx: -1, dy: -1).intersects(spot) } }
+      let clearOfRings = { (spot: CGRect) in !rings.contains { $0.0 != number.id && $0.1.intersects(spot) } }
+      if let spot = spots.first(where: { clearOfTags($0) && clearOfRings($0) }) ?? spots.first(where: clearOfTags) ?? spots.first {
+        placed.append(spot)
+        places[number.id] = spot
       }
     }
     return places
