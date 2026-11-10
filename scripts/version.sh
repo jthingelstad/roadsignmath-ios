@@ -1,12 +1,13 @@
 #!/bin/bash
 # Road Sign Math's version number: the one in VERSION at the repo's root,
-# MAJOR.MINOR.PATCH, set by hand when Jamie names the next release (Jamie,
+# MAJOR.MINOR or MAJOR.MINOR.PATCH, set by hand when Jamie names the next release (Jamie,
 # 2026-10-31: "we will determine this in our own way.. Lets call this
-# version 0.9.0"). The date arithmetic of Your Version Number is
+# version 0.9.0"). 1.0 is written as App Store Connect names the
+# version, so the build matches it exactly. The date arithmetic of Your Version Number is
 # Changelog's, not this app's.
 #
 #   scripts/version.sh                  the version a build carries
-#   scripts/version.sh test             checks VERSION is MAJOR.MINOR.PATCH
+#   scripts/version.sh test             checks VERSION is MAJOR.MINOR[.PATCH]
 #   scripts/version.sh stamp <plist>    stamps a built Info.plist
 #
 # A build's number for Apple (CFBundleVersion) has to be whole numbers and
@@ -19,8 +20,8 @@ root=$(cd "$(dirname "$0")/.." && pwd)
 number() {
   local number
   number=$(tr -d '[:space:]' < "$root/VERSION")
-  if [[ ! $number =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
-    echo "VERSION should be MAJOR.MINOR.PATCH, like 0.9.0; it says '$number'" >&2
+  if [[ ! $number =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))?$ ]]; then
+    echo "VERSION should be MAJOR.MINOR or MAJOR.MINOR.PATCH, like 1.0 or 0.9.0; it says '$number'" >&2
     return 1
   fi
   echo "$number"
