@@ -93,11 +93,19 @@ struct Face {
   static let digit = Face(family: .mono, size: 26, weight: 700, style: .title2)
 
   func font(size: CGFloat) -> Font {
-    let axes: [NSNumber: NSNumber] = [NSNumber(value: Self.wght): NSNumber(value: Double(weight))]
+    // Overpass and Overpass Mono number their digits' glyphs alike, and
+    // CoreText can hand one family's glyphs to the other when both are set
+    // at the same weight: Check's numbers drew in Overpass on some photos
+    // and in Mono on others. Mono stays just off the weights Overpass uses.
+    let value = family == .mono ? weight - Self.monoOffset : weight
+    let axes: [NSNumber: NSNumber] = [NSNumber(value: Self.wght): NSNumber(value: Double(value))]
     let name = family == .overpass ? "Overpass-Regular" : "OverpassMono-Regular"
     let attributes: [CFString: Any] = [kCTFontNameAttribute: name, kCTFontVariationAttribute: axes]
     return Font(CTFontCreateWithFontDescriptor(CTFontDescriptorCreateWithAttributes(attributes as CFDictionary), size, nil))
   }
+
+  /// How far below its nominal weight Mono is set; too little to see.
+  private static let monoOffset: CGFloat = 10
 
   /// The 'wght' axis, as CoreText names it.
   private static let wght: UInt32 = 0x7767_6874

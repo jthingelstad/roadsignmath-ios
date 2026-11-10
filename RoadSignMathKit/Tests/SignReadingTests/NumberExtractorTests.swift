@@ -126,6 +126,52 @@ private func decimal(_ text: String) -> Decimal {
     #expect(read("I35W80").allSatisfy { $0.reason == .lettersDropped })
   }
 
+  /// Vision reads an up arrow before a place's name as "1": Fair Play's
+  /// "1 Bolivar", Bolivar's "1 Collins" and Saratoga's "1 SARATOGA 14" and
+  /// "1 FAIRGROUNDSE", as read on the new-era photos.
+  @Test(arguments: [
+    ("1 Bolivar", []),
+    ("1 Collins", []),
+    ("1 SARATOGA 14", [14]),
+    ("1 FAIRGROUNDSE", []),
+    ("  1 Bolivar", []),
+  ] as [(String, [Decimal])])
+  func anUpArrowBeforeAPlaceIsNoNumber(text: String, expected: [Decimal]) {
+    #expect(values(text) == expected)
+  }
+
+  @Test(arguments: [
+    ("1 MILE", [1]),
+    ("1 Mile", [1]),
+    ("1 MI", [1]),
+    ("1 MILES", [1]),
+    ("1 1/2 MILE", [1, 0.5]),
+    ("1 PM", [1]),
+    ("1 LANE", [1]),
+    ("1 TO 5", [1, 5]),
+    ("Collins 1", [1]),
+    ("EXIT 1", [1]),
+    ("1st Ave", [1]),
+    ("1 E", [1]),
+    ("1 US 52", [1, 52]),
+    ("12 Bolivar", [12]),
+    ("21 Bolivar", [21]),
+    ("1 Bolivar2", [1, 2]),
+    ("Bolivar 1 Collins", [1]),
+    ("1 NORTH", [1]),
+    ("1 South", [1]),
+    ("1 WESTBOUND", [1]),
+    ("1 AVE", [1]),
+    ("1 HWY", [1]),
+  ] as [(String, [Decimal])])
+  func aRealOneStays(text: String, expected: [Decimal]) {
+    #expect(values(text) == expected)
+  }
+
+  @Test func digitsOnlyKeepsTheArrow() {
+    #expect(values("1 Bolivar", rules: .digitsOnly) == [1])
+  }
+
   @Test func aHyphenIsNeverAMinus() {
     #expect(values("I-94") == [94])
     #expect(values("MON-FRI") == [])
