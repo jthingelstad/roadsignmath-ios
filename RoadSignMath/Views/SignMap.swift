@@ -9,6 +9,9 @@ import UIKit
 /// `together`.
 struct SignMap: UIViewRepresentable {
   let pins: [Pin]
+  /// Every sign, with no search, year or Mine choosing some: the framing
+  /// shows where most signs are rather than every far-off one.
+  var everySign = false
   @Binding var selected: String?
   @Binding var together: [String]
   @Binding var focus: MapFocus?
@@ -116,9 +119,18 @@ struct SignMap: UIViewRepresentable {
       }
     }
 
-    /// Every pin in view, with room for the search bar and the card.
+    /// Every pin in view, with room for the search bar and the card. With
+    /// every sign on the map, that's the ones in the lower 48, where most
+    /// are, so a few signs in Hawaii, Europe, Asia or Australia don't open
+    /// the map on the whole world; they're a pan away. A search, a year or
+    /// Mine frames whatever it found, wherever it is.
     func frameAll(_ map: MKMapView, animated: Bool) {
-      var rect = shown.values.reduce(MKMapRect.null) { $0.union(MKMapRect(origin: MKMapPoint($1.coordinate), size: MKMapSize(width: 1, height: 1))) }
+      var coordinates = shown.values.map(\.coordinate)
+      if parent.everySign {
+        let core = coordinates.filter(Lower48.holds)
+        if core.count * 2 >= coordinates.count { coordinates = core }
+      }
+      var rect = coordinates.reduce(MKMapRect.null) { $0.union(MKMapRect(origin: MKMapPoint($1), size: MKMapSize(width: 1, height: 1))) }
       // One sign, or a few in one town, shows the town around it rather
       // than the street.
       let least = 30_000 * MKMapPointsPerMeterAtLatitude(rect.origin.coordinate.latitude)
@@ -176,6 +188,14 @@ struct SignMap: UIViewRepresentable {
       let origin = MKMapPoint(first.coordinate)
       return members.map { MKMapPoint($0.coordinate).distance(to: origin) }.max() ?? 0
     }
+  }
+}
+
+/// The lower 48 states, roughly: a box from the Florida Keys to the
+/// Canadian border and from the Pacific to Maine.
+enum Lower48 {
+  static func holds(_ coordinate: CLLocationCoordinate2D) -> Bool {
+    (24.3...49.5).contains(coordinate.latitude) && (-125.0 ... -66.8).contains(coordinate.longitude)
   }
 }
 

@@ -291,14 +291,15 @@ struct BadgeTile: View {
     VStack(spacing: 4) {
       BadgeArt(badge)
         .overlay(alignment: .topTrailing) { if new { NewDot().offset(x: 4, y: -2) } }
+      // One line, as wide as it needs: the rows scroll sideways, and a
+      // stepped badge's count ("Mile Markers: 25") never wraps on its own.
       Text(badge.title)
         .face(.meta)
         .foregroundStyle(Color.ink2)
-        .multilineTextAlignment(.center)
-        .lineLimit(2)
-        .fixedSize(horizontal: false, vertical: true)
+        .lineLimit(1)
+        .fixedSize()
     }
-    .frame(width: width)
+    .frame(minWidth: width)
   }
 }
 

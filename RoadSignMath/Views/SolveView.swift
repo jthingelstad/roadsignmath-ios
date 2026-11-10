@@ -13,6 +13,10 @@ struct SolveView: View {
   @State private var askSignIn = false
   /// Bumped by every tile and key, for the tap's haptic.
   @State private var taps = 0
+  /// The space above the keypad, and how tall the math and tiles are in it,
+  /// so the photo can take what's left.
+  @State private var room = CGSize.zero
+  @State private var rest: CGFloat = 0
 
   var body: some View {
     GeometryReader { geometry in
@@ -42,14 +46,18 @@ struct SolveView: View {
         VStack(spacing: 0) {
           ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-              ShotStrip(height: 110)
-              editor.board
-              editor.reading
-              editor.tiles(hint: true)
+              ShotStrip(height: stripHeight)
+              VStack(alignment: .leading, spacing: 14) {
+                editor.board
+                editor.reading
+                editor.tiles(hint: true)
+              }
+              .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { rest = $0 }
             }
             .padding(16)
           }
           .scrollBounceBehavior(.basedOnSize)
+          .onGeometryChange(for: CGSize.self) { $0.size } action: { room = $0 }
           VStack(spacing: 12) {
             editor.keypad
             actions
@@ -76,6 +84,19 @@ struct SolveView: View {
     .signInToPost($askSignIn, waiting: "Your photo and your math wait right here while you do.") {
       flow.path.append(.post)
     }
+  }
+
+  /// The photo takes the room the math and tiles leave above the keypad:
+  /// at least 110 points, and never less than its numbers need (ShotStrip
+  /// sees to that). Past the whole photo's height it closes in on the
+  /// numbers, up to half as big again.
+  private var stripHeight: CGFloat {
+    guard let size = flow.shot?.picture.size else { return 110 }
+    let whole = ShotStrip.height(for: nil, of: size, width: room.width - 32)
+    let free = room.height - 32 - 14 - rest
+    // Closer in, but never so close that a number falls off the sides.
+    let span = ShotStrip.numbers(flow.numbers.kept).map { $0.width + 0.08 } ?? 1
+    return max(110, min(whole * min(1.5, 1 / span), free))
   }
 
   private var status: WayDraft.Status { draft.status }
