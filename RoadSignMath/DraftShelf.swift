@@ -34,6 +34,20 @@ final class DraftShelf {
     return true
   }
 
+  /// Keeps the open shot safe while the app is off the screen
+  /// (`DraftFolder.keepSafe`); nil when the phone couldn't. The list
+  /// doesn't change: no one is looking, and `takeBack` undoes it when they
+  /// are. If the app is ended first, the next launch lists it.
+  func keepSafe(_ draft: Draft, photo: Data?) -> Safekept? {
+    var draft = draft
+    if draft.place == nil, let kept = all.first(where: { $0.id == draft.id })?.place { draft.place = kept }
+    return try? folder.keepSafe(draft, photo: photo)
+  }
+
+  func takeBack(_ kept: Safekept) {
+    folder.takeBack(kept)
+  }
+
   func remove(_ id: UUID) {
     folder.remove(id)
     thumbnails[id] = nil

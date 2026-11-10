@@ -1,10 +1,12 @@
 import Foundation
 
-// The JSON the server's read routes answer with (OpenAPI 1.6.0 at
-// GET /api/v1/openapi.json). Keys are snake_case on the wire and camelCase
-// here; `APIClient` decodes with `.convertFromSnakeCase`. Every field the
-// schema allows to be null is optional, so a new nullable field never
-// breaks an older app.
+// The JSON the server's read routes answer with (its OpenAPI document is
+// at GET /api/v1/openapi.json). Keys are snake_case on the wire and
+// camelCase here; `APIClient` decodes with `.convertFromSnakeCase`. Every
+// field the schema allows to be null is optional, so a new nullable field
+// never breaks an older app, and a value a newer server adds to a list of
+// words (`Visibility`, `Finder.Role`) reads as `other`, so one sign with
+// a new word never empties a whole feed.
 
 public struct Sign: Codable, Sendable, Hashable, Identifiable {
   public var id: String
@@ -74,6 +76,14 @@ public struct SignDetail: Codable, Sendable, Hashable, Identifiable {
 
 public enum Visibility: String, Codable, Sendable, Hashable {
   case shown, held, hidden
+  /// A word this app doesn't know yet, from a newer server. Only `shown`
+  /// is ever treated as on the map for everyone, so this reads as a sign
+  /// only its poster sees.
+  case other
+
+  public init(from decoder: any Decoder) throws {
+    self = Visibility(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .other
+  }
 }
 
 public struct Place: Codable, Sendable, Hashable {
@@ -110,6 +120,13 @@ public struct Finder: Codable, Sendable, Hashable {
     case found
     case tookPhoto = "took_photo"
     case spotted
+    /// A role this app doesn't know yet, from a newer server: the finder
+    /// is still named, after the ones who found it. Never posted.
+    case other
+
+    public init(from decoder: any Decoder) throws {
+      self = Role(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .other
+    }
   }
 
   public var name: String

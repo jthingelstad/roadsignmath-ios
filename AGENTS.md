@@ -55,6 +55,9 @@ The website and the server behind it are in
     camera's shots, which have none), a folder
     each in Application Support (`Drafts/`, which the phone's backup
     keeps, unlike the outbox) with a small `thumb.jpg` for the list.
+    `DraftFolder.keepSafe` and `takeBack` (with `Safekept`) are the
+    safekeeping of an open shot while the app is off the screen: see
+    Drafts below.
   - `MathArt`: draws a way's LaTeX (the `tex` the server and `Equation`
     write) as an image with SwiftMath in Latin Modern, the look of a math
     book, and caches each picture by text, size and color so feeds scroll
@@ -110,6 +113,11 @@ The website and the server behind it are in
     `Badges.years` and `Badges.others` split off the year badges (API
     1.11.0, ids `year-YYYY` on the `years` shelf, oldest first), and
     `SeenBadges` is which ones this phone has shown, per step).
+    A word a newer server adds to a closed list never fails a read:
+    `Visibility` and `Finder.Role` read one they don't know as `other`,
+    as `BadgeShelf` does, so one sign with a new word doesn't empty a
+    feed. The app treats a sign as on the map for everyone only when its
+    visibility is `shown`, so `other` reads as held, never as public.
     `SignInLink` reads the email's link, `Handle.preview` ports
     the server's handle slug so the name step can show the address a name
     makes, and `TokenStore` keeps the token: `KeychainTokenStore` (this
@@ -135,8 +143,22 @@ The website and the server behind it are in
     the phone waited, a post is never made twice and the player never has
     to look. `OutboxFolder` keeps the queue and its photos
     in Application Support (`Outbox/`, not backed up), so a post survives
-    a relaunch. `PostParts` makes the upload (JPEG, upright, no metadata,
-    under 4 MB), the numbers (with their text, why and box), the finders
+    a relaunch. `load` reads `outbox.json` post by post: one this build
+    can't read (written by a newer build, or damaged) is set aside as it
+    was written in `unreadable.json` beside the list, its photo left in
+    place, while the rest still go, and every load tries those again, so
+    a build that can read one sends it. A file that isn't a list at all
+    is moved aside whole (`outbox-damaged-<unix time>.json`), never
+    overwritten. Nothing is dropped, and the player isn't told yet.
+    `Tests/PostingTests/Resources/outbox-build-39.json` pins the shape
+    builds through 39 wrote, a post in every state: a change to
+    `OutboxItem` must still read it. `hasPostDue(for:within:)` says
+    whether a post is about to go. `BackgroundTime` runs work in the time
+    the system gives an app leaving the screen (the asking and the
+    handing back are passed in, so it's tested without UIKit): the time
+    is handed back exactly once, when the work finishes or when it runs
+    out, which cancels the work. `PostParts` makes the upload (JPEG,
+    upright, no metadata, under 4 MB), the numbers (with their text, why and box), the finders
     (none when you found it alone, so the server names you; with others,
     you took the photo and they spotted it, an `@handle` that matches a
     player linking to them), the state from a place, and the title
@@ -303,8 +325,13 @@ The website and the server behind it are in
   `Outbox.swift` (the queue on the phone: it sends one post at a time,
   sleeps until the next is due, tries again at once when the network
   comes back or the app opens, and bumps `postedCount` so Home and the
-  Map read again) and `Views/OutboxNotes.swift` (Home's word about a post
-  waiting, posted while you were away, held or refused).
+  Map read again; when the app leaves the screen with a post going or due
+  within ten seconds (`busy`), `RoadSignMathApp` asks the system for
+  background time and holds it until the outbox settles (`settle`) or the
+  time runs out, about half a minute; a post cut off there is picked up
+  when the app is next opened, since nothing sends while the app is
+  suspended: a background `URLSession` would, and isn't built) and
+  `Views/OutboxNotes.swift` (Home's word about a post waiting, posted while you were away, held or refused).
   Drafts, for playing later (Jamie, 2026-10-31: "I take photos of any
   sign that looks hopeful and then I try to solve it later"): "Save for
   later" on the camera's review (the right-hand slot) and in Check's and
@@ -316,6 +343,17 @@ The website and the server behind it are in
   math is begun) and a swipe deletes it. `RoadSignMath/DraftShelf.swift`
   is the list the screens watch; saving again updates the same draft, and
   posting it (into the outbox) removes it. They never leave the phone.
+  A shot that's open and not saved is kept safe when the app goes to the
+  background, where the system may end it: `RootView` calls
+  `CaptureFlow.keepSafe`, which writes the shot to Drafts as it stands
+  (photo, numbers so far, math, place; a shot opened from a draft has
+  that draft's progress updated), and `takeBack` when the app is active
+  again, which leaves Drafts exactly as they were, so a player who comes
+  straight back sees no draft appear, stays on the screen they were on,
+  and "Save for later" or a post cleans up as before (both take it back
+  first). If the app was ended meanwhile, the shot is in Drafts at the
+  next launch. Not kept: a photo still being opened from the library,
+  and a shot already in the outbox.
   Each row is known by where the sign was (`Draft.heading`: the town
   from the photo's GPS, else "From your photos", "From the camera" or
   "The sample sign") and says when and how far (`Draft.details`: "Taken
@@ -387,9 +425,9 @@ The website and the server behind it are in
   mounted side by side, so `tabShown` (environment) tells a page kept on
   a hidden tab when its tab is back, and it counts again. `Store.views`
   sends them, with nothing about who looked, and the app sends any
-  waiting as it goes to the background (`BackgroundSend`: if the
-  system's few seconds run out first, the send is cancelled and they
-  wait for the next batch). Counts are never per person.
+  waiting as it goes to the background (`BackgroundTime` in
+  `Posting`: if the system's few seconds run out first, the send is
+  cancelled and they wait for the next batch). Counts are never per person.
   `Views/SignInToPost.swift` is the "Sign in to post" alert
   and sign-in sheet that Check, Solve and "Find another way" share
   (`signInFirst` asks the same in its own words, for hearts). The app stands upright except Capture, which
@@ -455,9 +493,11 @@ The website and the server behind it are in
 ## Rules
 
 - This repo is public. Never commit secrets, tokens, signing files, team ids,
-  Apple account details, email addresses, local paths, or photos with plates
-  or faces that aren't blurred. Signing lives in an ignored local file when the
-  app arrives. Tools take every path as an argument.
+  Apple account details, email addresses, local paths, or photos with faces
+  that aren't blurred. A plate in a photo is fine (Jamie, 2026-10-31: "I'm
+  fine with the plate being visible. Not an issue."). Signing lives in the
+  ignored `Config/Signing.local.xcconfig`. Tools take every path as an
+  argument.
 - Apple's frameworks plus SwiftMath (mgriebling/SwiftMath, pinned to an
   exact version), which draws the math. Any other package is Jamie's call.
 - iOS 26 and later, iPhone only, Swift 6 strict concurrency.

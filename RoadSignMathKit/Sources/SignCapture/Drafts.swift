@@ -163,6 +163,15 @@ public struct DraftFolder: Sendable {
     try? Data(contentsOf: folder(of: id).appending(path: "photo"))
   }
 
+  /// One draft as it's kept, or nil when it isn't (or has no photo).
+  public func draft(_ id: UUID) -> Draft? {
+    let place = folder(of: id)
+    guard FileManager.default.fileExists(atPath: place.appending(path: "photo").path(percentEncoded: false)),
+      let data = try? Data(contentsOf: place.appending(path: "draft.json"))
+    else { return nil }
+    return try? JSONDecoder().decode(Draft.self, from: data)
+  }
+
   public func thumbnail(of id: UUID) -> URL {
     folder(of: id).appending(path: "thumb.jpg")
   }
@@ -173,5 +182,37 @@ public struct DraftFolder: Sendable {
 
   private func folder(of id: UUID) -> URL {
     folder.appending(path: id.uuidString, directoryHint: .isDirectory)
+  }
+}
+
+/// What `DraftFolder.keepSafe` put in Drafts as the app left the screen, so
+/// it can be undone when the player is back with the shot still open.
+public enum Safekept: Sendable, Hashable {
+  /// A draft made for a shot that had none.
+  case made(UUID)
+  /// The draft the shot was opened from, as it was before.
+  case updated(from: Draft)
+}
+
+extension DraftFolder {
+  /// Keeps a shot that's open in Capture safe while the app is off the
+  /// screen, where the system may end it: a photo taken at 70 mph can't be
+  /// taken again. The shot goes to Drafts as it stands (`photo` for a shot
+  /// with no draft yet; nil updates the draft it was opened from), so if
+  /// the app is ended it's there to pick up. If the player comes back
+  /// first, `takeBack` leaves Drafts as they were.
+  public func keepSafe(_ draft: Draft, photo: Data?) throws -> Safekept {
+    let before = photo == nil ? self.draft(draft.id) : nil
+    try save(draft, photo: photo)
+    return before.map { .updated(from: $0) } ?? .made(draft.id)
+  }
+
+  /// The player is back and the shot is still open: the draft made for it
+  /// goes, and one it was opened from is as it was.
+  public func takeBack(_ kept: Safekept) {
+    switch kept {
+    case .made(let id): remove(id)
+    case .updated(let before): try? save(before, photo: nil)
+    }
   }
 }

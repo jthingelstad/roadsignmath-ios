@@ -48,6 +48,8 @@ let package = Package(
     // one Idempotency-Key, trying again when offline), and the post's parts
     // made from what Capture kept.
     .target(name: "Posting", dependencies: ["RoadSignMathAPI", "SignCapture", "SignReading"]),
-    .testTarget(name: "PostingTests", dependencies: ["Posting", "RoadSignMathAPI", "SignCapture", "SignReading"]),
+    .testTarget(
+      name: "PostingTests", dependencies: ["Posting", "RoadSignMathAPI", "SignCapture", "SignReading"],
+      resources: [.copy("Resources")]),
   ]
 )

@@ -57,6 +57,18 @@ import Testing
     #expect(note == "A person will look at this one.")
   }
 
+  @Test func aVisibilityThisBuildDoesNotKnowIsNotSaidToBeOnTheMap() async throws {
+    // A newer server's word: the sign was made, so the post is done (never
+    // sent again), but it isn't called "Posted!" for everyone to see.
+    let fake = Fake(visibility: "queued")
+    let sent = await Delivery.attempt(item, photo: Data([1]), sender: fake.sender)
+    guard case .held(let sign, let note) = sent.state else { Issue.record("not held: \(sent.state)"); return }
+    #expect(sign.slug == "ames-math")
+    #expect(note == nil)
+    #expect(sent.posted != nil)
+    #expect(!sent.isWaiting)
+  }
+
   @Test func offlineWaitsAndTriesAgainWithTheSameUpload() async throws {
     let fake = Fake()
     fake.failPosts([URLError(.notConnectedToInternet)])

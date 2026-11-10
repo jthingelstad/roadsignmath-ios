@@ -53,7 +53,37 @@ already in your library.
 - [ ] "Post unsolved" from Check the numbers posts a sign with no math
       yet, for someone else to find.
 
-## 5. Odds and ends
+## 5. Putting the phone down
+
+The app keeps a shot and a post safe when it leaves the screen. Each of
+these is worth a try on a real phone, since a simulator can't lock, run
+out of memory or lose its signal.
+
+- [ ] Leaving mid-capture: take a photo, get to Check the numbers (or
+      write some math on Solve), then go to the Home Screen and open
+      another app for a few seconds. Come back: you're on the same
+      screen with the same numbers and math, and Drafts shows no new
+      draft (the camera's Drafts count is what it was).
+- [ ] The app ended mid-capture: do the same, but swipe the app away in
+      the app switcher before coming back. Open it, tap Capture, then
+      Drafts: the shot is there, with its numbers and math so far. Pick
+      it up and it opens where you were.
+- [ ] A draft picked up, then left: open a draft, change its math, go to
+      the Home Screen and come back. Then tap Back without saving. The
+      list has that draft once, as it was before you opened it.
+- [ ] Drafts still work as before: "Save for later" keeps a shot once
+      (leave the app and come back first, then save: still one draft),
+      and posting a draft takes it off the list.
+- [ ] Locking mid-post: tap Post it and lock the phone at once. Wait
+      half a minute, unlock: it says Posted!, or the sign is on Home.
+      Check roadsignmath.xyz has it once, not twice.
+- [ ] Locking mid-post with a poor signal (one bar, or a moving car):
+      lock right after Post it and leave it locked for a few minutes.
+      Unlock and open the app: the post goes, or says it's waiting for a
+      connection, and ends up on the site once. Note how long it was
+      locked if it had not gone.
+
+## 6. Odds and ends
 
 - [ ] Open a finder of a first-era sign (Todd Southworth, H B Elkins):
       their page shows a Years row of orange plates, oldest first, above

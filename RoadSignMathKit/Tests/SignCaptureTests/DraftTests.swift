@@ -52,6 +52,83 @@ import Testing
     #expect(drafts.all().map(\.id) == [older.id])
   }
 
+  // Off the screen, the system may end the app: an open shot is kept in
+  // Drafts until the player is back.
+
+  @Test func aShotKeptSafeIsThereIfTheAppIsEnded() throws {
+    defer { try? FileManager.default.removeItem(at: drafts.folder) }
+    let photo = try #require(SampleSign.photo())
+    let numbers = sample
+    let way = WayDraft(tiles: numbers.kept, text: "90 − 82")
+    let shot = Draft(source: .camera, takenAt: Date(timeIntervalSince1970: 1_700_000_000), takenOn: "2023-11-14", numbers: numbers, way: way)
+    #expect(try drafts.keepSafe(shot, photo: photo.data) == .made(shot.id))
+
+    // The next launch: a folder read afresh has the photo as taken, the
+    // numbers as checked and the math so far.
+    let next = DraftFolder(folder: drafts.folder)
+    #expect(next.all() == [shot])
+    #expect(next.draft(shot.id)?.way?.text == way.text)
+    #expect(next.photo(of: shot.id) == photo.data)
+    #expect(FileManager.default.fileExists(atPath: next.thumbnail(of: shot.id).path(percentEncoded: false)))
+  }
+
+  @Test func aShotStillBeingReadIsKeptToReadAgain() throws {
+    defer { try? FileManager.default.removeItem(at: drafts.folder) }
+    let photo = try #require(SampleSign.photo())
+    let shot = Draft(source: .library, takenAt: nil, numbers: nil, way: nil)
+    _ = try drafts.keepSafe(shot, photo: photo.data)
+    #expect(drafts.all().first?.numbers == nil)
+    #expect(drafts.all().first?.numbersText == "Not read yet")
+  }
+
+  @Test func backInTimeDraftsAreAsTheyWere() throws {
+    defer { try? FileManager.default.removeItem(at: drafts.folder) }
+    let photo = try #require(SampleSign.photo())
+    let other = Draft(savedAt: Date(timeIntervalSince1970: 100), source: .library, takenAt: nil, numbers: nil, way: nil)
+    try drafts.save(other, photo: photo.data)
+
+    let shot = Draft(source: .camera, takenAt: .now, numbers: sample, way: nil)
+    let kept = try drafts.keepSafe(shot, photo: photo.data)
+    #expect(drafts.all().count == 2)
+    drafts.takeBack(kept)
+    #expect(drafts.all() == [other])
+    #expect(drafts.photo(of: shot.id) == nil)
+  }
+
+  @Test func aDraftPickedUpAgainKeepsItsProgressAndIsPutBack() throws {
+    defer { try? FileManager.default.removeItem(at: drafts.folder) }
+    let photo = try #require(SampleSign.photo())
+    let saved = Draft(savedAt: Date(timeIntervalSince1970: 100), source: .library, takenAt: nil, numbers: nil, way: nil, place: "Ames, IA")
+    try drafts.save(saved, photo: photo.data)
+
+    // Opened from Drafts and worked on: the same draft, no second copy
+    // and no second photo.
+    var open = saved
+    open.savedAt = Date(timeIntervalSince1970: 200)
+    open.numbers = sample
+    open.way = WayDraft(tiles: sample.kept, text: "90 − 82 = 8")
+    let kept = try drafts.keepSafe(open, photo: nil)
+    #expect(kept == .updated(from: saved))
+    #expect(drafts.all() == [open])
+    #expect(drafts.all().first?.solved == true)
+    #expect(drafts.photo(of: saved.id) == photo.data)
+
+    // Back before the app was ended: the draft is as it was saved.
+    drafts.takeBack(kept)
+    #expect(drafts.all() == [saved])
+    #expect(drafts.photo(of: saved.id) == photo.data)
+  }
+
+  @Test func oneDraftByItsId() throws {
+    defer { try? FileManager.default.removeItem(at: drafts.folder) }
+    let photo = try #require(SampleSign.photo())
+    let draft = Draft(source: .sample, takenAt: nil, numbers: sample, way: nil)
+    #expect(drafts.draft(draft.id) == nil)
+    try drafts.save(draft, photo: photo.data)
+    #expect(drafts.draft(draft.id) == draft)
+    #expect(drafts.draft(UUID()) == nil)
+  }
+
   @Test func aFolderWithNoPhotoOrBrokenJSONIsSkipped() throws {
     defer { try? FileManager.default.removeItem(at: drafts.folder) }
     let broken = drafts.folder.appending(path: UUID().uuidString)
