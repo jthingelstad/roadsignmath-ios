@@ -50,7 +50,11 @@ The website and the server behind it are in
     as fixtures. `WayDraft` is the math written on Solve: tiles (each kept
     number goes in once, so a number shown twice goes in twice) and keys,
     the text the checker reads, the LaTeX to draw with a box where the next
-    piece goes, and a status from the checker's own answer.
+    piece goes, and a status from the checker's own answer. Since
+    2026-11-12 a new way uses every number (Jamie: "require every number
+    in new ways, keep the first-era ways"): true math that leaves a tile
+    out is `.leftOut`, not `.works`, and `EquationChecker.numbersLeftOut`
+    matches the server's (vectors in `numbers_left_out`).
     `WayDraft.tiles(onSign:)` makes the tiles from a posted sign's numbers,
     for "Find another way". `Draft` and `DraftFolder` (`Drafts.swift`)
     are Drafts: a sign saved for later, its photo as taken, its numbers
@@ -305,8 +309,10 @@ The website and the server behind it are in
   ones not earned), and their page on the website. Each tab's stack hands
   its screens an `Opener` (environment) that pushes a sign or a player;
   Home and the Map put a player on their stack of sign ids as `@handle`,
-  and a `roadsignmath.xyz/players/<handle>` link (`-RSMOpen
-  /players/jamie`) opens one. You reads `GET /me` and your own
+  and a `roadsignmath.xyz/players/<id>` link (or the old
+  `/players/<handle>`, `-RSMOpen /players/jamie`) opens one; since
+  2026-11-12 the site addresses signs and players by id, and `PageKey`
+  makes an id typed in another case uppercase for the API. You reads `GET /me` and your own
   `GET /players/{handle}` with your token, which carries your held and
   hidden signs; their photos are `/api/v1/me/photos/…`, which `Photos`
   reads with your token (every other photo is read without one). `Preferences.swift` holds `BuildInfo`, the stamped
@@ -441,7 +447,9 @@ The website and the server behind it are in
   (`BlockedPlayersView`), each with Unblock.
   Screen views: `countsView(_:)` (`Views/ScreenViews.swift`) counts a
   screen in the site's analytics each time it comes into view, as a page
-  load would: a sign page (`/signs/<slug>`), a player's (`/players/<handle>`),
+  load would: a sign page (`/signs/<slug>`), a player's (`/players/<handle>`;
+  still slug and handle, though the site's pages are by id, because the
+  server's view paths are lowercase and refuse an id),
   You (`/you`) and Capture (`/capture`); `RootView` counts Home (`/`) and
   the Map (`/map`) when chosen or come back to. Home and the Map stay
   mounted side by side, so `tabShown` (environment) tells a page kept on

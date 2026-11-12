@@ -16,7 +16,7 @@ import Testing
     defer { try? FileManager.default.removeItem(at: drafts.folder) }
     let photo = try #require(SampleSign.photo())
     let numbers = sample
-    let way = WayDraft(tiles: numbers.kept, text: "90 − 82 = 8")
+    let way = WayDraft(tiles: numbers.kept, text: "(90 − 82) ÷ 8 = 1^7")
     let draft = Draft(source: .sample, takenAt: Date(timeIntervalSince1970: 1_700_000_000), numbers: numbers, way: way)
     try drafts.save(draft, photo: photo.data)
 
@@ -106,7 +106,7 @@ import Testing
     var open = saved
     open.savedAt = Date(timeIntervalSince1970: 200)
     open.numbers = sample
-    open.way = WayDraft(tiles: sample.kept, text: "90 − 82 = 8")
+    open.way = WayDraft(tiles: sample.kept, text: "(90 − 82) ÷ 8 = 1^7")
     let kept = try drafts.keepSafe(open, photo: nil)
     #expect(kept == .updated(from: saved))
     #expect(drafts.all() == [open])
@@ -137,6 +137,14 @@ import Testing
     try Data([1]).write(to: broken.appending(path: "photo"))
     try drafts.save(Draft(source: .camera, takenAt: nil, numbers: nil, way: nil), photo: nil)
     #expect(drafts.all().isEmpty)
+  }
+
+  /// True math that leaves some of the sign's numbers out is math begun,
+  /// not solved: it can't be posted as it is.
+  @Test func trueButNotEveryNumberIsNotSolved() {
+    let draft = Draft(source: .camera, takenAt: nil, numbers: sample, way: WayDraft(tiles: sample.kept, text: "90 − 82 = 8"))
+    #expect(draft.way != nil)
+    #expect(!draft.solved)
   }
 
   @Test func anEmptyWayIsNoWay() {

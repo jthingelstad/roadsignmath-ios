@@ -291,7 +291,9 @@ struct AnotherWayView: View {
     .buttonStyle(CardPress())
     .disabled(!ready)
     .opacity(ready || sending ? 1 : 0.45)
-    .accessibilityHint(sendable ? "" : needsName && trimmedName.isEmpty ? "Give your name first." : "Write a new way that works first.")
+    .accessibilityHint(
+      sendable ? "" : needsName && trimmedName.isEmpty ? "Give your name first."
+        : draft.status.isLeftOut ? "Use every number first." : "Write a new way that works first.")
   }
 
   private func post() {

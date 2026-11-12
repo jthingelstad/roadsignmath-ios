@@ -187,6 +187,15 @@ public enum EquationChecker {
     return missing
   }
 
+  /// The sign's numbers a way leaves out, each as often as it's left out:
+  /// a number the sign shows twice and the way uses once is left out once.
+  /// Since 2026-11-12 a new way uses every number on the sign (Jamie:
+  /// "require every number in new ways, keep the first-era ways"), so a
+  /// way is sent only when this is empty. The server's `numbersLeftOut`.
+  public static func numbersLeftOut(used: [String], onSign: [String]) -> [String] {
+    numbersNotOnSign(used: onSign, onSign: used)
+  }
+
   /// "07" → "7", ".5" → "0.5", "2.50" → "2.5", so sign numbers compare by value.
   public static func normalizeNumber(_ text: String) -> String {
     let parts = trimmed(text).split(separator: ".", omittingEmptySubsequences: false)

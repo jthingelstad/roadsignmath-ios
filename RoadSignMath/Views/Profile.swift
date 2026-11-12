@@ -17,7 +17,8 @@ struct ProfileHeader: View {
   var avatarUrl: URL?
   /// Your own page: a tap on the avatar sets your photo.
   var changePhoto: (() -> Void)?
-  /// Their page on the website, as `roadsignmath.xyz/players/jamie`.
+  /// Their page on the website, the `url` the API gives: since
+  /// 2026-11-12 `roadsignmath.xyz/players/<id>`.
   var page: URL?
   /// Opens the page in the browser, or only says where it is.
   var linked = false
@@ -113,7 +114,7 @@ struct ProfileHeader: View {
     }
   }
 
-  /// "roadsignmath.xyz/players/jamie"
+  /// "roadsignmath.xyz/players/01J…", the page's address without its scheme.
   static func address(_ url: URL) -> String {
     (url.host() ?? "") + (url.port.map { ":\($0)" } ?? "") + url.path()
   }
@@ -255,7 +256,8 @@ extension EnvironmentValues {
   @Entry var opener: Opener?
 }
 
-/// A player's page on a stack of sign ids: `@jamie`.
+/// A player's page on a stack of sign ids: `@jamie`, or `@<their id>`
+/// when opened from a link to their page.
 enum PlayerPath {
   static func of(_ handle: String) -> String { "@" + handle }
   static func handle(_ id: String) -> String? { id.hasPrefix("@") ? String(id.dropFirst()) : nil }

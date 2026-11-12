@@ -314,10 +314,11 @@ final class Store {
     return now
   }
 
-  /// One player and their signs; signed in, it says which you hearted.
-  func player(_ handle: String) async throws -> Player {
+  /// One player and their signs, by handle or (API 1.14.0, from a link to
+  /// their page) by id; signed in, it says which you hearted.
+  func player(_ key: String) async throws -> Player {
     let started = Date()
-    let player = try await read { try await self.client.player(handle, token: $0) }
+    let player = try await read { try await self.client.player(key, token: $0) }
     settleHearts(player.signs ?? [], readAt: started)
     return player
   }
@@ -501,13 +502,15 @@ final class Store {
 
   /// A roadsignmath.xyz link the app was opened with: a sign's page opens
   /// that sign, a player's page that player; anything else opens Home.
+  /// Since 2026-11-12 the site addresses both by id (`/signs/<id>`,
+  /// `/players/<id>`); links by slug and handle from before still open.
   func open(_ url: URL) {
     let parts = url.pathComponents.filter { $0 != "/" }
     tab = .home
     if parts.count == 2, parts[0] == "signs", !parts[1].isEmpty {
-      homePath = [parts[1]]
+      homePath = [PageKey.normalized(parts[1])]
     } else if parts.count == 2, parts[0] == "players", !parts[1].isEmpty {
-      homePath = [PlayerPath.of(parts[1])]
+      homePath = [PlayerPath.of(PageKey.normalized(parts[1]))]
     }
   }
 

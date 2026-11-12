@@ -6,7 +6,10 @@ import SwiftUI
 /// count, and nothing about the ones they haven't, as on the website),
 /// then their signs as Home's timeline or a grid of photos.
 struct PlayerView: View {
-  let handle: String
+  /// Who: a handle, or their id from a link to their page on the site
+  /// (`/players/<id>`). Everything after the read, the screen's count
+  /// included, goes by the handle the read answers with.
+  let key: String
 
   @Environment(Store.self) private var store
   @Environment(\.opener) private var opener
@@ -52,13 +55,13 @@ struct PlayerView: View {
     .refreshable { await load() }
     // A block or unblock changes which of their signs (and ways) you see.
     .onChange(of: store.blockChanges) { Task { await load() } }
-    .countsView(ViewPath.player(handle))
+    .countsView(player.flatMap { ViewPath.player($0.handle) })
     .sensoryFeedback(.selection, trigger: look)
   }
 
   private func load() async {
     do {
-      player = try await store.player(handle)
+      player = try await store.player(key)
       failed = nil
       #if DEBUG
         if Script.value("RSMLook") == "photos" { look = .photos }

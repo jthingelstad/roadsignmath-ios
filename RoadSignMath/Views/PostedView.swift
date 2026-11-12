@@ -290,7 +290,7 @@ struct PostedView: View {
 
   private func see(_ sign: PostedSign) {
     store.tab = .home
-    store.homePath = [sign.slug]
+    store.homePath = [sign.id]
     done()
   }
 

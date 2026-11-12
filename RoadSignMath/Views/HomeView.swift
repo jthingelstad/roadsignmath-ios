@@ -63,7 +63,7 @@ struct HomeView: View {
       .toolbarBackground(Color.card, for: .navigationBar)
       .navigationDestination(for: String.self) { id in
         if let handle = PlayerPath.handle(id) {
-          PlayerView(handle: handle)
+          PlayerView(key: handle)
         } else {
           SignView(id: id)
             .navigationTransition(.zoom(sourceID: id, in: zoom))

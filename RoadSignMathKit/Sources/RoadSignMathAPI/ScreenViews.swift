@@ -1,9 +1,14 @@
 import Foundation
 
-/// A screen's path for the site's analytics: the website page it matches
-/// (`/`, `/map`, `/signs/<slug>`, `/players/<handle>`) or a short one of the
-/// app's own (`/capture`, `/you`). Lowercase letters, digits and hyphens,
-/// at most two parts and 100 characters, as the server checks.
+/// A screen's path for the site's analytics: `/`, `/map`, a sign's
+/// `/signs/<slug>` and a player's `/players/<handle>`, or a short one of
+/// the app's own (`/capture`, `/you`). Lowercase letters, digits and
+/// hyphens, at most two parts and 100 characters, as the server's
+/// `VIEW_PATH` checks. Since 2026-11-12 the website's pages are
+/// `/signs/<id>` and `/players/<id>`, ids being uppercase, which the
+/// server's check refuses (and one refused path drops its whole batch), so
+/// the app still counts a sign by its slug and a player by their handle,
+/// the paths a sign's hearts are kept under too.
 public enum ViewPath {
   public static let home = "/"
   public static let map = "/map"

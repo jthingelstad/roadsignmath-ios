@@ -4,7 +4,9 @@ import SwiftUI
 
 /// Solve's editor, which "Find another way" shares: the math on a sign of
 /// its own, how it reads ending in "It works", the sign's numbers as tiles
-/// that check off as they go in, and a keypad of operators.
+/// that check off as they go in, and a keypad of operators. A way uses
+/// every number on the sign (since 2026-11-12): true math that leaves one
+/// out says which, and isn't sent.
 @MainActor
 struct WayEditor {
   @Binding var draft: WayDraft
@@ -13,6 +15,8 @@ struct WayEditor {
   let still: Bool
   /// The word under the tiles in portrait.
   let hint: String
+  /// The second line when the math is true but leaves numbers out.
+  var leftOutHelp = "Every number on the sign goes in, as often as the sign shows it."
   /// Ways already on the sign, as the server writes them: one of them
   /// works, but isn't another way.
   var taken: Set<String> = []
@@ -118,10 +122,9 @@ struct WayEditor {
   }
 
   private var readingLine: (String, (String, String?), Color) {
-    let left = draft.tiles.count - draft.usedCount
     switch status {
     case .empty:
-      return ("hand.tap", ("Tap a number to start.", "It just has to be true. Using every number is the fun part, not a requirement."), .ink3)
+      return ("hand.tap", ("Tap a number to start.", "Use every number with any math you like. It just has to be true."), .ink3)
     case .writing:
       return ("ellipsis", ("Keep going…", nil), .ink3)
     case .oneSide(let value):
@@ -131,6 +134,8 @@ struct WayEditor {
       return ("arrow.left.arrow.right", ("Not true yet: \(values.formatted(.list(type: .and))).", "Try another operator, or move a bracket."), .ink3)
     case .problem(let message):
       return ("exclamationmark.circle", (message, nil), .warn)
+    case .leftOut(_, let numbers):
+      return ("plus.circle", ("It’s true! Now use every number: \(WayEditor.leftOutWords(numbers)).", leftOutHelp), .ink3)
     case .works(let solved):
       switch WayEditor.onSign(solved.canonical, taken: taken) {
       case .exactly where mine.contains(solved.canonical):
@@ -141,12 +146,13 @@ struct WayEditor {
         return ("arrow.triangle.2.circlepath", ("That’s a way already on the sign, in another order.", "Moving what’s added or multiplied around doesn’t make a new one. Try another."), .ink3)
       case nil: break
       }
-      if draft.usesEveryNumber {
-        return ("sparkles", ("It works! Both sides make \(solved.value).", "Every number on the sign. Beautiful."), .greenInk)
-      }
-      let rest = left == 1 ? "One number sits this one out" : "\(left) numbers sit this one out"
-      return ("checkmark.circle.fill", ("It works! Both sides make \(solved.value).", "\(rest): fit them in for fun, or post it as it is."), .greenInk)
+      return ("sparkles", ("It works! Both sides make \(solved.value).", "Every number on the sign. Beautiful."), .greenInk)
     }
+  }
+
+  /// "8 is left out", "7 and 1 are left out", as the server counts them.
+  static func leftOutWords(_ numbers: [String]) -> String {
+    "\(numbers.formatted(.list(type: .and))) \(numbers.count == 1 ? "is" : "are") left out"
   }
 
   // MARK: The numbers
