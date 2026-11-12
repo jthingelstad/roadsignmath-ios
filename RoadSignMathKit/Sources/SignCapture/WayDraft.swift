@@ -65,10 +65,18 @@ public struct WayDraft: Sendable, Hashable, Codable {
     case notTrue([String])
     /// Something the checker can't take, in its words.
     case problem(String)
-    /// True, using only the sign's numbers.
+    /// True, but not yet a way: some of the sign's numbers are left out,
+    /// each as often as it's left out, as the checker writes them. Since
+    /// 2026-11-12 a new way uses every number on the sign, and the server
+    /// refuses one that doesn't ("Use every number on the sign: 8 is left
+    /// out"), so this holds the send as `problem` does.
+    case leftOut(SolvedEquation, [String])
+    /// True, using every one of the sign's numbers and only those.
     case works(SolvedEquation)
 
     public var works: Bool { if case .works = self { true } else { false } }
+    /// True, with some of the sign's numbers left out.
+    public var isLeftOut: Bool { if case .leftOut = self { true } else { false } }
   }
 
   /// The most pieces a way can have. 30 numbers and their operators fit
@@ -216,6 +224,8 @@ public struct WayDraft: Sendable, Hashable, Codable {
     case .solved(let solved):
       let off = EquationChecker.numbersNotOnSign(used: solved.numbers, onSign: tiles.map(\.valueText))
       if !off.isEmpty { return .problem("\(off.joined(separator: ", ")) isn’t one of the sign’s numbers") }
+      let left = EquationChecker.numbersLeftOut(used: solved.numbers, onSign: tiles.map(\.valueText))
+      if !left.isEmpty { return .leftOut(solved, left) }
       return .works(solved)
     case .failed(let failure):
       switch failure.error {

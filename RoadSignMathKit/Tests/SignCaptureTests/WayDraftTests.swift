@@ -21,8 +21,8 @@ import Testing
     #expect(tiles.map(\.valueText) == ["90", "82", "8", "7", "0.5", "7"])
     #expect(Set(tiles.map(\.id)).count == tiles.count)
     // A number the sign shows twice goes in twice.
-    let draft = WayDraft(tiles: tiles, text: "(90 − 82) × 7 = 7 × 8")
-    #expect(draft.usedCount == 5)
+    let draft = WayDraft(tiles: tiles, text: "(90 − 82) ÷ 8 = (7 ÷ 7)^0.5")
+    #expect(draft.usedCount == 6)
     #expect(draft.status.works)
   }
 
@@ -81,10 +81,29 @@ import Testing
     #expect(draft.usesEveryNumber)
   }
 
-  @Test func itWorksWithoutEveryNumber() {
+  /// True math that leaves some of the sign's numbers out isn't a way yet
+  /// (every number, since 2026-11-12): it says which, and isn't sent.
+  @Test func trueButLeavingNumbersOutIsNotAWayYet() throws {
     let draft = WayDraft(tiles: sample, text: "90 − 82 = 8")
-    #expect(draft.status.works)
+    guard case .leftOut(let solved, let left) = draft.status else {
+      Issue.record("Expected numbers left out: \(draft.status)")
+      return
+    }
+    #expect(solved.canonical == "90 − 82 = 8")
+    #expect(left == ["7", "1"])
+    #expect(!draft.status.works)
     #expect(!draft.usesEveryNumber)
+  }
+
+  @Test func aNumberShownTwiceAndUsedOnceIsLeftOutOnce() {
+    let tiles = WayDraft.tiles(onSign: ["4", "4", "8", "4"])
+    let draft = WayDraft(tiles: tiles, text: "4 + 4 = 8")
+    guard case .leftOut(_, let left) = draft.status else {
+      Issue.record("Expected a 4 left out: \(draft.status)")
+      return
+    }
+    #expect(left == ["4"])
+    #expect(WayDraft(tiles: tiles, text: "8 ÷ 4 × √4 = 4").status.works)
   }
 
   @Test func drawsABoxWhereTheNextPieceGoes() {

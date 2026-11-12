@@ -34,7 +34,7 @@ struct MapScreen: View {
       .safeAreaInset(edge: .bottom, spacing: 0) { panel }
       .toolbar(.hidden, for: .navigationBar)
       .navigationDestination(for: String.self) { id in
-        if let handle = PlayerPath.handle(id) { PlayerView(handle: handle) } else { SignView(id: id) }
+        if let handle = PlayerPath.handle(id) { PlayerView(key: handle) } else { SignView(id: id) }
       }
       .overlay {
         if case .failed(let why) = store.mapLoad {

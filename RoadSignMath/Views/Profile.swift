@@ -255,7 +255,8 @@ extension EnvironmentValues {
   @Entry var opener: Opener?
 }
 
-/// A player's page on a stack of sign ids: `@jamie`.
+/// A player's page on a stack of sign ids: `@jamie`, or `@<their id>`
+/// when opened from an id link to their page.
 enum PlayerPath {
   static func of(_ handle: String) -> String { "@" + handle }
   static func handle(_ id: String) -> String? { id.hasPrefix("@") ? String(id.dropFirst()) : nil }

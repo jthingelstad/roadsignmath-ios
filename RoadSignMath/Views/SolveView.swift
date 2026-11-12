@@ -4,7 +4,9 @@ import SwiftUI
 /// The boards' Solve: the math as it's written, on a sign of its own; the
 /// sign's numbers as tiles that check off as they go in; a keypad of
 /// operators; and a line that says how the math reads, ending in "It works".
-/// Using every number is the fun part, never a requirement.
+/// The math uses every number kept on Check the numbers (Jamie,
+/// 2026-11-12: "require every number in new ways"), so true math that
+/// leaves one out says which and holds Post it.
 struct SolveView: View {
   @Environment(CaptureFlow.self) private var flow
   @Environment(Account.self) private var account
@@ -104,7 +106,8 @@ struct SolveView: View {
 
   /// The math, how it reads, the tiles and the keypad.
   private var editor: WayEditor {
-    WayEditor(draft: $draft, taps: $taps, still: still, hint: "Tap a used number to take it back out. Missing one? Go back and add it.")
+    WayEditor(draft: $draft, taps: $taps, still: still, hint: "Tap a used number to take it back out. Missing one? Go back and add it.",
+              leftOutHelp: "Every number you kept goes in. One that isn’t part of the sign? Go back and untick it.")
   }
 
   // MARK: The way on
@@ -139,7 +142,7 @@ struct SolveView: View {
       .buttonStyle(CardPress())
       .disabled(!works)
       .opacity(works ? 1 : 0.45)
-      .accessibilityHint(works ? "" : "Write math that works first.")
+      .accessibilityHint(works ? "" : status.isLeftOut ? "Use every number first." : "Write math that works first.")
     }
     .animation(.snappy, value: works)
   }

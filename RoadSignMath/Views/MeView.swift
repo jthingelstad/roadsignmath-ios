@@ -81,7 +81,7 @@ struct MeView: View {
         case .badges:
           BadgesView(earned: account.me?.badges ?? []) { path.append(.sign($0)) }
         case .player(let handle):
-          PlayerView(handle: handle)
+          PlayerView(key: handle)
         }
       }
       .sheet(isPresented: $showingSettings) { SettingsView() }

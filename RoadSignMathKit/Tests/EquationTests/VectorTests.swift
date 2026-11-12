@@ -25,6 +25,13 @@ struct Vectors: Decodable {
     var note: String
   }
 
+  struct NumbersLeftOut: Decodable {
+    var used: [String]
+    var sign: [String]
+    var left_out: [String]
+    var note: String
+  }
+
   struct SameWay: Decodable {
     var a: String
     var b: String
@@ -34,6 +41,7 @@ struct Vectors: Decodable {
 
   var checks: [Check]
   var numbers_on_sign: [NumbersOnSign]
+  var numbers_left_out: [NumbersLeftOut]
   var same_way: [SameWay]
 
   static let shared: Vectors = {
@@ -47,6 +55,10 @@ extension Vectors.Check: CustomTestStringConvertible {
 }
 
 extension Vectors.NumbersOnSign: CustomTestStringConvertible {
+  var testDescription: String { note }
+}
+
+extension Vectors.NumbersLeftOut: CustomTestStringConvertible {
   var testDescription: String { note }
 }
 
@@ -91,6 +103,16 @@ extension Vectors.SameWay: CustomTestStringConvertible {
   @Test(arguments: Vectors.shared.numbers_on_sign)
   func numbersOnSign(_ vector: Vectors.NumbersOnSign) {
     #expect(EquationChecker.numbersNotOnSign(used: vector.used, onSign: vector.sign) == vector.missing)
+  }
+
+  @Test func thereAreLeftOutVectors() {
+    #expect(Vectors.shared.numbers_left_out.contains { $0.left_out.isEmpty })
+    #expect(Vectors.shared.numbers_left_out.contains { !$0.left_out.isEmpty })
+  }
+
+  @Test(arguments: Vectors.shared.numbers_left_out)
+  func numbersLeftOut(_ vector: Vectors.NumbersLeftOut) {
+    #expect(EquationChecker.numbersLeftOut(used: vector.used, onSign: vector.sign) == vector.left_out)
   }
 
   /// Every error code the server can answer is one the vectors exercise.

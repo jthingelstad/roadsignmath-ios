@@ -314,10 +314,11 @@ final class Store {
     return now
   }
 
-  /// One player and their signs; signed in, it says which you hearted.
-  func player(_ handle: String) async throws -> Player {
+  /// One player and their signs, by handle or (API 1.14.0, from an id link
+  /// to their page) by id; signed in, it says which you hearted.
+  func player(_ key: String) async throws -> Player {
     let started = Date()
-    let player = try await read { try await self.client.player(handle, token: $0) }
+    let player = try await read { try await self.client.player(key, token: $0) }
     settleHearts(player.signs ?? [], readAt: started)
     return player
   }
@@ -501,13 +502,17 @@ final class Store {
 
   /// A roadsignmath.xyz link the app was opened with: a sign's page opens
   /// that sign, a player's page that player; anything else opens Home.
+  /// Pages go by slug and handle. On 2026-11-12 the site addressed them by
+  /// id for a day; it now redirects `/signs/<id>` and `/players/<id>`, but
+  /// a universal link reaches the app without the redirect, so an id opens
+  /// the sign or player too.
   func open(_ url: URL) {
     let parts = url.pathComponents.filter { $0 != "/" }
     tab = .home
     if parts.count == 2, parts[0] == "signs", !parts[1].isEmpty {
-      homePath = [parts[1]]
+      homePath = [PageKey.normalized(parts[1])]
     } else if parts.count == 2, parts[0] == "players", !parts[1].isEmpty {
-      homePath = [PlayerPath.of(parts[1])]
+      homePath = [PlayerPath.of(PageKey.normalized(parts[1]))]
     }
   }
 

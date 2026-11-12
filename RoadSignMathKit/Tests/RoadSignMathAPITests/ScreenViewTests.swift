@@ -19,6 +19,24 @@ struct ScreenViewTests {
     #expect(!ViewPath.isValid("/signs/a_b"))
     #expect(!ViewPath.isValid("/" + String(repeating: "a", count: 81)))
     #expect(ViewPath.sign("Not A Slug") == nil)
+    // Ids are uppercase, which the server's VIEW_PATH refuses: a page
+    // opened from an id link counts by its slug or handle.
+    #expect(ViewPath.sign("01JS0000000000000000000001") == nil)
+    #expect(ViewPath.player("01JS0000000000000000000001") == nil)
+  }
+
+  @Test func pageKeysFromLinks() {
+    let id = "01JS0000000000000000000001"
+    #expect(PageKey.isID(id))
+    #expect(PageKey.normalized(id) == id)
+    #expect(PageKey.normalized(id.lowercased()) == id)
+    #expect(PageKey.normalized("i-35w-at-82nd-street") == "i-35w-at-82nd-street")
+    #expect(PageKey.normalized("jamie") == "jamie")
+    // Not a ULID: too short, an I, or a first character past 7.
+    #expect(!PageKey.isID("01JS000000000000000000001"))
+    #expect(!PageKey.isID("01JS000000000000000000000I"))
+    #expect(!PageKey.isID("81JS0000000000000000000001"))
+    #expect(PageKey.normalized("81js0000000000000000000001") == "81js0000000000000000000001")
   }
 
   @Test func sendsThePathsWithNoToken() async throws {

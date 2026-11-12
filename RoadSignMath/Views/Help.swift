@@ -50,7 +50,7 @@ struct HowToPlaySteps: View {
       HowToStep(number: 2, title: "Snap it", words: "The passenger takes the photo, never the driver. The app boxes the numbers.")
       HowToStep(
         number: 3, title: "Solve it",
-        words: "Write math with its numbers that’s true. Using every one is the fun part, not a requirement.")
+        words: "Use every number with any math you like. It just has to be true.")
       HowToExample()
       Text("Post it and it goes on the map. Anyone can find another way.")
         .face(.body)

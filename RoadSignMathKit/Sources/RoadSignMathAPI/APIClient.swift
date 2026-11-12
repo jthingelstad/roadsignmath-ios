@@ -73,11 +73,11 @@ public struct APIClient: Sendable {
     return players.players
   }
 
-  /// One player, with their signs.
-  /// One player and their signs, newest first. With your token, your own
-  /// page also carries the signs only you see (held or hidden).
-  public func player(_ handle: String, token: String? = nil) async throws -> Player {
-    try await send("GET", ["players", handle], token: token)
+  /// One player and their signs, newest first, by handle or (API 1.14.0)
+  /// by id. With your token, your own page also carries the signs only you
+  /// see (held or hidden).
+  public func player(_ key: String, token: String? = nil) async throws -> Player {
+    try await send("GET", ["players", key], token: token)
   }
 
   public func index() async throws -> APIIndex { try await get([]) }

@@ -3,7 +3,9 @@ import Foundation
 /// A screen's path for the site's analytics: the website page it matches
 /// (`/`, `/map`, `/signs/<slug>`, `/players/<handle>`) or a short one of the
 /// app's own (`/capture`, `/you`). Lowercase letters, digits and hyphens,
-/// at most two parts and 100 characters, as the server checks.
+/// at most two parts and 100 characters, as the server checks. An id is
+/// uppercase, so it is never a view path: a page opened from an id link
+/// counts by its slug or handle.
 public enum ViewPath {
   public static let home = "/"
   public static let map = "/map"
