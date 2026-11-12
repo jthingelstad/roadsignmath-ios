@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import Posting
 import SignCapture
 import UIKit
 
@@ -8,6 +9,14 @@ import UIKit
 @MainActor @Observable
 final class DraftShelf {
   private(set) var all: [Draft]
+  /// The posts in the outbox not yet up (on their way, or refused): their
+  /// drafts stay off the list, since Home's note is where they're picked
+  /// up. Kept in step with the outbox by `RootView`.
+  var inOutbox: Set<UUID> = []
+
+  /// The drafts the Drafts list shows: all but those kept for a post in
+  /// the outbox.
+  var listed: [Draft] { all.filter { $0.isListed(inOutbox: inOutbox) } }
   @ObservationIgnored private let folder: DraftFolder
   @ObservationIgnored private var thumbnails: [UUID: UIImage] = [:]
   /// Drafts whose town has been looked for while the app is open.
@@ -55,6 +64,16 @@ final class DraftShelf {
   }
 
   func photo(of id: UUID) -> Data? { folder.photo(of: id) }
+
+  /// The outbox changed: drafts kept for posts now up go, and the rest of
+  /// the posts' drafts stay off the list.
+  func follow(_ items: [OutboxItem]) {
+    inOutbox = OutboxDrafts.waiting(items)
+    for id in OutboxDrafts.done(all, items: items) { remove(id) }
+  }
+
+  /// The draft a post in the outbox went from, if it's kept.
+  func draft(for item: OutboxItem) -> Draft? { OutboxDrafts.draft(for: item, in: all) }
 
   /// The town a draft's photo was taken in, once looked up. The draft
   /// keeps its place in the list, which is by when it was saved.

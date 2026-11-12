@@ -4,22 +4,51 @@ import SwiftUI
 
 /// Home's word about your posts in the outbox: one waiting for a
 /// connection, one posted while you were elsewhere (with any badge it
-/// earned), one held, or one the server said no to. Nothing when the
-/// outbox is empty.
+/// earned), one held, or one the server said no to: with its draft kept,
+/// "Fix the post" opens Post it again as it was, with the server's words,
+/// and Delete asks first. Nothing when the outbox is empty, unless the
+/// phone couldn't write the list of posts, which it says.
 struct OutboxNotes: View {
   @Environment(Outbox.self) private var outbox
   @Environment(Store.self) private var store
+  @Environment(CaptureFlow.self) private var flow
+  /// The refused post Delete is asking about.
+  @State private var deleting: OutboxItem?
 
   var body: some View {
     let items = outbox.unseen
-    if !items.isEmpty {
+    if !items.isEmpty || outbox.unsaved {
       VStack(spacing: 8) {
+        if outbox.unsaved {
+          ProblemLine(text: "Your phone couldn’t save your posts’ progress. Free up some space so they aren’t lost if the app closes.")
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
         ForEach(items) { item in note(item) }
       }
       .padding(.horizontal, 16)
       .padding(.top, 6)
       .animation(.snappy, value: items)
+      .confirmationDialog(
+        "Delete this post?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }),
+        titleVisibility: .visible, presenting: deleting
+      ) { item in
+        Button("Delete", role: .destructive) { delete(item) }
+        Button("Cancel", role: .cancel) {}
+      } message: { _ in
+        Text("Its photo, numbers and math go from this phone. It hasn’t posted, so nothing changes on the map.")
+      }
+      #if DEBUG
+        .task {
+          if Script.value("RSMRefused") == "delete", let first = items.first { deleting = first }
+        }
+      #endif
     }
+  }
+
+  /// Gone from the outbox, and the draft kept for it with it.
+  private func delete(_ item: OutboxItem) {
+    if let draft = flow.drafts.draft(for: item) { flow.drafts.remove(draft.id) }
+    outbox.remove(item.id)
   }
 
   private func note(_ item: OutboxItem) -> some View {
@@ -89,21 +118,31 @@ struct OutboxNotes: View {
   }
 
   @ViewBuilder private func actions(_ item: OutboxItem) -> some View {
-    switch item.state {
-    case .posted(let sign):
-      link("See it") {
-        outbox.acknowledge(item.id)
-        store.homePath.append(sign.slug)
+    let choices = item.choices(sending: outbox.sending == item.id, canFix: flow.drafts.draft(for: item) != nil)
+    if !choices.isEmpty {
+      // Three fit across a phone; at large text sizes they wrap.
+      ViewThatFits(in: .horizontal) {
+        HStack(spacing: 16) { buttons(item, choices) }
+        VStack(alignment: .leading, spacing: 0) { buttons(item, choices) }
       }
-    case .refused:
-      HStack(spacing: 16) {
-        link("Try again") { outbox.retry(item.id) }
-        link("Delete", role: .destructive) { outbox.remove(item.id) }
+    }
+  }
+
+  @ViewBuilder private func buttons(_ item: OutboxItem, _ choices: [OutboxChoice]) -> some View {
+    ForEach(choices, id: \.self) { choice in
+      switch choice {
+      case .seeIt:
+        link(choice.label) {
+          outbox.acknowledge(item.id)
+          if let sign = item.posted { store.homePath.append(sign.slug) }
+        }
+      case .fixThePost:
+        link(choice.label) { flow.fix(item) }
+      case .tryAgain, .tryNow:
+        link(choice.label) { outbox.retry(item.id) }
+      case .delete:
+        link(choice.label, role: .destructive) { deleting = item }
       }
-    case .waiting(let problem) where problem != nil && outbox.sending != item.id:
-      link("Try now") { outbox.retry(item.id) }
-    default:
-      EmptyView()
     }
   }
 

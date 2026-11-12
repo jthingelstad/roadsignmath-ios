@@ -12,7 +12,7 @@ struct DraftsView: View {
     NavigationStack {
       List {
         Section {
-          ForEach(flow.drafts.all) { draft in
+          ForEach(flow.drafts.listed) { draft in
             Button {
               dismiss()
               flow.resume(draft)
@@ -22,7 +22,7 @@ struct DraftsView: View {
             .listRowBackground(Color.card)
           }
           .onDelete { offsets in
-            for draft in offsets.map({ flow.drafts.all[$0] }) { flow.drafts.remove(draft.id) }
+            for draft in offsets.map({ flow.drafts.listed[$0] }) { flow.drafts.remove(draft.id) }
           }
         } footer: {
           Text("Drafts stay on this iPhone. Posting one takes it off the list.")
@@ -33,7 +33,7 @@ struct DraftsView: View {
       .scrollContentBackground(.hidden)
       .background(Color.ground)
       .overlay {
-        if flow.drafts.all.isEmpty {
+        if flow.drafts.listed.isEmpty {
           ContentUnavailableView(
             "No drafts", systemImage: "tray",
             description: Text("Save a sign for later from the camera, and solve it when you like."))

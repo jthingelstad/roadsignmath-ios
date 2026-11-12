@@ -233,10 +233,10 @@ private struct CameraView: View {
           HStack {
             RoundButton(symbol: "xmark", label: "Close the camera") { flow.close() }
             Spacer()
-            if !flow.drafts.all.isEmpty {
-              RoundButton(symbol: "tray.full", label: "Drafts, \(flow.drafts.all.count)") { showDrafts = true }
+            if !flow.drafts.listed.isEmpty {
+              RoundButton(symbol: "tray.full", label: "Drafts, \(flow.drafts.listed.count)") { showDrafts = true }
                 .overlay(alignment: .topTrailing) {
-                  Text("\(flow.drafts.all.count)")
+                  Text("\(flow.drafts.listed.count)")
                     .font(Face.number.font(size: 12))
                     .foregroundStyle(Color.ink)
                     .padding(.horizontal, 5)
@@ -249,7 +249,7 @@ private struct CameraView: View {
                 .transition(.scale.combined(with: .opacity))
             }
           }
-          .animation(.snappy, value: flow.drafts.all.count)
+          .animation(.snappy, value: flow.drafts.listed.count)
           PassengerLabel(open: $aboutPassenger)
         }
         Spacer()

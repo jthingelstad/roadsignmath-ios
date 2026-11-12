@@ -230,3 +230,29 @@ import Testing
     #expect(older.details(now: now, calendar: utc).hasPrefix("Taken Aug 15"))
   }
 }
+
+/// What Post it had, kept with a draft.
+@Suite struct DraftPostTests {
+  let drafts = DraftFolder(folder: FileManager.default.temporaryDirectory.appending(path: "drafts-\(UUID().uuidString)"))
+
+  @Test func keepsTheTitleCaptionSpottersAndPlace() throws {
+    defer { try? FileManager.default.removeItem(at: drafts.folder) }
+    let photo = try #require(SampleSign.photo())
+    let post = DraftPost(
+      title: "Bloomington Math", caption: "On the way to the lake", spotters: ["Tyler", "@tammy"], foundOn: "2026-10-30",
+      place: DraftPlace(label: "Bloomington, MN", state: "MN", lat: 44.8, lng: -93.3, approximate: false),
+      way: "90 − 82 = 8", onPost: true, outbox: UUID())
+    let draft = Draft(source: .sample, takenAt: nil, numbers: nil, way: nil, post: post)
+    try drafts.save(draft, photo: photo.data)
+    #expect(drafts.draft(draft.id)?.post == post)
+    #expect(!post.isEmpty)
+    #expect(DraftPost().isEmpty)
+  }
+
+  @Test func aDraftSavedBeforePostWasKeptStillReads() throws {
+    let old = #"{"id":"6F2B0F3C-6E5A-4C1B-9D2E-0A1B2C3D4E5F","savedAt":0,"source":"camera"}"#
+    let draft = try JSONDecoder().decode(Draft.self, from: Data(old.utf8))
+    #expect(draft.post == nil)
+    #expect(draft.isListed(inOutbox: []))
+  }
+}
