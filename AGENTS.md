@@ -492,7 +492,8 @@ The website and the server behind it are in
   doesn't take: adding a build to the Beta group, What to Test, and
   submitting it for Beta App Review.
 - `scripts/version.sh`: the version a build carries, the one in `VERSION`
-  (1.0 now, for the App Store, Jamie's go on 2026-11-10), set by hand
+  (1.1 now, for TestFlight only, Jamie's go on 2026-11-11; 1.0 is the
+  build on the App Store, Jamie's go on 2026-11-10), set by hand
   when Jamie names a release (Jamie, 2026-10-31: "we will determine this
   in our own way.. Lets call this version 0.9.0"; the date arithmetic was
   only ever Changelog's). `scripts/version.sh test` checks its form,
