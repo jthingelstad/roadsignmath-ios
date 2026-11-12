@@ -23,7 +23,10 @@ The website and the server behind it are in
     `SameWay.swift` ports the server's `sameWayKey`: two ways are the same
     when they differ only in the order of what is added or multiplied, in
     brackets where they change nothing, or in which side of the = is which
-    (the `same_way` cases in the vectors). "Find another way" shows such a
+    (the `same_way` cases in the vectors). Since API 1.15.0 it also takes
+    out identities that do nothing before keying (the server's `plain`):
+    the literal 2! and 1!, √1, x^1 and −(−x), at any depth; x × 1, x + 0,
+    x^0 and √4 stay new ways. "Find another way" shows such a
     way as already on the sign, before the server's 409 says so.
     Exact arithmetic uses a small `BigInt` of its own, since the server's
     uses JavaScript's. Its tests run every case in
@@ -105,7 +108,15 @@ The website and the server behind it are in
     `blocks` reads `GET /me/blocks`; `deleteSign` sends `DELETE
     /signs/{id}`, a 503 meaning the sign is still there; API 1.12.0:
     `reportDuplicate` sends `POST /signs/{id}/duplicate` the sign it is the
-    same as and an optional note, answering with `DuplicateReceived`),
+    same as and an optional note, answering with `DuplicateReceived`; API
+    1.15.0: `reportPlayer` sends `POST /players/{handle}/report` a reason,
+    answered `{"received":true}`, sharing the 20-a-day report limit, and
+    `leaveSign` sends `DELETE /signs/{id}/finders/me`, 204, a 409
+    `conflict` meaning another finder is leaving at the same moment),
+    your website and home (`Profile.swift`, API 1.15.0:
+    `updateMe(token:website:)` and `updateMe(token:home:)` send `PATCH /me`
+    at most 200 and 60, empty taking it off; `ProfileWebsite` opens only an
+    http or https address and labels it by its host without `www.`),
     feedback and
     the bio (`Feedback.swift`, API 1.10.0: `sendFeedback` sends `POST
     /feedback` a message of at most 2000 characters, `reply_ok` and an
@@ -233,7 +244,7 @@ The website and the server behind it are in
   your first sign), your signs as Home's timeline (the same cards, newest
   posted first) or a grid of photos (a tap opens the sign; held or hidden
   ones only you see say why instead), a warm empty state that opens Capture, and the settings
-  sheet (profile photo, name, bio, email, Blocked players with a count,
+  sheet (profile photo, name, bio, website, home, email, Blocked players with a count,
   App icon, Help, Follow, About, sign out, delete my account, and the build at the
   bottom). Follow is `FollowAccount` (`Views/Help.swift`): the Mastodon
   (@roadsignmath@mastodon.social) and Bluesky (@roadsignmath.xyz)
@@ -242,7 +253,12 @@ The website and the server behind it are in
   (`String.serverLength` and `clipped(to:)` in `TextLength.swift`, which
   never cut through a character), so an emoji counts two.
   The bio (`BioView`) is one line of at most 160 characters, Return
-  being Done. `Views/Help.swift` holds the rest: `HowToPlaySteps` (Spot
+  being Done. Website and home (`ProfileLine`, `ProfileLineView`) are one
+  line each, saved the way the bio is: 422 `refused` shows the moderator's
+  words, 503 says nothing was saved, and a 400 (a bad address) shows the
+  server's reason. Both show under the bio on You and on players' pages
+  (`ProfileHeader`): home as plain text, the website by its host, opening
+  in the browser. `Views/Help.swift` holds the rest: `HowToPlaySteps` (Spot
   it, Snap it, Solve it and the EXIT 2, COUNTY 5, 1 MILE example, √(5 − 1)
   = 2, the copy from the 1.0 canvas, shared with `HowToPlayCard`, Home's
   first-run card),
@@ -306,7 +322,10 @@ The website and the server behind it are in
   (`Views/PlayerView.swift`), pushed in whichever tab you're in: You's
   shape (`Views/Profile.swift` holds the header and the Signs or Photos
   view both share), their bio, earned badges only (never a count or the
-  ones not earned), and their page on the website. Each tab's stack hands
+  ones not earned), and their page on the website. Its ⋯ menu has Share
+  and, on anyone else's page, Report this player (`PlayerReportSheet` in
+  `Views/Safety.swift`: one reason, inappropriate, an optional note, then
+  "Block <name> too"); signed out it asks you to sign in. Each tab's stack hands
   its screens an `Opener` (environment) that pushes a sign or a player;
   Home and the Map put a player on their stack of sign ids as `@handle`,
   and a `roadsignmath.xyz/players/<handle>` link (`-RSMOpen
@@ -427,7 +446,12 @@ The website and the server behind it are in
   The sign page's ⋯ menu (`SignView.menu`) has Share, Report a duplicate
   on any shown sign, yours too, then for someone
   else's shown sign Report this sign and Block <poster>, and for your own
-  (`posted_by` is your handle) Delete this sign. Reporting has one reason,
+  (`posted_by` is your handle) Delete this sign. On a sign that credits
+  you (your handle in `finders`) and that you did not post: Remove me from
+  this sign, confirmed first, saying whether the other finders stay or the
+  poster is named instead; a 409 offers Try again. Once off, the sign
+  as the server now has it replaces it in every list, you leave its map pin
+  (Mine), and You and players' pages read again (`Store.leftSign`). Reporting has one reason,
   inappropriate (Jamie, 2026-10-31: "we don't need that much yuck… just
   report it as inappropriate"): `Views/Safety.swift`'s `ReportSheet`
   takes an optional note, sends "Inappropriate" or "Inappropriate: <note>",
@@ -620,18 +644,24 @@ The website and the server behind it are in
   against `npm run dev`). With `-RSMOpen /signs/<slug>`, `-RSMReport YES` opens the report
   sheet (`-RSMReportNote <words>` writes the note, `-RSMReportSend YES`
   sends it), `-RSMBlock YES` the block confirm (`-RSMBlock send` blocks),
-  and `-RSMDelete YES` the delete confirm on your own sign; `-RSMBlocked
+  and `-RSMDelete YES` the delete confirm on your own sign, `-RSMLeave
+  YES` the Remove me confirm on a sign that credits you (`busy` shows the
+  409 alert, `send` takes you off); with `-RSMOpen /players/<handle>`,
+  `-RSMReportPlayer YES` opens Report this player (`-RSMReportNote` and
+  `-RSMReportSend` as for a sign); `-RSMBlocked
   YES` with `-RSMMe YES -RSMSettings YES` opens Blocked players, and
   `-RSMAppIcon YES` opens App icon (`-RSMAppIconPick
   sunshine|division|factorial|fourWays|highway` taps one a second later,
   and `-RSMAppIconFail YES` makes every change fail). Sending
   or blocking only ever against `npm run dev`. With `-RSMMe YES
   -RSMSettings YES`: `-RSMBio YES` opens the bio (`-RSMBioText <words>`
-  writes it, `-RSMBioSave YES` saves it), and `-RSMHelp
+  writes it, `-RSMBioSave YES` saves it), `-RSMWebsite YES` or `-RSMHome
+  YES` opens that line (`-RSMLineText <words>` writes it, `-RSMLineSave
+  YES` saves it), and `-RSMHelp
   play|feedback|licenses` opens How to play, Send feedback
   (`-RSMFeedbackText <words>` writes it, `-RSMFeedbackReply NO` turns
   the reply off, `-RSMFeedbackSend YES` sends it; its mail lands in
-  the dev server's `.data/mail/`) or Licenses. Saving a bio or sending
+  the dev server's `.data/mail/`) or Licenses. Saving a bio, website or home, leaving a sign, reporting a player or sending
   feedback only ever against `npm run dev`. To see the
   You dot or the flip on You, write the seen record with `xcrun simctl
   spawn <sim> defaults write "$(xcrun simctl get_app_container <sim>

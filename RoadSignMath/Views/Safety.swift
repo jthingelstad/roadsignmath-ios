@@ -412,6 +412,169 @@ struct DuplicateSheet: View {
 }
 
 /// What blocking does, said the same everywhere.
+/// Reporting a player (API 1.15.0): the same one reason as a sign,
+/// inappropriate, with a note if you like. It goes to Jamie with your
+/// name; the moderator doesn't look and nothing comes down on its own.
+/// Then you can block them too.
+struct PlayerReportSheet: View {
+  let handle: String
+  let name: String
+  /// They were blocked from here.
+  let blocked: () -> Void
+
+  @Environment(Account.self) private var account
+  @Environment(\.dismiss) private var dismiss
+  @State private var note = ""
+  @State private var sending = false
+  @State private var sent = false
+  @State private var problem: String?
+  @State private var blocking = false
+  @State private var didBlock = false
+  @FocusState private var typing: Bool
+
+  var body: some View {
+    NavigationStack {
+      ScrollView {
+        VStack(alignment: .leading, spacing: 14) {
+          if sent { answer } else { form }
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+      }
+      .background(Color.ground)
+      .navigationTitle("Report this player")
+      .navigationBarTitleDisplayMode(.inline)
+      .toolbar {
+        if sent {
+          ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() }.face(.action) }
+        } else {
+          ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.disabled(sending) }
+        }
+      }
+    }
+    .tint(.greenInk)
+    .interactiveDismissDisabled(sending || blocking)
+    .sensoryFeedback(.success, trigger: sent)
+    #if DEBUG
+      // `-RSMReportNote <words>` writes the note; `-RSMReportSend YES` sends
+      // it (only ever against `npm run dev`).
+      .task {
+        if let words = Script.text("RSMReportNote") { note = words }
+        if Script.flag("RSMReportSend") { send() }
+      }
+    #endif
+  }
+
+  @ViewBuilder private var form: some View {
+    Text("Is something on \(name)’s page inappropriate? Your report goes to Jamie, who runs Road Sign Math, with your name. Nothing comes down on its own.")
+      .face(.body)
+      .foregroundStyle(Color.ink2)
+      .fixedSize(horizontal: false, vertical: true)
+    VStack(alignment: .leading, spacing: 6) {
+      Text("Anything to add?").face(.label).foregroundStyle(Color.ink)
+      TextField("Optional", text: $note, axis: .vertical)
+        .face(.field)
+        .lineLimit(3...6)
+        .focused($typing)
+        .padding(12)
+        .background(Color.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay {
+          RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .strokeBorder(typing ? Color.greenInk : Color.ruleStrong, lineWidth: typing ? 2 : 1.5)
+        }
+        .onChange(of: note) { _, now in
+          if now.serverLength > Account.reportNoteMax { note = now.clipped(to: Account.reportNoteMax) }
+        }
+    }
+    if let problem { ProblemLine(text: problem) }
+    Button(action: send) {
+      HStack(spacing: 8) {
+        if sending { ProgressView().tint(.white) }
+        Text(sending ? "Sending…" : "Report as inappropriate")
+      }
+      .face(.button)
+      .foregroundStyle(Color.card)
+      .frame(maxWidth: .infinity, minHeight: 50)
+      .background(Color.warn, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+    .buttonStyle(CardPress())
+    .disabled(sending)
+    .padding(.top, 4)
+  }
+
+  @ViewBuilder private var answer: some View {
+    Image(systemName: "checkmark.circle.fill")
+      .font(.system(size: 44, weight: .semibold))
+      .foregroundStyle(Color.greenInk)
+      .accessibilityHidden(true)
+    Text("Report sent")
+      .face(.title)
+      .foregroundStyle(Color.ink)
+      .accessibilityAddTraits(.isHeader)
+    Text("Thanks for telling us. It’s on its way to Jamie.")
+      .face(.body)
+      .foregroundStyle(Color.ink2)
+      .fixedSize(horizontal: false, vertical: true)
+    if didBlock {
+      Label("\(name) is blocked. Unblock them in Settings whenever you like.", systemImage: "hand.raised.fill")
+        .face(.metaBold)
+        .foregroundStyle(Color.ink2)
+        .padding(.top, 6)
+    } else {
+      VStack(alignment: .leading, spacing: 8) {
+        Button(action: block) {
+          HStack(spacing: 8) {
+            if blocking { ProgressView() } else { Image(systemName: "hand.raised") }
+            Text("Block \(name) too")
+          }
+          .face(.action)
+          .foregroundStyle(Color.warn)
+          .frame(maxWidth: .infinity, minHeight: 46)
+          .overlay { RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.ruleStrong, lineWidth: 1.5) }
+          .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(blocking)
+        Text(BlockWords.what).face(.meta).foregroundStyle(Color.ink3).fixedSize(horizontal: false, vertical: true)
+      }
+      .padding(.top, 6)
+    }
+    if let problem { ProblemLine(text: problem) }
+  }
+
+  private func send() {
+    guard !sending else { return }
+    sending = true
+    problem = nil
+    typing = false
+    Task {
+      do {
+        try await account.reportPlayer(handle, note: note)
+        withAnimation(.smooth) { sent = true }
+      } catch {
+        problem = Account.say(error)
+      }
+      sending = false
+    }
+  }
+
+  private func block() {
+    guard !blocking else { return }
+    blocking = true
+    problem = nil
+    Task {
+      do {
+        try await account.block(handle)
+        withAnimation(.smooth) { didBlock = true }
+        blocked()
+      } catch {
+        problem = Account.say(error)
+      }
+      blocking = false
+    }
+  }
+}
+
 enum BlockWords {
   static let what = "You won’t see their signs or the ways they find. They aren’t told."
 }

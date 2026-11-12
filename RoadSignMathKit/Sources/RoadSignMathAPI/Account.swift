@@ -41,6 +41,10 @@ public struct Me: Codable, Sendable, Hashable {
   public var avatarUrl: URL?
   public var avatarThumbUrl: URL?
   public var bio: String?
+  /// Since API 1.15.0: your website and home, as on `Player`. Nil when you
+  /// gave none, from an older server, or in a `Me` saved before it.
+  public var website: String?
+  public var home: String?
   public var url: URL
   public var signCount: Int
   public var states: [String]
@@ -53,7 +57,7 @@ public struct Me: Codable, Sendable, Hashable {
   public var badges: [EarnedBadge]?
 
   public init(handle: String, name: String, avatarColor: String, avatarUrl: URL? = nil, avatarThumbUrl: URL? = nil,
-              bio: String? = nil, url: URL, signCount: Int = 0, states: [String] = [], firstYear: Int? = nil,
+              bio: String? = nil, website: String? = nil, home: String? = nil, url: URL, signCount: Int = 0, states: [String] = [], firstYear: Int? = nil,
               email: String, needsName: Bool, badges: [EarnedBadge]? = nil) {
     self.handle = handle
     self.name = name
@@ -61,6 +65,8 @@ public struct Me: Codable, Sendable, Hashable {
     self.avatarUrl = avatarUrl
     self.avatarThumbUrl = avatarThumbUrl
     self.bio = bio
+    self.website = website
+    self.home = home
     self.url = url
     self.signCount = signCount
     self.states = states

@@ -11,9 +11,13 @@ extension EquationChecker {
   /// whether it divides; the same inside every root, power and bracket.
   /// Brackets in a + or × place do nothing and go; those after a − or ÷
   /// stay whole, since 7 − (4 − 1) isn't 7 − 4 + 1. The sides are sorted
-  /// too, so 7 = 3 + 4 is 3 + 4 = 7. Sorted by UTF-16 code units, as
-  /// JavaScript sorts, so the key is the server's, character for character.
-  /// Nil when the text doesn't parse.
+  /// too, so 7 = 3 + 4 is 3 + 4 = 7. Identities that do nothing go as well
+  /// (Jamie, 2026-11-12: "agree these should not be considered new"): 2! is
+  /// 2 and 1! is 1 (the literal numbers only: 3! is 6, a new way), √1 is 1,
+  /// x^1 is x and −(−x) is x, at any depth; x × 1, x + 0, x^0 and √4 stay
+  /// new ways. Sorted by UTF-16 code units, as JavaScript sorts, so the key
+  /// is the server's, character for character. Nil when the text doesn't
+  /// parse.
   public static func sameWayKey(_ text: String) -> String? {
     guard let sides = parse(text) else { return nil }
     if text.utf16.count > inlineLength { return onLargeStack { sideKeys(sides) } }
@@ -27,7 +31,37 @@ extension EquationChecker {
   }
 
   private static func sideKeys(_ sides: [MathNode]) -> String {
-    jsSorted(sides.map(wayKey)).joined(separator: " = ")
+    jsSorted(sides.map { wayKey(plain($0)) }).joined(separator: " = ")
+  }
+
+  /// Whether `node`, without its brackets, is one of the numbers `texts`.
+  private static func isLiteral(_ node: MathNode, _ texts: String...) -> Bool {
+    if case .number(let text) = unwrap(node) { return texts.contains(text) }
+    return false
+  }
+
+  /// The tree with the identities that do nothing taken out, from the
+  /// inside out: the server's `plain`, step for step.
+  private static func plain(_ node: MathNode) -> MathNode {
+    switch node {
+    case .number: return node
+    case .group(let arg): return .group(plain(arg))
+    case .negate(let arg):
+      let arg = plain(arg)
+      if case .negate(let inner) = unwrap(arg) { return inner }
+      return .negate(arg)
+    case .squareRoot(let arg):
+      let arg = plain(arg)
+      return isLiteral(arg, "1") ? unwrap(arg) : .squareRoot(arg)
+    case .factorial(let arg):
+      let arg = plain(arg)
+      return isLiteral(arg, "1", "2") ? unwrap(arg) : .factorial(arg)
+    case .binary(.power, let left, let right):
+      let left = plain(left)
+      let right = plain(right)
+      return isLiteral(right, "1") ? left : .binary(.power, left, right)
+    case .binary(let op, let left, let right): return .binary(op, plain(left), plain(right))
+    }
   }
 
   private static func wayKey(_ node: MathNode) -> String {

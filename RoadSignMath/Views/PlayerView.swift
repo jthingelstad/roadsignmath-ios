@@ -12,12 +12,17 @@ struct PlayerView: View {
   let key: String
 
   @Environment(Store.self) private var store
+  @Environment(Account.self) private var account
   @Environment(\.opener) private var opener
   @State private var player: Player?
   @State private var failed: String?
   @State private var look = ProfileSigns.Look.timeline
   @State private var badge: EarnedBadge?
   @Namespace private var zoom
+  /// The ⋯ menu's "Report this player" sheet; signed out, it asks you to
+  /// sign in first.
+  @State private var reporting = false
+  @State private var askSignIn = false
 
   var body: some View {
     Group {
@@ -36,12 +41,7 @@ struct PlayerView: View {
     .toolbarBackground(Color.ground, for: .navigationBar)
     .toolbar {
       if let player {
-        ToolbarItem(placement: .topBarTrailing) {
-          ShareLink(item: player.url, subject: Text(player.name)) {
-            Image(systemName: "square.and.arrow.up")
-          }
-          .accessibilityLabel("Share \(player.name)’s page")
-        }
+        ToolbarItem(placement: .topBarTrailing) { menu(player) }
       }
     }
     .sheet(item: $badge) { badge in
@@ -51,12 +51,50 @@ struct PlayerView: View {
       }
       .closesForSnap()
     }
+    .sheet(isPresented: $reporting) {
+      if let player {
+        PlayerReportSheet(handle: player.handle, name: player.name) { store.blocked(player.handle) }
+          .presentationDetents([.medium, .large])
+          .closesForSnap()
+      }
+    }
+    .signInFirst($askSignIn, title: "Sign in to report",
+                 waiting: "Reports come from players. Sign in, then tell us what’s wrong.") {
+      if let player, !isYou(player) { reporting = true }
+    }
     .task { if player == nil { await load() } }
     .refreshable { await load() }
     // A block or unblock changes which of their signs (and ways) you see.
     .onChange(of: store.blockChanges) { Task { await load() } }
+    .onChange(of: store.finderChanges) { Task { await load() } }
     .countsView(player.flatMap { ViewPath.player($0.handle) })
     .sensoryFeedback(.selection, trigger: look)
+  }
+
+  /// Share their page, and for someone else Report this player.
+  private func menu(_ player: Player) -> some View {
+    Menu {
+      ShareLink(item: player.url, subject: Text(player.name)) {
+        Label("Share \(player.name)’s page", systemImage: "square.and.arrow.up")
+      }
+      if !isYou(player) {
+        Section {
+          Button { report() } label: { Label("Report this player", systemImage: "flag") }
+        }
+      }
+    } label: {
+      Image(systemName: "ellipsis.circle")
+    }
+    .accessibilityLabel("More")
+  }
+
+  /// Your own page: nothing to report.
+  private func isYou(_ player: Player) -> Bool {
+    account.signedIn && account.me?.handle == player.handle
+  }
+
+  private func report() {
+    if account.signedIn { reporting = true } else { askSignIn = true }
   }
 
   private func load() async {
@@ -65,6 +103,9 @@ struct PlayerView: View {
       failed = nil
       #if DEBUG
         if Script.value("RSMLook") == "photos" { look = .photos }
+        // `-RSMReportPlayer YES` with `-RSMOpen /players/<handle>`: the
+        // report sheet, as if chosen.
+        if Script.flag("RSMReportPlayer"), let player, !isYou(player) { report() }
       #endif
     } catch {
       if !Store.cancelled(error) { failed = Store.say(error) }
@@ -75,7 +116,7 @@ struct PlayerView: View {
     ScrollView {
       VStack(spacing: 20) {
         ProfileHeader(name: player.name, avatarColor: player.avatarColor, avatarUrl: player.avatarUrl, page: player.url, linked: true,
-                      pageWords: "\(player.name)’s page", bio: player.bio,
+                      pageWords: "\(player.name)’s page", bio: player.bio, home: player.home, website: player.website,
                       signCount: player.signCount, states: player.states, firstYear: player.firstYear)
         let years = Badges.years(player.badges ?? [])
         if !years.isEmpty {

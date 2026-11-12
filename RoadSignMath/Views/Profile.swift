@@ -5,8 +5,8 @@ import SwiftUI
 /// avatar, name and page, the three numbers, the states, and the signs as
 /// Home's timeline or a grid of photos.
 
-/// Who someone is: the avatar, the name, their page, the bio, then their
-/// signs, states and the year of their first sign.
+/// Who someone is: the avatar, the name, their page, the bio, their home
+/// and website, then their signs, states and the year of their first sign.
 struct ProfileHeader: View {
   /// The name as shown, "Add your name" when there isn't one yet.
   let name: String
@@ -24,6 +24,10 @@ struct ProfileHeader: View {
   /// What VoiceOver says before the page's address.
   var pageWords = "Page"
   let bio: String?
+  /// Since API 1.15.0: where they call home, as they wrote it, and their
+  /// website, shown by its host and opened in the browser.
+  var home: String?
+  var website: String?
   let signCount: Int
   let states: [String]
   let firstYear: Int?
@@ -46,6 +50,7 @@ struct ProfileHeader: View {
             .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, 24)
         }
+        homeAndWebsite
       }
       HStack(spacing: 10) {
         Stat(value: "\(signCount)", label: signCount == 1 ? "sign" : "signs")
@@ -91,6 +96,41 @@ struct ProfileHeader: View {
       .accessibilityLabel(avatarUrl == nil ? "Add a profile photo" : "Change your profile photo")
     } else {
       drawn
+    }
+  }
+
+  /// "⌂ Minneapolis, MN · 🔗 example.com", on one line when it fits.
+  @ViewBuilder private var homeAndWebsite: some View {
+    let home = home.flatMap { $0.isEmpty ? nil : $0 }
+    let site = ProfileWebsite.url(website)
+    let label = ProfileWebsite.label(website)
+    if home != nil || site != nil {
+      ViewThatFits(in: .horizontal) {
+        HStack(spacing: 14) { homeAndWebsiteParts(home, site, label) }
+        VStack(spacing: 2) { homeAndWebsiteParts(home, site, label) }
+      }
+      .padding(.horizontal, 24)
+    }
+  }
+
+  @ViewBuilder private func homeAndWebsiteParts(_ home: String?, _ site: URL?, _ label: String?) -> some View {
+    if let home {
+      Label(home, systemImage: "house")
+        .face(.meta)
+        .foregroundStyle(Color.ink2)
+        .lineLimit(1)
+        .accessibilityLabel("Home: \(home)")
+    }
+    if let site, let label {
+      Link(destination: site) {
+        Label(label, systemImage: "link")
+          .face(.meta)
+          .foregroundStyle(Color.greenInk)
+          .lineLimit(1)
+          .frame(minHeight: 44)
+      }
+      .accessibilityLabel("Website: \(label)")
+      .padding(.vertical, -10)
     }
   }
 

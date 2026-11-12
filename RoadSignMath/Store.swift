@@ -321,6 +321,27 @@ final class Store {
     if let at = complex.firstIndex(where: { $0.id == sign.id }) { complex[at] = sign.keepingMiles(of: complex[at]) }
   }
 
+  /// Bumped when you come off a sign's finders, so the timelines the
+  /// store doesn't hold (You's, a player's page) read again.
+  private(set) var finderChanges = 0
+
+  /// You came off a sign's finders (API 1.15.0): the sign as the server
+  /// now has it on its page and in every list, you off its map pin (the
+  /// Mine chip reads the pins' finders), and You and players' pages read
+  /// again.
+  func leftSign(_ detail: SignDetail, handle: String) {
+    let sign = detail.sign
+    for key in details.keys where details[key]?.sign.id == sign.id { details[key] = detail }
+    details[sign.id] = detail
+    if withNewWays[sign.id] != nil { withNewWays[sign.id] = sign }
+    if let at = latest.firstIndex(where: { $0.id == sign.id }) { latest[at] = sign.keepingMiles(of: latest[at]) }
+    if let at = near.firstIndex(where: { $0.id == sign.id }) { near[at] = sign.keepingMiles(of: near[at]) }
+    if let at = popular.firstIndex(where: { $0.id == sign.id }) { popular[at] = sign.keepingMiles(of: popular[at]) }
+    if let at = complex.firstIndex(where: { $0.id == sign.id }) { complex[at] = sign.keepingMiles(of: complex[at]) }
+    if let at = pins.firstIndex(where: { $0.id == sign.id }) { pins[at].finders?.removeAll { $0.handle == handle } }
+    finderChanges += 1
+  }
+
   /// A sign from a list read before a way was added to it, or a heart
   /// given, as it is now. A list read since, with as many ways or more,
   /// is newer and wins. Hearts always come from `heartsGiven`, which

@@ -94,6 +94,24 @@ extension APIClient {
     try await answerEmpty(to: request("DELETE", ["signs", signId], token: token))
   }
 
+  /// Reports a player to the person who runs Road Sign Math (API 1.15.0),
+  /// with your name and handle. The moderator doesn't look and nothing is
+  /// hidden. One report per player: sending another changes nothing. A
+  /// 400 for yourself; it counts against the day's reports.
+  public func reportPlayer(_ handle: String, reason: String, token: String) async throws {
+    let _: PlayerReportReceived = try await answer(
+      to: request("POST", ["players", handle, "report"], body: ["reason": reason.clipped(to: APIClient.reportMax)], token: token))
+  }
+
+  /// Takes you off a sign's finders (API 1.15.0): a sign that credits you
+  /// and someone else posted. Your ways on it stay yours; when you were
+  /// its only finder, its poster is credited instead. A 400 for a sign you
+  /// posted (delete it instead), and a 409 `conflict` when another finder
+  /// is leaving it just now: try again.
+  public func leaveSign(_ signId: String, token: String) async throws {
+    try await answerEmpty(to: request("DELETE", ["signs", signId, "finders", "me"], token: token))
+  }
+
   /// A request whose answer has no body (204), or the server's error.
   func answerEmpty(to request: URLRequest) async throws {
     let (data, response) = try await session.data(for: request)
@@ -103,4 +121,5 @@ extension APIClient {
 }
 
 private struct Blocks: Decodable { var players: [BlockedPlayer] }
+private struct PlayerReportReceived: Decodable { var received: Bool? }
 private struct NoBody: Decodable {}
