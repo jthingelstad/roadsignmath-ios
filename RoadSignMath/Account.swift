@@ -299,12 +299,14 @@ final class Account {
     }
   }
 
-  /// Another way on a sign. Answers with the sign, its ways and the badges
-  /// the way earned; reads you again, so You has them too.
-  func addWay(_ text: String, to signId: String) async throws -> SignDetail {
-    let detail = try await authorized { try await client.addWay(text, to: signId, token: $0) }
+  /// Solves a sign: a new way goes on it, and the same math as a way
+  /// another player found credits you on theirs. Answers with the sign, its
+  /// ways, the badges a new way earned and the way; reads you again, so You
+  /// has them too.
+  func solve(_ text: String, on signId: String) async throws -> Solved {
+    let solved = try await authorized { try await client.solveSign(text, on: signId, token: $0) }
     Task { await refresh() }
-    return detail
+    return solved
   }
 
   /// The token for reads, so they say which signs you hearted. Nil when

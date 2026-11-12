@@ -80,7 +80,14 @@ The website and the server behind it are in
     `uploadPhoto` sends `POST /photos` the photo's bytes, `postSign` sends
     `POST /signs` a `SignPost` with its `Idempotency-Key`, `addWay` sends
     `POST /signs/{id}/ways` a way's text (201 is the sign with its ways and
-    `unlocked`; 409 `conflict` is a way someone already found), and
+    `unlocked`; 409 `conflict` is a way someone already found), `solveSign`
+    (API 1.13.0) sends `POST /signs/{id}/solve` a way's text and answers
+    with `Solved`: the sign, its ways, `unlocked`, `result` (`newWay`, or
+    `alsoFound`: the same math as another player's way, which credits you
+    on theirs and earns nothing; a result it doesn't know reads as
+    `other`) and the `way` made or found too; a way's `alsoFoundBy` (nil
+    from an older server) is who found it too, `Way.alsoFound` the
+    "Also found by Pat" line; and
     `similarSigns` reads `GET /signs/similar`), `popularSigns` reads
     `GET /signs/popular` (API 1.8.0) for Home's Popular tab, `complexSigns`
     reads `GET /signs/complex` (API 1.9.0) for Complexity, hearts (`heart(_:_:token:)`
@@ -101,9 +108,10 @@ The website and the server behind it are in
     app line of at most 120, answered 202, ten a day; `updateMe(token:bio:)`
     sends `PATCH /me` a bio of at most 160, empty taking it away), what's
     new on your signs (`Activity.swift`, API 1.10.0: `myActivity` reads
-    `GET /me/activity`, the ways other players found and the hearts they
-    gave on your signs in the last 30 days; `ActivityRow.rows` makes each
-    way a row and gathers a sign's hearts into one, new ones apart from
+    `GET /me/activity`, the ways other players found (and, since 1.13.0,
+    found too: `also_found`) and the hearts they gave on your signs in the
+    last 30 days; `ActivityRow.rows` makes each way, and each way found
+    too, a row and gathers a sign's hearts into one, new ones apart from
     the ones seen, "Pat and 2 others"; `ActivityRow.when` says "2h",
     "Yesterday", "Oct 27"; a kind it doesn't know is left out), screen views (`ScreenViews.swift`: `ViewPath`
     makes and checks a screen's path as the server's `VIEW_PATH` does,
@@ -386,10 +394,15 @@ The website and the server behind it are in
   `Views/AnotherWayView.swift` is "Find another way": from a Home card or
   the sign page (the `findWay` environment, set by `.findsAnotherWay()` on
   each tab's stack), a sheet with the sign, its ways so far and Solve's
-  editor on the sign's numbers; a way someone found already, or the same
-  way in another order, reads as taken, and a new one goes on through `Account.addWay`, updates the sign
-  everywhere (`Store.wayAdded`) and shows "Another way!" with any badge
-  it earned. `Views/HeartButton.swift` is a sign's heart and count, on
+  editor on the sign's numbers. It sends through `Account.solve` (API
+  1.13.0): a new way goes on, updates the sign everywhere
+  (`Store.wayAdded`) and shows "Another way!" with any badge it earned;
+  another player's way written just so is "It works, and someone found it
+  first", sent with "I found it too", and shows "You found it too." with
+  no badge (the editor's `mine`: a way with your name on it, yours or
+  found too, can't be sent again). The same way in another order still
+  reads as taken. Each way there and on the sign page carries "Also found
+  by …"; On your signs says "Pat found it too on Twin Lakes". `Views/HeartButton.swift` is a sign's heart and count, on
   Home's cards and beside the finder on the sign page: a tap gives your
   heart with a burst of little hearts (`HeartBurst`, skipped with Reduce
   Motion) and a firm haptic, as the website's kudos button does; another
@@ -585,7 +598,8 @@ The website and the server behind it are in
   way" on that sign (on Post it, on the first sign "Posted already?"
   finds); `-RSMWay <math>` writes the way there too, and
   `-RSMWayAdded <id,id>` shows it gone on with those badges (nothing is
-  sent). With `-RSMOpen /signs/<slug>`, `-RSMReport YES` opens the report
+  sent); `-RSMWaySend YES` sends `-RSMWay`'s math, signed in (only ever
+  against `npm run dev`). With `-RSMOpen /signs/<slug>`, `-RSMReport YES` opens the report
   sheet (`-RSMReportNote <words>` writes the note, `-RSMReportSend YES`
   sends it), `-RSMBlock YES` the block confirm (`-RSMBlock send` blocks),
   and `-RSMDelete YES` the delete confirm on your own sign; `-RSMBlocked

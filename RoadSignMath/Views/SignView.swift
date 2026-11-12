@@ -357,7 +357,11 @@ struct SignView: View {
             MathLine(text: way.text, tex: way.tex, size: 19, light: 0x1F3A2E, dark: 0xCDE8DA, fallback: .bodyBold, leading: true)
               .frame(maxWidth: .infinity, alignment: .leading)
             if let by = way.by {
-              Text(by.name).face(.meta).foregroundStyle(Color.ink2)
+              VStack(alignment: .trailing, spacing: 1) {
+                Text(by.name).face(.meta).foregroundStyle(Color.ink2)
+                if let too = Way.alsoFound(way) { Text(too).face(.meta).foregroundStyle(Color.ink3) }
+              }
+              .multilineTextAlignment(.trailing)
             }
           }
           .padding(.horizontal, 12)

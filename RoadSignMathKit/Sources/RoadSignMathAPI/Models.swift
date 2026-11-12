@@ -154,6 +154,25 @@ public struct Way: Codable, Sendable, Hashable, Identifiable {
   public var numbers: [String]
   public var by: By?
   public var createdAt: Date
+  /// Since API 1.13.0: players who found this same way later and were
+  /// credited on it (`POST /signs/{id}/solve`), oldest first. Nil from an
+  /// older server.
+  public var alsoFoundBy: [By]?
+
+  /// Who found it too; none from an older server.
+  public var foundToo: [By] { alsoFoundBy ?? [] }
+
+  /// "Also found by Pat", "Also found by Pat and Sam", "Also found by Pat
+  /// and 2 others"; nil when nobody has.
+  public static func alsoFound(_ way: Way) -> String? {
+    let names = way.foundToo.map(\.name)
+    guard let first = names.first else { return nil }
+    switch names.count {
+    case 1: return "Also found by \(first)"
+    case 2: return "Also found by \(first) and \(names[1])"
+    default: return "Also found by \(first) and \(names.count - 1) others"
+    }
+  }
 }
 
 public struct SignPage: Codable, Sendable, Hashable {

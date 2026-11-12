@@ -16,13 +16,26 @@ struct WayEditor {
   /// Ways already on the sign, as the server writes them: one of them
   /// works, but isn't another way.
   var taken: Set<String> = []
+  /// Of those, the ones you found or found too: written just so, they
+  /// can't be sent. Another player's can, to say you found it too.
+  var mine: Set<String> = []
 
   private var status: WayDraft.Status { draft.status }
-  /// True, and not a way the sign already has.
-  private var works: Bool { WayEditor.isNew(status, taken: taken) }
+  /// True, and not a way the sign already has, or one you can say you
+  /// found too.
+  private var works: Bool {
+    WayEditor.isNew(status, taken: taken) || WayEditor.isFoundToo(status, taken: taken, mine: mine)
+  }
 
   static func isNew(_ status: WayDraft.Status, taken: Set<String>) -> Bool {
     if case .works(let solved) = status { onSign(solved.canonical, taken: taken) == nil } else { false }
+  }
+
+  /// True, and written just as another player's way on the sign: sending
+  /// it says you found it too.
+  static func isFoundToo(_ status: WayDraft.Status, taken: Set<String>, mine: Set<String>) -> Bool {
+    guard case .works(let solved) = status else { return false }
+    return onSign(solved.canonical, taken: taken) == .exactly && !mine.contains(solved.canonical)
   }
 
   /// How a way that works is already on the sign: written just so, or the
@@ -120,8 +133,10 @@ struct WayEditor {
       return ("exclamationmark.circle", (message, nil), .warn)
     case .works(let solved):
       switch WayEditor.onSign(solved.canonical, taken: taken) {
+      case .exactly where mine.contains(solved.canonical):
+        return ("arrow.triangle.2.circlepath", ("You found that one already.", "It’s on the sign with your name. Try another."), .ink3)
       case .exactly:
-        return ("arrow.triangle.2.circlepath", ("That one’s already on the sign.", "It works, but someone found it first. Try another."), .ink3)
+        return ("checkmark.circle.fill", ("It works, and someone found it first.", "Send it to say you found it too."), .greenInk)
       case .reordered:
         return ("arrow.triangle.2.circlepath", ("That’s a way already on the sign, in another order.", "Moving what’s added or multiplied around doesn’t make a new one. Try another."), .ink3)
       case nil: break

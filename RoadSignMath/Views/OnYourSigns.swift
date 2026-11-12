@@ -106,8 +106,19 @@ private struct ActivityRowView: View {
   }
 
   private var wayMath: ActivityItem.Way? {
-    if case .way(let way) = row.kind { return way }
-    return nil
+    switch row.kind {
+    case .way(let way), .foundToo(let way): way
+    case .hearts: nil
+    }
+  }
+
+  /// " found another way on ", " found it too on ", " hearted ".
+  private var verb: String {
+    switch row.kind {
+    case .way: " found another way on "
+    case .foundToo: " found it too on "
+    case .hearts: " hearted "
+    }
   }
 
   /// A way: the finder's avatar, with a dot while new. Hearts: a heart,
@@ -126,18 +137,17 @@ private struct ActivityRowView: View {
     }
   }
 
-  /// "**Jamie** found another way on **I-35W at 82nd Street** ∙ 2h".
+  /// "**Jamie** found another way on **I-35W at 82nd Street** ∙ 2h", or
+  /// "**Pat** found it too on **Twin Lakes** ∙ 5h".
   private var sentence: Text {
     let bold = Face.bodyBold.font(size: size)
     let plain = row.new ? Color.ink : Color.ink2
-    let verb = wayMath == nil ? " hearted " : " found another way on "
     return Text("\(Text(row.who).font(bold).foregroundStyle(Color.ink))\(Text(verb))\(Text(row.sign.title).font(bold).foregroundStyle(Color.ink))\(Text(String.dot + ActivityRow.when(row.at)).foregroundStyle(Color.ink2))")
       .font(Face.body.font(size: size))
       .foregroundStyle(plain)
   }
 
   private var spoken: String {
-    let verb = wayMath == nil ? " hearted " : " found another way on "
     var words = (row.new ? "New: " : "") + row.who + verb + row.sign.title + ", "
       + row.at.formatted(.relative(presentation: .named))
     if let way = wayMath { words += ". " + MathLine.spoken(way.text) }
