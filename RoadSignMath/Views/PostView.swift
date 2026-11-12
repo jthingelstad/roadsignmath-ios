@@ -90,7 +90,7 @@ struct PostView: View {
     .scrollDismissesKeyboard(.interactively)
     .background(Color.ground)
     .safeAreaInset(edge: .bottom, spacing: 0) { actions }
-    .savesForLater()
+    .savesForLater(disabled: posting)
     .navigationTitle(flow.way == nil ? "Post unsolved" : "Post it")
     .navigationBarTitleDisplayMode(.inline)
     .toolbarBackground(Color.ground, for: .navigationBar)
@@ -474,6 +474,7 @@ struct PostView: View {
               }
           }
           .buttonStyle(CardPress())
+          .disabled(posting)
         }
         .frame(maxWidth: 640)
       }
@@ -520,6 +521,7 @@ struct PostView: View {
   }
 
   private func saveForLater() {
+    guard !posting else { return }
     field = nil
     if flow.saveDraft() {
       account.notice = "Saved to Drafts, with its name and caption. Post it whenever you like."

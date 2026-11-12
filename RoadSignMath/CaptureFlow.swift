@@ -356,9 +356,15 @@ final class CaptureFlow {
     guard let outbox else { throw CocoaError(.fileWriteUnknown) }
     takeBack()
     let id = UUID()
+    // The draft is kept first: a post whose draft the phone can't keep
+    // couldn't be fixed if the server refused it, so it doesn't go.
+    guard let (draft, original) = asDraft(outbox: id, place: post.place) else { throw CocoaError(.fileWriteUnknown) }
     drafts.inOutbox.insert(id)
-    var kept: Draft?
-    if let (draft, original) = asDraft(outbox: id, place: post.place), drafts.save(draft, photo: original) { kept = draft }
+    guard drafts.save(draft, photo: original) else {
+      drafts.inOutbox.remove(id)
+      throw CocoaError(.fileWriteOutOfSpace)
+    }
+    var kept: Draft? = draft
     do {
       _ = try outbox.add(post, photo: photo, picture: picture, handle: handle, id: id)
     } catch {
