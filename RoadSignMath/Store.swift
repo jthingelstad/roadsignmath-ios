@@ -48,6 +48,8 @@ final class Store {
   /// Bumped each time the feed is read afresh.
   private var feedGeneration = 0
   private(set) var loadingMore = false
+  /// The last try at Latest's next page failed: Home says so, with Try again.
+  private(set) var moreFailed: String?
 
   // Near you.
   private(set) var near: [Sign] = []
@@ -67,6 +69,9 @@ final class Store {
   private(set) var mapLoad: Load = .idle
 
   private(set) var players: [String: Player] = [:]
+  /// The players list couldn't be read: Post it says an `@handle` may not
+  /// link yet, with Try again.
+  private(set) var playersFailed = false
   private(set) var details: [String: SignDetail] = [:]
 
 
@@ -148,6 +153,7 @@ final class Store {
       latestReader = reader
       latestKept = false
       latestTrouble = nil
+      moreFailed = nil
       keepLatest()
     } catch {
       if Self.cancelled(error) {
@@ -180,13 +186,23 @@ final class Store {
     guard let cursor = nextCursor, !loadingMore else { return }
     let generation = feedGeneration
     loadingMore = true
+    moreFailed = nil
     defer { loadingMore = false }
     let started = Date()
-    if let page = try? await read({ try await self.client.signs(cursor: cursor, limit: 20, token: $0) }), generation == feedGeneration {
+    do {
+      #if DEBUG
+        // `-RSMMoreFails YES`: Latest's next page fails as if offline.
+        if Script.flag("RSMMoreFails") { throw URLError(.notConnectedToInternet) }
+      #endif
+      let page = try await read { try await self.client.signs(cursor: cursor, limit: 20, token: $0) }
+      guard generation == feedGeneration else { return }
       settleHearts(page.signs, readAt: started)
       let seen = Set(latest.map(\.id))
       latest += page.signs.filter { !seen.contains($0.id) }
       nextCursor = page.nextCursor
+    } catch {
+      // A read Home gave up on (it went away) tries again when it's back.
+      if !Self.cancelled(error), generation == feedGeneration { moreFailed = Self.say(error) }
     }
   }
 
@@ -228,8 +244,16 @@ final class Store {
   }
 
   func loadPlayers() async {
-    if let list = try? await client.players() {
+    do {
+      #if DEBUG
+        // `-RSMPlayersFail YES`: the players list fails as if offline.
+        if Script.flag("RSMPlayersFail") { throw URLError(.notConnectedToInternet) }
+      #endif
+      let list = try await client.players()
       players = Dictionary(list.map { ($0.handle, $0) }, uniquingKeysWith: { a, _ in a })
+      playersFailed = false
+    } catch {
+      if !Self.cancelled(error) { playersFailed = true }
     }
   }
 
@@ -500,21 +524,22 @@ final class Store {
     tab = next
   }
 
-  /// A roadsignmath.xyz link the app was opened with: a sign's page opens
-  /// that sign, a player's page that player; anything else opens Home.
-  /// Pages go by slug and handle. On 2026-11-12 the site addressed them by
-  /// id for a day; it now redirects `/signs/<id>` and `/players/<id>`, but
-  /// a universal link reaches the app without the redirect, so an id opens
-  /// the sign or player too.
+  /// A roadsignmath.xyz link the app was opened with (`AppLink`): a sign's
+  /// page opens that sign, a player's page that player; anything else
+  /// opens Home. Pages go by slug and handle. On 2026-11-12 the site
+  /// addressed them by id for a day; it now redirects `/signs/<id>` and
+  /// `/players/<id>`, but a universal link reaches the app without the
+  /// redirect, so an id opens the sign or player too. `linksOpened` tells
+  /// `RootView`, which moves Capture, the sign-in screen or a sheet out of
+  /// the way (`AppLink.clearing`).
   func open(_ url: URL) {
-    let parts = url.pathComponents.filter { $0 != "/" }
     tab = .home
-    if parts.count == 2, parts[0] == "signs", !parts[1].isEmpty {
-      homePath = [PageKey.normalized(parts[1])]
-    } else if parts.count == 2, parts[0] == "players", !parts[1].isEmpty {
-      homePath = [PlayerPath.of(PageKey.normalized(parts[1]))]
-    }
+    if let path = AppLink(url).homePath { homePath = path }
+    linksOpened += 1
   }
+
+  /// Bumped by each link the app is opened with.
+  private(set) var linksOpened = 0
 
   func showOnMap(_ sign: Sign) {
     mapFocus = sign.id

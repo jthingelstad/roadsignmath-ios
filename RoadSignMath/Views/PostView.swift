@@ -37,11 +37,8 @@ struct PostView: View {
   @Environment(Store.self) private var store
   @Environment(Outbox.self) private var outbox
   @Environment(\.verticalSizeClass) private var height
-  @State private var title = ""
-  @State private var caption = ""
   @State private var place = Where.finding
   @State private var foundOn = Date.now
-  @State private var spotters: [String] = []
   @State private var spotter = ""
   @State private var similar = Similar.waiting
   @State private var name = ""
@@ -52,14 +49,30 @@ struct PostView: View {
   @State private var problem: String?
   @State private var started = false
   @State private var autoPosted = false
+  /// The last try at Post it failed for want of a connection (giving your
+  /// name needs one).
+  @State private var offlineProblem = false
   @State private var scroll = ScrollPosition(edge: .top)
   @FocusState private var field: Field?
 
   enum Field: Hashable { case title, caption, spotter, name }
 
+  // What's written lives in the flow (`CaptureFlow.form`), so it survives
+  // Capture stepping aside for a link, goes with "Save for later" and
+  // comes back with "Fix the post".
+  private var title: String { flow.form.title }
+  private var caption: String { flow.form.caption }
+  private var spotters: [String] { flow.form.spotters }
+  private var form: Binding<CaptureFlow.PostForm> {
+    Binding(get: { flow.form }, set: { flow.form = $0 })
+  }
+
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 22) {
+        if let refusal = flow.refusal {
+          ProblemLine(text: refusal).frame(maxWidth: .infinity, alignment: .leading)
+        }
         top
         nameIt
         saySomething
@@ -77,12 +90,20 @@ struct PostView: View {
     .scrollDismissesKeyboard(.interactively)
     .background(Color.ground)
     .safeAreaInset(edge: .bottom, spacing: 0) { actions }
+    .savesForLater(disabled: posting)
     .navigationTitle(flow.way == nil ? "Post unsolved" : "Post it")
     .navigationBarTitleDisplayMode(.inline)
     .toolbarBackground(Color.ground, for: .navigationBar)
     .sheet(isPresented: $sayingWhere) {
-      SayWhere { picked in place = .picked(picked) }
+      SayWhere { picked in
+        // A photo with a spot of its own keeps it: the town names it.
+        let facts = flow.shot?.file.facts
+        let kept = PostParts.place(picked: picked, photoLatitude: facts?.latitude, longitude: facts?.longitude)
+        place = .picked(kept)
+        flow.form.place = kept
+      }
     }
+    .onChange(of: foundOn) { _, now in flow.form.foundOn = day(now) }
     .sheet(item: $anotherWay) { sign in
       AnotherWayView(sign: sign, startingWith: flow.draft.flatMap { $0.isEmpty ? nil : $0.text })
     }
@@ -118,7 +139,7 @@ struct PostView: View {
   private var nameIt: some View {
     Part(title: "Name it") {
       VStack(alignment: .leading, spacing: 8) {
-        TextField("A name for the sign", text: $title)
+        TextField("A name for the sign", text: form.title)
           .face(.field)
           .foregroundStyle(Color.ink)
           .focused($field, equals: .title)
@@ -132,11 +153,11 @@ struct PostView: View {
               .strokeBorder(field == .title ? Color.signGreen : Color.ruleStrong, lineWidth: 1.5)
           }
           .onChange(of: title) { _, now in
-            if now.serverLength > APIClient.titleMax { title = now.clipped(to: APIClient.titleMax) }
+            if now.serverLength > APIClient.titleMax { flow.form.title = now.clipped(to: APIClient.titleMax) }
           }
         if let suggestion, title.trimmingCharacters(in: .whitespaces).isEmpty {
           Button {
-            title = suggestion
+            flow.form.title = suggestion
           } label: {
             Label("Call it \u{201C}\(suggestion)\u{201D}", systemImage: "wand.and.sparkles")
               .face(.metaBold)
@@ -164,7 +185,7 @@ struct PostView: View {
   private var saySomething: some View {
     Part(title: "Say something") {
       VStack(alignment: .leading, spacing: 8) {
-        TextField("Where you were headed, or how the math jumped out", text: $caption, axis: .vertical)
+        TextField("Where you were headed, or how the math jumped out", text: form.caption, axis: .vertical)
           .face(.field)
           .foregroundStyle(Color.ink)
           .lineLimit(2...6)
@@ -179,10 +200,10 @@ struct PostView: View {
           }
           .onChange(of: caption) { _, now in
             if now.contains(where: \.isNewline) {
-              caption = String(now.map { $0.isNewline ? " " : $0 }).clipped(to: APIClient.captionMax)
+              flow.form.caption = String(now.map { $0.isNewline ? " " : $0 }).clipped(to: APIClient.captionMax)
               field = nil
             } else if now.serverLength > APIClient.captionMax {
-              caption = now.clipped(to: APIClient.captionMax)
+              flow.form.caption = now.clipped(to: APIClient.captionMax)
             }
           }
           .accessibilityLabel("Caption")
@@ -220,7 +241,9 @@ struct PostView: View {
       case .photo(let found):
         PlaceCard(place: found, from: "From your photo", change: { sayingWhere = true })
       case .picked(let picked):
-        PlaceCard(place: picked, from: "The town you picked", change: { sayingWhere = true })
+        PlaceCard(
+          place: picked, from: picked.approximate ? "The town you picked" : "The town you picked, at your photo’s spot",
+          change: { sayingWhere = true })
       case .none(let photoHadOne):
         VStack(alignment: .leading, spacing: 10) {
           Text(
@@ -231,6 +254,13 @@ struct PostView: View {
           .face(.body)
           .foregroundStyle(Color.ink2)
           .fixedSize(horizontal: false, vertical: true)
+          if photoHadOne {
+            Button("Look up the town again") { Task { await findTown() } }
+              .face(.metaBold)
+              .foregroundStyle(Color.greenInk)
+              .frame(minHeight: 32)
+              .buttonStyle(.plain)
+          }
           Button {
             sayingWhere = true
           } label: {
@@ -294,7 +324,7 @@ struct PostView: View {
           FinderRow(
             avatar: Avatar(name: spotter.hasPrefix("@") ? String(spotter.dropFirst()) : spotter, color: store.color(for: handle(spotter)), size: 32, photo: store.photo(for: handle(spotter))),
             name: spotter, role: "Spotted it",
-            remove: { withAnimation(.snappy) { _ = spotters.remove(at: index) } })
+            remove: { withAnimation(.snappy) { _ = flow.form.spotters.remove(at: index) } })
         }
         if spotters.count < APIClient.findersMax - 1 {
           HStack(spacing: 8) {
@@ -328,6 +358,16 @@ struct PostView: View {
             .foregroundStyle(Color.ink3)
             .fixedSize(horizontal: false, vertical: true)
         }
+        if store.playersFailed {
+          VStack(alignment: .leading, spacing: 4) {
+            ProblemLine(text: "We couldn’t read the list of players, so an @handle may not link to their page yet.")
+            Button("Try again") { Task { await store.loadPlayers() } }
+              .face(.metaBold)
+              .foregroundStyle(Color.greenInk)
+              .frame(minHeight: 32)
+              .buttonStyle(.plain)
+          }
+        }
       }
     }
   }
@@ -336,7 +376,7 @@ struct PostView: View {
 
   private func addSpotter() {
     guard !spotterText.isEmpty else { return }
-    withAnimation(.snappy) { spotters.append(spotterText.clipped(to: APIClient.finderNameMax)) }
+    withAnimation(.snappy) { flow.form.spotters.append(spotterText.clipped(to: APIClient.finderNameMax)) }
     spotter = ""
   }
 
@@ -414,6 +454,30 @@ struct PostView: View {
 
   private var actions: some View {
     VStack(spacing: 8) {
+      if let offline = offlineWord {
+        // No signal: the shot is safe on the phone either way.
+        VStack(alignment: .leading, spacing: 8) {
+          Label(offline, systemImage: "wifi.slash")
+            .face(.metaBold)
+            .foregroundStyle(Color.ink2)
+            .fixedSize(horizontal: false, vertical: true)
+          Button {
+            saveForLater()
+          } label: {
+            Label("Save for later", systemImage: "tray.and.arrow.down")
+              .face(.action)
+              .foregroundStyle(Color.greenInk)
+              .frame(maxWidth: .infinity, minHeight: 44)
+              .background(Color.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+              .overlay {
+                RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.signGreen, lineWidth: 1.5)
+              }
+          }
+          .buttonStyle(CardPress())
+          .disabled(posting)
+        }
+        .frame(maxWidth: 640)
+      }
       if let problem {
         ProblemLine(text: problem).frame(maxWidth: .infinity, alignment: .leading)
       } else if let missing {
@@ -446,6 +510,26 @@ struct PostView: View {
     .background(Color.ground.shadow(.drop(color: .black.opacity(0.08), radius: 8, y: -2)))
   }
 
+  /// What to say with no signal, or after a try that needed one: Post it
+  /// still puts the post in the outbox when it can go; either way the shot
+  /// is safe, and "Save for later" keeps it in Drafts with what's written.
+  private var offlineWord: String? {
+    guard !outbox.online || offlineProblem else { return nil }
+    return missing == nil && !offlineProblem
+      ? "No signal. Your shot is safe: post it and it goes once there’s a connection, or save it for later."
+      : "No signal. Your shot is safe on this phone: save it for later, with what you’ve written."
+  }
+
+  private func saveForLater() {
+    guard !posting else { return }
+    field = nil
+    if flow.saveDraft() {
+      account.notice = "Saved to Drafts, with its name and caption. Post it whenever you like."
+    } else {
+      problem = "Your phone couldn’t keep this draft. Free up some space, then try again."
+    }
+  }
+
   private var trimmedTitle: String { title.trimmingCharacters(in: .whitespacesAndNewlines) }
   private var trimmedName: String { name.trimmingCharacters(in: .whitespacesAndNewlines) }
 
@@ -463,6 +547,7 @@ struct PostView: View {
     field = nil
     posting = true
     problem = nil
+    offlineProblem = false
     defer { posting = false }
     do {
       if account.me?.needsName == true { try await account.setName(trimmedName) }
@@ -479,13 +564,13 @@ struct PostView: View {
         title: trimmedTitle, numbers: PostParts.numbers(flow.numbers.kept), place: where_, foundOn: day(foundOn),
         finders: PostParts.finders(poster: handle, spotters: spotters, players: Set(store.players.keys)),
         way: flow.way, caption: trimmedCaption)
-      guard let id = try? outbox.add(post, photo: photo, picture: shot.picture, handle: handle) else {
+      guard let id = try? flow.send(post, photo: photo, picture: shot.picture, handle: handle) else {
         problem = "Your phone couldn’t keep this post to send. Free up some space, then try again."
         return
       }
-      flow.posted()
       flow.path.append(.posted(id))
     } catch {
+      offlineProblem = Store.offline(error)
       problem = Account.say(error)
     }
   }
@@ -504,18 +589,41 @@ struct PostView: View {
   private func start() async {
     guard !started, let shot = flow.shot else { return }
     started = true
-    if let day = shot.foundOn, let date = PostView.date(day) { foundOn = min(date, .now) }
+    if let day = flow.form.foundOn ?? shot.foundOn, let date = PostView.date(day) { foundOn = min(date, .now) }
     if store.players.isEmpty { Task { await store.loadPlayers() } }
     script()
-    if let lat = shot.file.facts.latitude, let lng = shot.file.facts.longitude {
-      if let town = await Places.town(latitude: lat, longitude: lng) {
-        if place == .finding { place = .photo(town) }
-      } else if place == .finding {
-        // Still pinned at the photo's spot, once the player names the town.
+    // A town picked before (stepped aside, saved for later, or the post
+    // being fixed) stays.
+    if let kept = flow.form.place {
+      place = .picked(kept)
+      return
+    }
+    await findTown()
+  }
+
+  /// The town at the photo's own spot. Looked up with no signal, the town
+  /// a draft kept for it stands in; failing that, the player picks the
+  /// town and the post keeps the photo's spot.
+  private func findTown() async {
+    guard let shot = flow.shot else { return }
+    guard let lat = shot.file.facts.latitude, let lng = shot.file.facts.longitude else {
+      place = .none(photoHadOne: false)
+      return
+    }
+    place = .finding
+    var looked = await Places.town(latitude: lat, longitude: lng)
+    #if DEBUG
+      // `-RSMOffline YES`: the lookup fails as it would with no signal.
+      if Script.flag("RSMOffline") { looked = nil }
+    #endif
+    if let town = looked {
+      if place == .finding { place = .photo(town) }
+    } else if place == .finding {
+      if let label = flow.draftTown {
+        place = .photo(PostPlace(label: label, state: PostParts.state(in: label), lat: lat, lng: lng, approximate: false))
+      } else {
         place = .none(photoHadOne: true)
       }
-    } else {
-      place = .none(photoHadOne: false)
     }
   }
 
@@ -560,10 +668,10 @@ struct PostView: View {
   /// bottom once "Posted already?" has its answer.
   private func script() {
     #if DEBUG
-      if let text = Script.text("RSMTitle") { title = text }
-      if let text = Script.text("RSMCaption") { caption = text }
+      if let text = Script.text("RSMTitle") { flow.form.title = text }
+      if let text = Script.text("RSMCaption") { flow.form.caption = text }
       if let list = Script.text("RSMSpotted") {
-        spotters = list.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        flow.form.spotters = list.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
       }
       if let text = Script.text("RSMPostName") { name = text }
       if Script.flag("RSMSayWhere") { sayingWhere = true }

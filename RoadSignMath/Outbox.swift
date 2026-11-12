@@ -3,6 +3,7 @@ import Network
 import Observation
 import Posting
 import RoadSignMathAPI
+import SignCapture
 import UIKit
 
 /// Posts on their way to the server, kept on disk (`OutboxFolder`, in
@@ -22,6 +23,13 @@ final class Outbox {
   private(set) var sending: UUID?
   /// Bumped when a post goes up, so Home and the Map read the signs again.
   private(set) var postedCount = 0
+  /// The phone has a network path: Post it says the shot is safe when it
+  /// hasn't.
+  private(set) var online = true
+  /// The list of posts couldn't be written to the phone (full, most
+  /// likely): Home says so, since a post changed since may not survive a
+  /// relaunch. Clears at the next write that works.
+  private(set) var unsaved = false
 
   @ObservationIgnored private let folder: OutboxFolder?
   @ObservationIgnored private let account: Account
@@ -30,12 +38,16 @@ final class Outbox {
   @ObservationIgnored private var again = false
   @ObservationIgnored private var wake: Task<Void, Never>?
   @ObservationIgnored private let monitor = NWPathMonitor()
-  @ObservationIgnored private var online = true
 
   init(account: Account) {
     self.account = account
     folder = try? OutboxFolder.standard()
     items = folder?.load() ?? []
+    unsaved = folder == nil
+    #if DEBUG
+      // `-RSMOffline YES`: no signal, for Post it's word about it.
+      if Script.flag("RSMOffline") { online = false }
+    #endif
     monitor.pathUpdateHandler = { [weak self] path in
       let satisfied = path.status == .satisfied
       Task { @MainActor in self?.connection(satisfied) }
@@ -51,7 +63,12 @@ final class Outbox {
   /// The posts Home has a word about: still going, held, refused, or
   /// posted while the player was elsewhere. Only the signed-in player's.
   var unseen: [OutboxItem] {
-    guard let handle = account.me?.handle else { return [] }
+    var handle = account.me?.handle
+    #if DEBUG
+      // `-RSMRefused`: the scripted post shows signed out too.
+      if Script.value("RSMRefused") != nil { handle = handle ?? "you" }
+    #endif
+    guard let handle else { return [] }
     return items.filter { $0.handle == handle }
   }
 
@@ -68,12 +85,13 @@ final class Outbox {
   /// Puts a post in the outbox and starts sending it. Throws, leaving the
   /// outbox as it was, when the post can't be kept on the phone (its photo
   /// or the list), since the screens after promise it's kept.
-  func add(_ post: SignPost, photo: Data, picture: UIImage?, handle: String) throws -> UUID {
-    let item = OutboxItem(handle: handle, post: post)
+  func add(_ post: SignPost, photo: Data, picture: UIImage?, handle: String, id: UUID = UUID()) throws -> UUID {
+    let item = OutboxItem(handle: handle, post: post, id: id)
     if let folder {
       try folder.savePhoto(photo, for: item.id)
       do {
         try folder.save(items + [item])
+        unsaved = false
       } catch {
         folder.removePhoto(item.id)
         throw error
@@ -150,6 +168,9 @@ final class Outbox {
   // MARK: Sending
 
   private func connection(_ satisfied: Bool) {
+    #if DEBUG
+      if Script.flag("RSMOffline") { return }
+    #endif
     let back = satisfied && !online
     online = satisfied
     guard back else { return }
@@ -273,7 +294,43 @@ final class Outbox {
     }
   #endif
 
+  #if DEBUG
+    /// `-RSMRefused YES`: a post of the sample sign the server refused for
+    /// a number left out, with its draft kept as a real post's is, for the
+    /// note's and "Fix the post"'s screenshots. Shown, never sent or saved.
+    func scriptRefused(drafts: DraftShelf, picture: UIImage?) {
+      guard let sample = SampleSign.photo() else { return }
+      var numbers = NumberList()
+      for number in SampleSign.numbers { _ = try? numbers.add(number) }
+      let math = "90 − 82 = 8"
+      let id = UUID()
+      let draft = Draft(
+        source: .sample, takenAt: .now, numbers: numbers, way: WayDraft(tiles: numbers.kept, text: math),
+        post: DraftPost(
+          title: "Bloomington Math", caption: "Coming back from the lake", spotters: ["Tyler"],
+          place: DraftPlace(label: "Bloomington, MN", state: "MN", lat: 44.84, lng: -93.30, approximate: false),
+          way: math, onPost: true, outbox: id))
+      drafts.inOutbox.insert(id)
+      guard drafts.save(draft, photo: sample.data) else { return }
+      var item = OutboxItem(
+        handle: account.me?.handle ?? "you",
+        post: SignPost(
+          title: "Bloomington Math", numbers: ["8", "82", "7", "90", "1"].map { PostNumber(value: $0) },
+          place: PostPlace(label: "Bloomington, MN", state: "MN", approximate: false), foundOn: "2026-10-30", way: math),
+        id: id)
+      item.state = .refused("Use every number on the sign: 7, 1 are left out")
+      pictures[item.id] = picture
+      items.append(item)
+    }
+  #endif
+
   private func save() {
-    try? folder?.save(items)
+    guard let folder else { return unsaved = true }
+    do {
+      try folder.save(items)
+      unsaved = false
+    } catch {
+      unsaved = true
+    }
   }
 }

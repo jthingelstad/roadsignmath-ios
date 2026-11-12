@@ -25,10 +25,14 @@ public struct Draft: Codable, Sendable, Hashable, Identifiable {
   /// own camera never does) or it couldn't be looked up yet. Drafts saved
   /// before it was kept read as nil.
   public var place: String?
+  /// What was written on Post it, once the player got there: the title,
+  /// caption and spotters, and the post it went as while it's on its way.
+  /// Nil before Post it, and for drafts saved before it was kept.
+  public var post: DraftPost?
 
   public init(
     id: UUID = UUID(), savedAt: Date = .now, source: Source, takenAt: Date?, takenOn: String? = nil, numbers: NumberList?,
-    way: WayDraft?, place: String? = nil
+    way: WayDraft?, place: String? = nil, post: DraftPost? = nil
   ) {
     self.id = id
     self.savedAt = savedAt
@@ -38,6 +42,17 @@ public struct Draft: Codable, Sendable, Hashable, Identifiable {
     self.numbers = numbers
     self.way = way.flatMap { $0.isEmpty ? nil : $0 }
     self.place = place
+    self.post = post
+  }
+
+  /// A draft kept for a post in the outbox (`post.outbox`) while that post
+  /// is still there: it isn't listed in Drafts, since Home's note about
+  /// the post is where it's picked up ("Fix the post"). One whose post is
+  /// no longer in the outbox (gone from a build that couldn't read it) is
+  /// listed again, so nothing is lost.
+  public func isListed(inOutbox: Set<UUID>) -> Bool {
+    guard let outbox = post?.outbox else { return true }
+    return !inOutbox.contains(outbox)
   }
 
   /// What the list calls it: where it was taken, else where it came from.
@@ -107,6 +122,67 @@ public struct Draft: Codable, Sendable, Hashable, Identifiable {
     case 2...4: return shown.dropLast().joined(separator: ", ") + " and " + shown.last!
     default: return shown.prefix(3).joined(separator: ", ") + " and \(shown.count - 3) more"
     }
+  }
+}
+
+/// Post it as far as the player got: kept with a draft, so "Save for
+/// later" on Post it, a post refused by the server ("Fix the post") and a
+/// shot kept safe while the app is away all come back with what was
+/// written.
+public struct DraftPost: Codable, Sendable, Hashable {
+  public var title: String
+  public var caption: String
+  /// Who spotted it, as typed: a name, or a player's `@handle`.
+  public var spotters: [String]
+  /// The day found, `2025-09-01`, when the player set it.
+  public var foundOn: String?
+  /// The place picked, or the one the post went with.
+  public var place: DraftPlace?
+  /// The way posted, a working equation's canonical text; nil to post the
+  /// sign unsolved.
+  public var way: String?
+  /// The player was on Post it: picking the draft up goes back there.
+  public var onPost: Bool
+  /// The post in the outbox this draft went as, while it's on its way. The
+  /// draft goes once that post is up (posted or held); refused, it's what
+  /// "Fix the post" opens.
+  public var outbox: UUID?
+
+  public init(
+    title: String = "", caption: String = "", spotters: [String] = [], foundOn: String? = nil, place: DraftPlace? = nil,
+    way: String? = nil, onPost: Bool = false, outbox: UUID? = nil
+  ) {
+    self.title = title
+    self.caption = caption
+    self.spotters = spotters
+    self.foundOn = foundOn
+    self.place = place
+    self.way = way
+    self.onPost = onPost
+    self.outbox = outbox
+  }
+
+  /// Nothing written yet.
+  public var isEmpty: Bool {
+    title.isEmpty && caption.isEmpty && spotters.isEmpty && foundOn == nil && place == nil && !onPost && outbox == nil
+  }
+}
+
+/// A post's place as a draft keeps it: the shape of the API's `PostPlace`,
+/// which this package doesn't know.
+public struct DraftPlace: Codable, Sendable, Hashable {
+  public var label: String
+  public var state: String?
+  public var lat: Double?
+  public var lng: Double?
+  public var approximate: Bool
+
+  public init(label: String, state: String? = nil, lat: Double? = nil, lng: Double? = nil, approximate: Bool) {
+    self.label = label
+    self.state = state
+    self.lat = lat
+    self.lng = lng
+    self.approximate = approximate
   }
 }
 

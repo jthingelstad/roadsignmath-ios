@@ -45,6 +45,11 @@ struct HomeView: View {
       }
       .scrollPosition($top)
       .onChange(of: store.homeToTop) { withAnimation(.smooth) { top.scrollTo(edge: .top) } }
+      #if DEBUG
+        // `-RSMMoreFails YES` scrolls to the end, where the next page fails.
+        .onChange(of: store.latest.count) { if Script.flag("RSMMoreFails") { top.scrollTo(edge: .bottom) } }
+        .onChange(of: store.moreFailed) { if Script.flag("RSMMoreFails") { top.scrollTo(edge: .bottom) } }
+      #endif
       .background(Color.ground)
       .refreshable {
         switch which {
@@ -202,7 +207,22 @@ struct HomeView: View {
       } else {
         cards(store.latest, miles: false)
         if store.hasMore {
-          if store.latestTrouble == nil {
+          if let why = store.moreFailed {
+            // The next page didn't come: say so, and try again on a tap.
+            VStack(spacing: 6) {
+              Text("Couldn’t load more signs. \(why)")
+                .face(.meta)
+                .foregroundStyle(Color.ink3)
+                .multilineTextAlignment(.center)
+              Button("Try again") { Task { await store.loadMore() } }
+                .face(.metaBold)
+                .foregroundStyle(Color.greenInk)
+                .frame(minHeight: 44)
+                .buttonStyle(.plain)
+            }
+            .padding(24)
+            .frame(maxWidth: .infinity)
+          } else if store.latestTrouble == nil {
             ProgressView()
               .padding(24)
               .task { await store.loadMore() }

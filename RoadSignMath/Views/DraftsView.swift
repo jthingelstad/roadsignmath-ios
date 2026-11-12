@@ -12,7 +12,7 @@ struct DraftsView: View {
     NavigationStack {
       List {
         Section {
-          ForEach(flow.drafts.all) { draft in
+          ForEach(flow.drafts.listed) { draft in
             Button {
               dismiss()
               flow.resume(draft)
@@ -22,7 +22,7 @@ struct DraftsView: View {
             .listRowBackground(Color.card)
           }
           .onDelete { offsets in
-            for draft in offsets.map({ flow.drafts.all[$0] }) { flow.drafts.remove(draft.id) }
+            for draft in offsets.map({ flow.drafts.listed[$0] }) { flow.drafts.remove(draft.id) }
           }
         } footer: {
           Text("Drafts stay on this iPhone. Posting one takes it off the list.")
@@ -33,7 +33,7 @@ struct DraftsView: View {
       .scrollContentBackground(.hidden)
       .background(Color.ground)
       .overlay {
-        if flow.drafts.all.isEmpty {
+        if flow.drafts.listed.isEmpty {
           ContentUnavailableView(
             "No drafts", systemImage: "tray",
             description: Text("Save a sign for later from the camera, and solve it when you like."))
@@ -103,6 +103,8 @@ private struct DraftRow: View {
 /// The toolbar's "Save for later" on Check and Solve: the shot, its
 /// numbers and the math so far go to Drafts, and the camera is back.
 struct SaveForLater: ViewModifier {
+  /// Off while a post is being made ready, which would post what was saved.
+  var disabled = false
   @Environment(CaptureFlow.self) private var flow
   @Environment(Account.self) private var account
   @State private var saves = 0
@@ -122,6 +124,7 @@ struct SaveForLater: ViewModifier {
             Label("Save for later", systemImage: "tray.and.arrow.down")
           }
           .accessibilityHint("Keeps this sign in Drafts to finish another time.")
+          .disabled(disabled)
         }
       }
       .sensoryFeedback(.success, trigger: saves)
@@ -129,5 +132,5 @@ struct SaveForLater: ViewModifier {
 }
 
 extension View {
-  func savesForLater() -> some View { modifier(SaveForLater()) }
+  func savesForLater(disabled: Bool = false) -> some View { modifier(SaveForLater(disabled: disabled)) }
 }

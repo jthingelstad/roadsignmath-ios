@@ -187,7 +187,8 @@ final class Account {
 
   private func signedIn(_ done: SignedIn) {
     do { try tokens.save(done.token) } catch {
-      // Still signed in for now; the next launch asks again.
+      // Still signed in for now; the next launch asks again, so say so.
+      notice = Account.unkeptSignIn
     }
     attempt += 1
     token = done.token
@@ -493,7 +494,10 @@ final class Account {
   private func forget() {
     attempt += 1
     defaults.removeObject(forKey: key + ":nameLater")
-    try? tokens.clear()
+    do { try tokens.clear() } catch {
+      // Signed out for now, but the phone may still hold the sign-in.
+      notice = Account.unclearedSignIn
+    }
     token = nil
     me = nil
     defaults.removeObject(forKey: key + ":me")
@@ -520,6 +524,11 @@ final class Account {
   /// A friendly sentence for what went wrong. The server's own messages
   /// are written for people ("That code isn't right."), so they're used
   /// as they are; the rest is said here.
+  /// Said when the Keychain wouldn't take the sign-in.
+  static let unkeptSignIn = "This phone couldn’t keep your sign-in, so you’ll be asked to sign in again next time."
+  /// Said when the Keychain wouldn't let the sign-in go.
+  static let unclearedSignIn = "This phone couldn’t forget your sign-in. If you’re still signed in next time, sign out again."
+
   static func say(_ error: any Error, link: Bool = false) -> String {
     switch error {
     case SignInProblem.noEmail: return "That sign-in has ended. Ask for a new code."

@@ -17,6 +17,10 @@ final class Photos {
 
   init() { kept.countLimit = 120 }
 
+  #if DEBUG
+    private var failedOnce: Set<String> = []
+  #endif
+
   func kept(_ url: URL, pixels: Int) -> UIImage? { kept.object(forKey: Self.key(url, pixels) as NSString) }
 
   func image(_ url: URL, pixels: Int) async -> UIImage? {
@@ -35,7 +39,14 @@ final class Photos {
       return Photos.decode(data, pixels: pixels)
     }
     reading[key] = task
-    let image = await task.value
+    var image = await task.value
+    #if DEBUG
+      // `-RSMPhotoFails YES`: every photo's first read fails, for the retry.
+      if Script.flag("RSMPhotoFails"), !failedOnce.contains(key) {
+        failedOnce.insert(key)
+        image = nil
+      }
+    #endif
     reading[key] = nil
     if let image { kept.setObject(image, forKey: key as NSString) }
     return image
@@ -68,6 +79,9 @@ struct PhotoView: View {
   /// The photo read for a URL. Kept with its URL, so a view reused for
   /// another photo never shows the last one's.
   @State private var read: (url: URL, image: UIImage)?
+  /// The photo at this URL didn't load: it says so, and a tap tries again.
+  @State private var failed: URL?
+  @State private var tries = 0
 
   var body: some View {
     Color.photoGround
@@ -77,16 +91,38 @@ struct PhotoView: View {
             .resizable()
             .aspectRatio(contentMode: contentMode)
             .transition(.opacity)
+        } else if failed == url {
+          Button {
+            failed = nil
+            tries += 1
+          } label: {
+            VStack(spacing: 4) {
+              Image(systemName: "arrow.clockwise").font(.system(size: 20, weight: .semibold))
+              Text("Tap to load the photo").face(.meta)
+            }
+            .foregroundStyle(Color.ink3)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(Rectangle())
+          }
+          .buttonStyle(.plain)
         }
       }
       .clipped()
-      .task(id: url) {
+      .task(id: "\(tries) \(url.absoluteString)") {
         guard Photos.shared.kept(url, pixels: pixels) == nil else { return }
-        guard let image = await Photos.shared.image(url, pixels: pixels) else { return }
+        guard let image = await Photos.shared.image(url, pixels: pixels) else {
+          if !Task.isCancelled { failed = url }
+          return
+        }
+        failed = nil
         withAnimation(.easeOut(duration: 0.25)) { read = (url, image) }
       }
       .accessibilityElement()
-      .accessibilityLabel(alt)
+      .accessibilityLabel(failed == url ? alt + ". It didn’t load." : alt)
       .accessibilityAddTraits(.isImage)
+      .accessibilityAction(named: "Load the photo again") {
+        failed = nil
+        tries += 1
+      }
   }
 }

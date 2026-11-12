@@ -1,3 +1,5 @@
+import Posting
+import RoadSignMathAPI
 import SignCapture
 import SwiftUI
 
@@ -59,7 +61,15 @@ struct RootView: View {
       .overlay(alignment: .top) { NoticeToast() }
     }
     .overlay(alignment: .top) { NoticeToast() }
-    .onAppear(perform: welcome)
+    .onAppear {
+      flow.outbox = outbox
+      welcome()
+    }
+    // Drafts kept for posts in the outbox: off the Drafts list while the
+    // post is on its way or refused, gone once it's up.
+    .onChange(of: outbox.items, initial: true) { _, items in flow.drafts.follow(items) }
+    // A link to a sign or a player: what's over Home gets out of the way.
+    .onChange(of: store.linksOpened) { clearForLink() }
     // "Snap a road sign" (Siri, Shortcuts, the Action button): Capture, once
     // sign-in is out of the way.
     .onChange(of: snap.asked, initial: true) { answerSnap() }
@@ -113,6 +123,28 @@ struct RootView: View {
     }
   }
 
+  /// A sign's or player's link opened (already on Home's stack): Capture
+  /// steps aside, keeping its shot where it was; the sign-in screen
+  /// closes as "Look around first" would (an email waiting for its code
+  /// still waits); sheets that can close do. Something that can't (a
+  /// share sheet, an alert) stays, and the page is under it.
+  private func clearForLink() {
+    var up: AppLink.Covers = []
+    if flow.open { up.insert(.capture) }
+    if account.signingIn { up.insert(.signIn) }
+    if covered { up.insert(.sheet) }
+    for step in AppLink.clearing(up) {
+      switch step {
+      case .captureAside: flow.stepAside()
+      case .closeSignIn:
+        lookedAround = true
+        firstRun = false
+        account.finishSignIn()
+      case .closeSheets: snap.clear()
+      }
+    }
+  }
+
   /// Something is presented over Home and the Map.
   private var covered: Bool {
     UIApplication.shared.connectedScenes
@@ -134,6 +166,18 @@ struct RootView: View {
           snap.ask()
         }
       }
+      // `-RSMRefused YES`: Home's note about a refused post; `fix` then
+      // taps "Fix the post", `delete` its Delete.
+      if let refused = Script.value("RSMRefused") {
+        let picture = SampleSign.photo().flatMap { UIImage(data: $0.data) }
+        outbox.scriptRefused(drafts: flow.drafts, picture: picture)
+        if refused == "fix", let item = outbox.items.last {
+          Task {
+            try? await Task.sleep(for: .seconds(1))
+            flow.fix(item)
+          }
+        }
+      }
       if let ids = Script.value("RSMUnlocked") {
         Task {
           let picture = SampleSign.photo().flatMap { UIImage(data: $0.data) }
@@ -147,7 +191,9 @@ struct RootView: View {
     if Script.value("RSMSignIn") != nil {
       account.useAnotherEmail()
       account.beginSignIn()
-    } else if !Script.scripted, !lookedAround || account.pending != nil {
+    } else if !Script.scripted, store.linksOpened == 0, !lookedAround || account.pending != nil {
+      // Not over a link the app was opened with: its page shows, and the
+      // first-run sign-in waits for the next launch.
       firstRun = !lookedAround
       account.beginSignIn()
     }

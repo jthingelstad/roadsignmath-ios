@@ -354,7 +354,16 @@ The website and the server behind it are in
   time runs out, about half a minute; a post cut off there is picked up
   when the app is next opened, since nothing sends while the app is
   suspended: a background `URLSession` would, and isn't built) and
-  `Views/OutboxNotes.swift` (Home's word about a post waiting, posted while you were away, held or refused).
+  `Views/OutboxNotes.swift` (Home's word about a post waiting, posted while you were away, held or refused;
+  its buttons come from `OutboxItem.choices` in `Posting/OutboxDrafts.swift`). Each post keeps a draft
+  linked to it (`Draft.post`, with the title, caption, spotters, place and way), hidden from Drafts while
+  the post is in the outbox and removed once it is up; a refused post offers "Fix the post", which
+  reopens Post it with all of that and the server's words, and Delete asks first. A draft whose post
+  isn't in the outbox is listed in Drafts again. Post it's form lives in `CaptureFlow.form`, so a
+  universal link (`AppLink` in the Kit, with `PlayerPath`) can open a sign over Capture, the first-run
+  cover or a sheet and Capture comes back as it was. With no signal, Post it says the shot is safe and
+  offers "Save for later"; a town picked for a photo whose town couldn't be looked up keeps the photo's
+  own spot. A failed outbox save or Keychain write is said on Home and in sign-in.
   Drafts, for playing later (Jamie, 2026-10-31: "I take photos of any
   sign that looks hopeful and then I try to solve it later"): "Save for
   later" on the camera's review (the right-hand slot) and in Check's and
@@ -591,7 +600,10 @@ The website and the server behind it are in
   picks the first), `-RSMScrollEnd YES` (to the bottom once "Posted
   already?" has its answer), `-RSMPostIt YES` (posts once the form is
   ready) and `-RSMOffline YES` (every send fails as if offline, for the
-  waiting screens; a simulator can't drop its network). Badges:
+  waiting screens, and no signal on Post it; a simulator can't drop its network). `-RSMRefused YES`
+  puts a refused sample post on Home (`fix` opens Fix the post, `delete` its confirm); `-RSMMoreFails YES`
+  fails Latest's next page, `-RSMPlayersFail YES` the players list and `-RSMPhotoFails YES` each photo's
+  first read, for the retry lines. Badges:
   `-RSMBadges YES` opens You's shelves, `-RSMBadge <id>` opens that
   badge's sheet over them, and `-RSMUnlocked <id,id>` shows Posted! for
   the sample sign as if its post had unlocked those badges (made from the

@@ -1,5 +1,7 @@
 import Foundation
 import Observation
+import Posting
+import RoadSignMathAPI
 import SignCapture
 import SignReading
 import UIKit
@@ -52,8 +54,44 @@ final class CaptureFlow {
     }
   }
 
+  /// What's written on Post it, kept here rather than on the screen so it
+  /// survives Capture stepping aside for a link, goes into a draft with
+  /// "Save for later", and comes back with "Fix the post".
+  struct PostForm: Equatable {
+    var title = ""
+    var caption = ""
+    var spotters: [String] = []
+    /// The day found, once the player or a draft set it.
+    var foundOn: String?
+    /// The town picked (or the place a refused post went with).
+    var place: PostPlace?
+
+    init() {}
+
+    init(_ kept: DraftPost?) {
+      guard let kept else { return }
+      title = kept.title
+      caption = kept.caption
+      spotters = kept.spotters
+      foundOn = kept.foundOn
+      place = kept.place.map(PostPlace.init)
+    }
+
+    var isEmpty: Bool { self == PostForm() }
+  }
+
   /// Capture is showing.
   var open = false
+  var form = PostForm()
+  /// The server's words about the refused post being fixed, shown on Post it.
+  private(set) var refusal: String?
+  /// The refused post in the outbox being fixed: posting again replaces it.
+  private(set) var fixing: UUID?
+  /// Where posts go. Set by `RootView`.
+  @ObservationIgnored weak var outbox: Outbox?
+  /// Capture stepped aside for a link: opening it again finds the shot on
+  /// the step it was at.
+  @ObservationIgnored private var aside = false
   var path: [Stop] = [] {
     // A way belongs to the one trip to posting it was set for: back out of
     // posting (to Solve, or to Check and "Post unsolved") and it's gone.
@@ -81,6 +119,8 @@ final class CaptureFlow {
   private(set) var draftID: UUID?
   /// The town that draft's photo was taken in, kept as it's saved again.
   private var draftPlace: String?
+  /// That town, for Post it when it can't be looked up again (no signal).
+  var draftTown: String? { draftPlace }
   /// What `keepSafe` put in Drafts while the app is off the screen.
   private var safekept: Safekept?
 
@@ -89,8 +129,15 @@ final class CaptureFlow {
   private var generation = 0
   private var work: Task<Void, Never>?
 
-  /// Opens Capture on the live camera.
+  /// Opens Capture on the live camera, or where it was after stepping
+  /// aside for a link.
   func begin() {
+    if aside, shot != nil {
+      aside = false
+      open = true
+      return
+    }
+    aside = false
     path = []
     reviewing = false
     problem = nil
@@ -98,26 +145,59 @@ final class CaptureFlow {
   }
 
   func close() {
+    aside = false
+    open = false
+  }
+
+  /// A link to a sign or a player is opening: Capture closes so its page
+  /// shows, keeping the shot, the step it's at and what's written, so the
+  /// camera button opens it just as it was.
+  func stepAside() {
+    aside = shot != nil
     open = false
   }
 
   /// A photo from the camera, the library or the sample: opened, shown
   /// with its numbers boxed as they're read.
   func take(_ data: Data, from source: Source, at time: Date? = nil) {
+    fixing = nil
+    refusal = nil
     open(data, from: source, at: time, resuming: nil)
   }
 
   /// A draft picked up where it was left: its photo, its numbers as
   /// checked (read again if it was saved before they were read) and its
   /// math, on the screen it had got to.
-  func resume(_ saved: Draft) {
+  func resume(_ saved: Draft, fixing item: OutboxItem? = nil) {
     guard let data = drafts.photo(of: saved.id) else {
       problem = "That draft’s photo couldn’t be opened."
-      drafts.remove(saved.id)
+      if item == nil { drafts.remove(saved.id) }
       return
     }
+    aside = false
     begin()
+    fixing = item?.id
+    refusal = item?.refusal
     open(data, from: saved.source, at: saved.takenAt, resuming: saved)
+  }
+
+  /// "Fix the post" on Home's note about a refused post: Post it again
+  /// with its photo, numbers, math, title, caption and spotters, and the
+  /// server's words. A shot open in Capture meanwhile goes to Drafts
+  /// first, so it isn't lost. False when the post's draft isn't kept.
+  @discardableResult
+  func fix(_ item: OutboxItem) -> Bool {
+    guard let saved = drafts.draft(for: item) else { return false }
+    if fixing == item.id, shot != nil {
+      begin()
+      return true
+    }
+    if shot != nil, !path.contains(where: { if case .posted = $0 { true } else { false } }) {
+      takeBack()
+      if let (open, photo) = asDraft(outbox: fixing) { _ = drafts.save(open, photo: photo) }
+    }
+    resume(saved, fixing: item)
+    return true
   }
 
   private func open(_ data: Data, from source: Source, at time: Date?, resuming saved: Draft?) {
@@ -147,10 +227,21 @@ final class CaptureFlow {
       numbers = saved?.numbers ?? NumberList()
       draft = saved?.way
       way = nil
+      form = PostForm(saved?.post)
       reviewing = true
       if saved?.numbers != nil {
         reading = .read
-        path = draft == nil ? [.check] : [.check, .solve]
+        var stops: [Stop] = draft == nil ? [.check] : [.check, .solve]
+        // Saved on Post it, or refused by the server: back to Post it,
+        // with the way it was going to post (set after the path, which
+        // lets a way go when posting isn't on it).
+        if let post = saved?.post, post.onPost {
+          stops.append(.post)
+          path = stops
+          way = post.way
+        } else {
+          path = stops
+        }
         return
       }
       path = []
@@ -196,12 +287,20 @@ final class CaptureFlow {
   /// hold it yet (a new shot, or one whose draft was deleted since it was
   /// opened). Saved before its reading finished, it's read again when it's
   /// opened.
-  private var asDraft: (draft: Draft, photo: Data?)? {
+  /// What's written on Post it goes with it; `outbox` is the post in the
+  /// outbox it's kept for, if any.
+  private func asDraft(outbox: UUID?, place: PostPlace? = nil) -> (draft: Draft, photo: Data?)? {
     guard let shot else { return nil }
     let kept = draftID.map { id in drafts.all.contains { $0.id == id } } ?? false
+    let onPost = path.contains(.post)
+    var post = DraftPost(
+      title: form.title, caption: form.caption, spotters: form.spotters, foundOn: form.foundOn,
+      place: (place ?? form.place).map(DraftPlace.init), way: onPost ? way : nil, onPost: onPost, outbox: outbox)
+    if post.isEmpty { post = DraftPost() }
     let draft = Draft(
       id: draftID ?? UUID(), source: shot.source, takenAt: shot.takenAt, takenOn: shot.foundOn,
-      numbers: reading == .reading || reading == .idle ? nil : numbers, way: draft, place: draftPlace)
+      numbers: reading == .reading || reading == .idle ? nil : numbers, way: draft, place: draftPlace,
+      post: post.isEmpty ? nil : post)
     return (draft, kept ? nil : shot.file.data)
   }
 
@@ -210,8 +309,11 @@ final class CaptureFlow {
   @discardableResult
   func saveDraft() -> Bool {
     takeBack()
-    guard let shot, let (saved, photo) = asDraft else { return false }
+    // Saved for later while fixing a refused post: it moves to Drafts, and
+    // Home's note about the post goes.
+    guard let shot, let (saved, photo) = asDraft(outbox: nil) else { return false }
     guard drafts.save(saved, photo: photo) else { return false }
+    if let fixing { outbox?.remove(fixing) }
     // Drafts are known by where they were taken: the town at the photo's
     // own GPS spot, looked up now (Drafts tries again if this can't).
     if saved.place == nil, let latitude = shot.file.facts.latitude, let longitude = shot.file.facts.longitude {
@@ -233,7 +335,7 @@ final class CaptureFlow {
   func keepSafe() {
     // Once it's posted, the outbox has it.
     let inOutbox = path.contains { if case .posted = $0 { true } else { false } }
-    guard safekept == nil, !inOutbox, let (draft, photo) = asDraft else { return }
+    guard safekept == nil, !inOutbox, let (draft, photo) = asDraft(outbox: fixing) else { return }
     safekept = drafts.keepSafe(draft, photo: photo)
   }
 
@@ -245,11 +347,42 @@ final class CaptureFlow {
     drafts.takeBack(kept)
   }
 
-  /// The post is in the outbox: its draft, if it had one, is done with.
-  func posted() {
+  /// Puts the post in the outbox. Its draft is kept with it (the photo as
+  /// taken, the numbers, the math and what's written on Post it), off the
+  /// Drafts list, until the post is up: if the server refuses it, Home's
+  /// note offers "Fix the post". A refused post being fixed is replaced.
+  /// Throws, with the shot still open, when the phone can't keep the post.
+  func send(_ post: SignPost, photo: Data, picture: UIImage?, handle: String) throws -> UUID {
+    guard let outbox else { throw CocoaError(.fileWriteUnknown) }
     takeBack()
-    if let draftID { drafts.remove(draftID) }
+    let id = UUID()
+    // The draft is kept first: a post whose draft the phone can't keep
+    // couldn't be fixed if the server refused it, so it doesn't go.
+    guard let (draft, original) = asDraft(outbox: id, place: post.place) else { throw CocoaError(.fileWriteUnknown) }
+    drafts.inOutbox.insert(id)
+    guard drafts.save(draft, photo: original) else {
+      drafts.inOutbox.remove(id)
+      throw CocoaError(.fileWriteOutOfSpace)
+    }
+    var kept: Draft? = draft
+    do {
+      _ = try outbox.add(post, photo: photo, picture: picture, handle: handle, id: id)
+    } catch {
+      drafts.inOutbox.remove(id)
+      // Not in the outbox: the draft is as it was before (a plain draft,
+      // or still the refused post's), so nothing written is lost.
+      if var kept {
+        kept.post?.outbox = fixing
+        _ = drafts.save(kept, photo: nil)
+        draftID = kept.id
+      }
+      throw error
+    }
+    if let old = fixing, old != id { outbox.remove(old) }
+    fixing = nil
+    refusal = nil
     draftID = nil
+    return id
   }
 
   /// The shot is posted (or on its way, in the outbox): it leaves, so
@@ -264,6 +397,10 @@ final class CaptureFlow {
     reviewing = false
     draftID = nil
     draftPlace = nil
+    form = PostForm()
+    fixing = nil
+    refusal = nil
+    aside = false
   }
 
   /// Back to the live camera, keeping the shot behind its thumbnail.
@@ -301,7 +438,7 @@ final class CaptureFlow {
     #if DEBUG
       guard let what = Script.value("RSMCapture") else { return }
       begin()
-      if Script.value("RSMDrafts") == "open", let newest = drafts.all.first {
+      if Script.value("RSMDrafts") == "open", let newest = drafts.listed.first {
         resume(newest)
       } else if what == "sample", let sample = SampleSign.photo() {
         take(sample.data, from: .sample)
