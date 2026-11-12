@@ -228,7 +228,8 @@ struct SignView: View {
 
   /// What coming off a sign changes, and what stays.
   private func leaveWords(_ sign: Sign) -> String {
-    let others = sign.finders.contains { $0.handle != nil && $0.handle != account.me?.handle }
+    // Anyone else named stays, with a page or without one.
+    let others = sign.finders.contains { $0.handle != account.me?.handle }
     let after = others ? "The other finders stay on it." : "Whoever posted it is named as its finder instead."
     return "Your name comes off \(sign.title) and it leaves your signs. Any ways you found on it stay yours. \(after)"
   }
@@ -238,8 +239,10 @@ struct SignView: View {
     leaving = true
     Task {
       do {
+        let handle = account.me?.handle
         try await account.leaveSign(sign.id)
         await load(fresh: true)
+        if let detail, let handle { store.leftSign(detail, handle: handle) }
         account.notice = "You’re off \(sign.title)."
       } catch let error as APIError where error.code == "conflict" {
         leaveBusy = true

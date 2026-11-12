@@ -66,6 +66,7 @@ struct PlayerView: View {
     .refreshable { await load() }
     // A block or unblock changes which of their signs (and ways) you see.
     .onChange(of: store.blockChanges) { Task { await load() } }
+    .onChange(of: store.finderChanges) { Task { await load() } }
     .countsView(player.flatMap { ViewPath.player($0.handle) })
     .sensoryFeedback(.selection, trigger: look)
   }

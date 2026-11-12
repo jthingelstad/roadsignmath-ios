@@ -122,6 +122,8 @@ struct MeView: View {
       await reload()
     }
     .onChange(of: account.signedIn) { _, now in if !now { dismiss() } }
+    // You came off a sign's finders: it leaves your signs.
+    .onChange(of: store.finderChanges) { Task { await reload() } }
     // A sign's mini-map moves to the Map tab underneath; get out of its way.
     .onChange(of: store.tab) { dismiss() }
     .sensoryFeedback(.selection, trigger: look)

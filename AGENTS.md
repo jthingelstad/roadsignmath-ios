@@ -449,7 +449,9 @@ The website and the server behind it are in
   (`posted_by` is your handle) Delete this sign. On a sign that credits
   you (your handle in `finders`) and that you did not post: Remove me from
   this sign, confirmed first, saying whether the other finders stay or the
-  poster is named instead; a 409 offers Try again. Reporting has one reason,
+  poster is named instead; a 409 offers Try again. Once off, the sign
+  as the server now has it replaces it in every list, you leave its map pin
+  (Mine), and You and players' pages read again (`Store.leftSign`). Reporting has one reason,
   inappropriate (Jamie, 2026-10-31: "we don't need that much yuck… just
   report it as inappropriate"): `Views/Safety.swift`'s `ReportSheet`
   takes an optional note, sends "Inappropriate" or "Inappropriate: <note>",
