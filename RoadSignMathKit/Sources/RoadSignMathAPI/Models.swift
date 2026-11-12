@@ -222,6 +222,11 @@ public struct Player: Codable, Sendable, Hashable, Identifiable {
   public var avatarUrl: URL?
   public var avatarThumbUrl: URL?
   public var bio: String?
+  /// Since API 1.15.0: their website, an http or https address (show it
+  /// by `ProfileWebsite.label`), and where they call home, in their own
+  /// words. Nil when they gave none, or from an older server.
+  public var website: String?
+  public var home: String?
   public var url: URL
   public var signCount: Int
   public var states: [String]

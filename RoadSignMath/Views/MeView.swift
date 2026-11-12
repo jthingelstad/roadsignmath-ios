@@ -232,7 +232,7 @@ struct MeView: View {
   private func header(_ me: Me) -> some View {
     ProfileHeader(name: me.shownName, unnamed: me.name.isEmpty, avatarColor: me.avatarColor,
                   avatarUrl: me.avatarUrl, changePhoto: { photo = .menu },
-                  page: me.name.isEmpty ? nil : me.url, pageWords: "Your page", bio: me.bio,
+                  page: me.name.isEmpty ? nil : me.url, pageWords: "Your page", bio: me.bio, home: me.home, website: me.website,
                   signCount: me.signCount, states: me.states, firstYear: me.firstYear)
   }
 
@@ -375,6 +375,7 @@ private struct SettingsView: View {
   @Environment(\.dismiss) private var dismiss
   @State private var renaming = false
   @State private var editingBio = Script.flag("RSMBio")
+  @State private var editingLine: ProfileLine? = ProfileLine.scripted
   @State private var blockedCount: Int?
   @State private var confirmSignOut = false
   @State private var confirmDelete = false
@@ -412,6 +413,10 @@ private struct SettingsView: View {
       }
       .sheet(isPresented: $editingBio) {
         BioView(current: account.me?.bio ?? "")
+          .presentationDetents([.medium, .large])
+      }
+      .sheet(item: $editingLine) { line in
+        ProfileLineView(line: line, current: line.value(of: account.me))
           .presentationDetents([.medium, .large])
       }
     }
@@ -461,10 +466,18 @@ private struct SettingsView: View {
         } label: {
           row("Bio", me.bio.flatMap { $0.isEmpty ? nil : $0 } ?? "Add a line about you", chevron: true, nudge: (me.bio ?? "").isEmpty)
         }
+        ForEach(ProfileLine.allCases) { line in
+          Button {
+            editingLine = line
+          } label: {
+            let value = line.shown(for: me)
+            row(line.label, value ?? line.nudge, chevron: true, nudge: value == nil)
+          }
+        }
         row("Email", me.email)
           .accessibilityHint("Only you see this")
       } footer: {
-        Text("Your bio shows on your page. Your email is only for signing in; nobody else sees it.").face(.meta)
+        Text("Your bio, website and home show on your page. Your email is only for signing in; nobody else sees it.").face(.meta)
       }
       Section {
         Button {
@@ -754,6 +767,172 @@ private struct BioView: View {
       }
       saving = false
     }
+  }
+}
+
+/// The two one-line fields on your page beside the name and bio (API
+/// 1.15.0): your website, shown by its host, and where you call home.
+enum ProfileLine: String, Identifiable, CaseIterable {
+  case website, home
+
+  var id: Self { self }
+
+  var label: String {
+    switch self {
+    case .website: "Website"
+    case .home: "Home"
+    }
+  }
+
+  /// The row's words when there's none yet.
+  var nudge: String {
+    switch self {
+    case .website: "Add your website"
+    case .home: "Add your town or state"
+    }
+  }
+
+  var max: Int {
+    switch self {
+    case .website: APIClient.websiteMax
+    case .home: APIClient.homeMax
+    }
+  }
+
+  /// What's kept now, as the editor starts from it.
+  func value(of me: Me?) -> String {
+    switch self {
+    case .website: me?.website ?? ""
+    case .home: me?.home ?? ""
+    }
+  }
+
+  /// What the settings row shows: the website by its host, home as written.
+  func shown(for me: Me) -> String? {
+    switch self {
+    case .website: ProfileWebsite.label(me.website)
+    case .home: me.home.flatMap { $0.isEmpty ? nil : $0 }
+    }
+  }
+
+  /// `-RSMWebsite YES` or `-RSMHome YES`, with `-RSMMe YES -RSMSettings YES`.
+  static var scripted: ProfileLine? {
+    if Script.flag("RSMWebsite") { return .website }
+    if Script.flag("RSMHome") { return .home }
+    return nil
+  }
+}
+
+/// Your website or home: one line, saved through the moderator like the
+/// bio. A refusal, a bad address or a moderator who couldn't look says so
+/// here, and nothing changes.
+private struct ProfileLineView: View {
+  let line: ProfileLine
+  let current: String
+
+  @Environment(Account.self) private var account
+  @Environment(\.dismiss) private var dismiss
+  @State private var text = ""
+  @State private var saving = false
+  @State private var problem: String?
+  @FocusState private var typing: Bool
+
+  private var trimmed: String { text.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+  var body: some View {
+    NavigationStack {
+      VStack(alignment: .leading, spacing: 10) {
+        field
+          .face(.field)
+          .submitLabel(.done)
+          .focused($typing)
+          .onSubmit(save)
+          .padding(.horizontal, 16)
+          .frame(minHeight: 52)
+          .background(Color.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+          .overlay {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+              .strokeBorder(typing ? Color.greenInk : Color.ruleStrong, lineWidth: typing ? 2 : 1.5)
+          }
+          .onChange(of: text) { _, now in if now.serverLength > line.max { text = now.clipped(to: line.max) } }
+          .accessibilityLabel(line.label)
+        Text(trimmed.isEmpty && !current.isEmpty ? "Save it empty to take it off your page." : hint)
+          .face(.meta)
+          .foregroundStyle(Color.ink2)
+          .fixedSize(horizontal: false, vertical: true)
+        if let problem { ProblemLine(text: problem) }
+        Spacer()
+      }
+      .padding(20)
+      .background(Color.ground)
+      .navigationTitle(current.isEmpty ? "Your \(line.label.lowercased())" : "Change your \(line.label.lowercased())")
+      .navigationBarTitleDisplayMode(.inline)
+      .toolbar {
+        ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+        ToolbarItem(placement: .confirmationAction) {
+          if saving {
+            ProgressView()
+          } else {
+            Button("Save", action: save).disabled(trimmed == current)
+          }
+        }
+      }
+    }
+    .interactiveDismissDisabled(saving)
+    .onAppear {
+      text = current
+      if let scripted = Script.text("RSMLineText") { text = scripted }
+      typing = true
+      if Script.flag("RSMLineSave") { save() }
+    }
+  }
+
+  @ViewBuilder private var field: some View {
+    switch line {
+    case .website:
+      TextField("example.com", text: $text)
+        .keyboardType(.URL)
+        .textContentType(.URL)
+        .textInputAutocapitalization(.never)
+        .autocorrectionDisabled()
+    case .home:
+      TextField("Your town or state", text: $text)
+        .textContentType(.addressCityAndState)
+    }
+  }
+
+  private var hint: String {
+    switch line {
+    case .website: "It shows on your page by its name, like example.com, and opens in the browser."
+    case .home: "A town or a state, as you like to say it. It shows on your page for everyone."
+    }
+  }
+
+  private func save() {
+    guard !saving, trimmed != current else { return }
+    saving = true
+    problem = nil
+    Task {
+      do {
+        switch line {
+        case .website: try await account.setWebsite(trimmed)
+        case .home: try await account.setHome(trimmed)
+        }
+        dismiss()
+      } catch {
+        problem = ProfileLineView.say(error)
+      }
+      saving = false
+    }
+  }
+
+  /// The app's usual words, with the server's address rule ("website must
+  /// be a web address, like example.com") written as a sentence.
+  static func say(_ error: any Error) -> String {
+    let words = Account.say(error)
+    guard let error = error as? APIError, error.code == "bad_request", let first = words.first else { return words }
+    let sentence = first.uppercased() + words.dropFirst()
+    return sentence.hasSuffix(".") ? sentence : sentence + "."
   }
 }
 

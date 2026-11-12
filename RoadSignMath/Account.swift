@@ -225,6 +225,20 @@ final class Account {
     remember(me)
   }
 
+  /// Your website (API 1.15.0); without `https://` the server adds it.
+  /// Empty takes it away.
+  func setWebsite(_ website: String) async throws {
+    let me = try await authorized { try await client.updateMe(token: $0, website: website) }
+    remember(me)
+  }
+
+  /// Where you call home, a town or a state (API 1.15.0). Empty takes it
+  /// away.
+  func setHome(_ home: String) async throws {
+    let me = try await authorized { try await client.updateMe(token: $0, home: home) }
+    remember(me)
+  }
+
   func finishSignIn() {
     signingIn = false
     step = .email
@@ -373,6 +387,20 @@ final class Account {
   /// kept for later and changes nothing now.
   func reportDuplicate(_ signId: String, sameAs: String, note: String) async throws -> DuplicateReceived {
     try await authorized { try await client.reportDuplicate(signId, sameAs: sameAs, note: note, token: $0) }
+  }
+
+  /// Reports a player (API 1.15.0) as inappropriate, with your note when
+  /// you add one, the same reason a sign's report sends. It goes to Jamie
+  /// with your name; nothing is hidden.
+  func reportPlayer(_ handle: String, note: String) async throws {
+    try await authorized { try await client.reportPlayer(handle, reason: Account.reportReason(note), token: $0) }
+  }
+
+  /// Takes you off a sign's finders (API 1.15.0); reads you again, so You
+  /// counts it no more. A 409 means another finder is leaving it just now.
+  func leaveSign(_ signId: String) async throws {
+    try await authorized { try await client.leaveSign(signId, token: $0) }
+    Task { await refresh() }
   }
 
   /// Blocks a player; reads what's new on your signs again, which leaves

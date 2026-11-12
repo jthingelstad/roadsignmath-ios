@@ -23,6 +23,11 @@ struct SignView: View {
   @State private var confirmBlock: Poster?
   @State private var confirmDelete = false
   @State private var deleting = false
+  /// "Remove me from this sign": its confirm, the call under way, and a
+  /// 409 (another finder leaving it just now) that offers to try again.
+  @State private var confirmLeave = false
+  @State private var leaving = false
+  @State private var leaveBusy = false
   @State private var problem: String?
   /// Signed out, Report or Block asks you to sign in first.
   @State private var askSignIn = false
@@ -139,6 +144,20 @@ struct SignView: View {
     .onChange(of: Snap.shared.clearing) {
       confirmBlock = nil
       confirmDelete = false
+      confirmLeave = false
+      leaveBusy = false
+    }
+    .alert("Remove you from this sign?", isPresented: $confirmLeave, presenting: sign) { sign in
+      Button("Remove me", role: .destructive) { leave(sign) }
+      Button("Keep me on it", role: .cancel) {}
+    } message: { sign in
+      Text(leaveWords(sign))
+    }
+    .alert("Someone else is changing this sign", isPresented: $leaveBusy, presenting: sign) { sign in
+      Button("Try again") { leave(sign) }
+      Button("Not now", role: .cancel) {}
+    } message: { _ in
+      Text("Another finder is coming off it right now. Try again in a moment.")
     }
     .alert("Delete this sign?", isPresented: $confirmDelete, presenting: sign) { sign in
       Button("Delete this sign", role: .destructive) { delete(sign) }
@@ -173,6 +192,14 @@ struct SignView: View {
           .disabled(deleting)
         }
       } else if sign.visibility == .shown {
+        if credits(sign) {
+          Section {
+            Button(role: .destructive) { confirmLeave = true } label: {
+              Label("Remove me from this sign", systemImage: "person.badge.minus")
+            }
+            .disabled(leaving)
+          }
+        }
         Section {
           Button { ask(.report) } label: { Label("Report this sign", systemImage: "flag") }
           if let poster = Poster(of: sign, players: store.players) {
@@ -181,7 +208,7 @@ struct SignView: View {
         }
       }
     } label: {
-      if deleting { ProgressView() } else { Image(systemName: "ellipsis.circle") }
+      if deleting || leaving { ProgressView() } else { Image(systemName: "ellipsis.circle") }
     }
     .accessibilityLabel("More")
   }
@@ -190,6 +217,37 @@ struct SignView: View {
   private func isMine(_ sign: Sign) -> Bool {
     guard let handle = account.me?.handle, let poster = sign.postedBy else { return false }
     return account.signedIn && handle == poster
+  }
+
+  /// Someone else posted it and it names you among its finders: yours to
+  /// come off (API 1.15.0), not to delete.
+  private func credits(_ sign: Sign) -> Bool {
+    guard account.signedIn, let handle = account.me?.handle, !isMine(sign) else { return false }
+    return sign.finders.contains { $0.handle == handle }
+  }
+
+  /// What coming off a sign changes, and what stays.
+  private func leaveWords(_ sign: Sign) -> String {
+    let others = sign.finders.contains { $0.handle != nil && $0.handle != account.me?.handle }
+    let after = others ? "The other finders stay on it." : "Whoever posted it is named as its finder instead."
+    return "Your name comes off \(sign.title) and it leaves your signs. Any ways you found on it stay yours. \(after)"
+  }
+
+  private func leave(_ sign: Sign) {
+    guard !leaving else { return }
+    leaving = true
+    Task {
+      do {
+        try await account.leaveSign(sign.id)
+        await load(fresh: true)
+        account.notice = "You’re off \(sign.title)."
+      } catch let error as APIError where error.code == "conflict" {
+        leaveBusy = true
+      } catch {
+        problem = Account.say(error)
+      }
+      leaving = false
+    }
   }
 
   private func ask(_ next: AfterSignIn, _ poster: Poster? = nil) {
@@ -274,6 +332,12 @@ struct SignView: View {
             ask(.block, Poster(of: sign, players: store.players))
           }
           if Script.flag("RSMDelete"), isMine(sign) { confirmDelete = true }
+          // `-RSMLeave YES`: the "Remove me from this sign" confirm on a
+          // sign that credits you (`-RSMLeave busy`: the 409's try again;
+          // `-RSMLeave send` takes you off, only ever against `npm run dev`).
+          if Script.flag("RSMLeave"), credits(sign) { confirmLeave = true }
+          if Script.value("RSMLeave") == "busy" { leaveBusy = true }
+          if Script.value("RSMLeave") == "send", credits(sign) { leave(sign) }
         }
       #endif
     } catch {
