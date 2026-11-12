@@ -20,6 +20,11 @@ The website and the server behind it are in
     and `tex`). It must agree with the server exactly: the same canonical
     text, the same value text (JavaScript's number printing, ported in
     `JSNumber`), the same error codes and the same LaTeX, byte for byte.
+    `SameWay.swift` ports the server's `sameWayKey`: two ways are the same
+    when they differ only in the order of what is added or multiplied, in
+    brackets where they change nothing, or in which side of the = is which
+    (the `same_way` cases in the vectors). "Find another way" shows such a
+    way as already on the sign, before the server's 409 says so.
     Exact arithmetic uses a small `BigInt` of its own, since the server's
     uses JavaScript's. Its tests run every case in
     `Tests/EquationTests/Resources/equation-vectors.json`, a byte-for-byte
@@ -276,7 +281,8 @@ The website and the server behind it are in
   a stepped one showing its first step; secret ones a blank plate
   until earned; each badge's own `BadgeSheet`). `Views/BadgeArt.swift`
   draws every badge natively as the website's `src/web/badges.tsx` does
-  (same 64-point grid and colors), and `BadgeRow` is the earned-only row.
+  (same 64-point grid and colors; Tag Team, `tag-team`, is the merge sign
+  by id, where app 1.0 draws its `1+1` mark on the plate), and `BadgeRow` is the earned-only row.
   Seen badges live on the phone (UserDefaults, per server and handle):
   the first time a player's badges are read, the ones already earned
   arrive seen, so there's no fanfare on day one; the You avatar on Home
@@ -380,8 +386,8 @@ The website and the server behind it are in
   `Views/AnotherWayView.swift` is "Find another way": from a Home card or
   the sign page (the `findWay` environment, set by `.findsAnotherWay()` on
   each tab's stack), a sheet with the sign, its ways so far and Solve's
-  editor on the sign's numbers; a way someone found already reads as
-  taken, and a new one goes on through `Account.addWay`, updates the sign
+  editor on the sign's numbers; a way someone found already, or the same
+  way in another order, reads as taken, and a new one goes on through `Account.addWay`, updates the sign
   everywhere (`Store.wayAdded`) and shows "Another way!" with any badge
   it earned. `Views/HeartButton.swift` is a sign's heart and count, on
   Home's cards and beside the finder on the sign page: a tap gives your

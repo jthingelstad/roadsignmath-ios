@@ -85,8 +85,22 @@ struct BadgeArt: View {
       context.fill(rect(10, 4, 44, 56, 5), with: .color(white))
       context.stroke(rect(10, 4, 44, 56, 5), with: .color(ink), lineWidth: 2.5 * s)
       context.stroke(rect(14, 8, 36, 48, 3), with: .color(ink), lineWidth: 1 * s)
-      // An upright plate is narrow, so a long word gets smaller.
-      text(mark, ink, size: mark.count >= 4 ? 10 : nil)
+      if id == "tag-team" {
+        // The merge sign: two lanes becoming one, as the website draws it.
+        var lanes = Path()
+        lanes.move(to: CGPoint(x: 36 * s, y: 54 * s))
+        lanes.addLine(to: CGPoint(x: 36 * s, y: 18 * s))
+        lanes.move(to: CGPoint(x: 22 * s, y: 54 * s))
+        lanes.addCurve(
+          to: CGPoint(x: 36 * s, y: 30 * s),
+          control1: CGPoint(x: 22 * s, y: 42 * s),
+          control2: CGPoint(x: 36 * s, y: 40 * s))
+        context.stroke(lanes, with: .color(ink), lineWidth: 4 * s)
+        context.fill(poly([(36, 10), (29.5, 20), (42.5, 20)]), with: .color(ink))
+      } else {
+        // An upright plate is narrow, so a long word gets smaller.
+        text(mark, ink, size: mark.count >= 4 ? 10 : nil)
+      }
     case .places where id == "states":
       var shield = Path()
       shield.move(to: CGPoint(x: 6 * s, y: 12 * s))

@@ -1,3 +1,4 @@
+import Equation
 import SignCapture
 import SwiftUI
 
@@ -21,7 +22,17 @@ struct WayEditor {
   private var works: Bool { WayEditor.isNew(status, taken: taken) }
 
   static func isNew(_ status: WayDraft.Status, taken: Set<String>) -> Bool {
-    if case .works(let solved) = status { !taken.contains(solved.canonical) } else { false }
+    if case .works(let solved) = status { onSign(solved.canonical, taken: taken) == nil } else { false }
+  }
+
+  /// How a way that works is already on the sign: written just so, or the
+  /// same way in another order (the same-way rule, which the server keeps
+  /// too), or nil when it's new.
+  enum OnSign { case exactly, reordered }
+
+  static func onSign(_ canonical: String, taken: Set<String>) -> OnSign? {
+    if taken.contains(canonical) { return .exactly }
+    return EquationChecker.isSameWay(canonical, asAnyOf: Array(taken)) ? .reordered : nil
   }
 
   // MARK: The math
@@ -108,8 +119,12 @@ struct WayEditor {
     case .problem(let message):
       return ("exclamationmark.circle", (message, nil), .warn)
     case .works(let solved):
-      if taken.contains(solved.canonical) {
+      switch WayEditor.onSign(solved.canonical, taken: taken) {
+      case .exactly:
         return ("arrow.triangle.2.circlepath", ("That one’s already on the sign.", "It works, but someone found it first. Try another."), .ink3)
+      case .reordered:
+        return ("arrow.triangle.2.circlepath", ("That’s a way already on the sign, in another order.", "Moving what’s added or multiplied around doesn’t make a new one. Try another."), .ink3)
+      case nil: break
       }
       if draft.usesEveryNumber {
         return ("sparkles", ("It works! Both sides make \(solved.value).", "Every number on the sign. Beautiful."), .greenInk)

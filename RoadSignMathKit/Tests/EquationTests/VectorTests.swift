@@ -25,8 +25,16 @@ struct Vectors: Decodable {
     var note: String
   }
 
+  struct SameWay: Decodable {
+    var a: String
+    var b: String
+    var same: Bool
+    var note: String
+  }
+
   var checks: [Check]
   var numbers_on_sign: [NumbersOnSign]
+  var same_way: [SameWay]
 
   static let shared: Vectors = {
     let url = Bundle.module.url(forResource: "equation-vectors", withExtension: "json")!
@@ -40,6 +48,10 @@ extension Vectors.Check: CustomTestStringConvertible {
 
 extension Vectors.NumbersOnSign: CustomTestStringConvertible {
   var testDescription: String { note }
+}
+
+extension Vectors.SameWay: CustomTestStringConvertible {
+  var testDescription: String { "\(note): \(a) and \(b)" }
 }
 
 @Suite struct VectorTests {
@@ -95,5 +107,22 @@ extension Vectors.NumbersOnSign: CustomTestStringConvertible {
     let theirs = try Data(contentsOf: URL(filePath: server).appending(path: "contracts/equation-vectors.json"))
     let ours = try Data(contentsOf: Bundle.module.url(forResource: "equation-vectors", withExtension: "json")!)
     #expect(ours == theirs, "RoadSignMathKit's equation-vectors.json differs from the server's")
+  }
+
+  @Test(arguments: Vectors.shared.same_way)
+  func sameWay(_ vector: Vectors.SameWay) throws {
+    #expect(EquationChecker.check(vector.a).isTrue)
+    #expect(EquationChecker.check(vector.b).isTrue)
+    let a = try #require(EquationChecker.sameWayKey(vector.a))
+    #expect((a == EquationChecker.sameWayKey(vector.b)) == vector.same)
+    #expect(EquationChecker.isSameWay(vector.a, asAnyOf: ["2 + 2 = 4", vector.b]) == vector.same)
+  }
+
+  @Test func everyTrueWayIsTheSameAsItsCanonicalText() throws {
+    for vector in Vectors.shared.checks where vector.ok {
+      let canonical = try #require(vector.canonical)
+      #expect(EquationChecker.sameWayKey(vector.text) == EquationChecker.sameWayKey(canonical), "\(vector.note)")
+    }
+    #expect(EquationChecker.sameWayKey("3 +") == nil)
   }
 }
