@@ -1,13 +1,13 @@
 import Foundation
 
 /// The last part of a sign's or a player's page on the website, from a
-/// link the app is opened with: `/signs/<key>`, `/players/<key>`. Since
-/// 2026-11-12 the site addresses both by id (Jamie: "anchor them on id's
-/// and not names", "just use ID"), an uppercase ULID as stored, and the
-/// old addresses by slug and handle redirect there. The API takes either:
-/// `GET /signs/{id}` an id or slug, and `GET /players/{handle}` a handle or
-/// (API 1.14.0) an id, but an id only as stored, while the site also takes
-/// one typed in another case.
+/// link the app is opened with: `/signs/<key>`, `/players/<key>`. Pages go
+/// by slug and handle. On 2026-11-12 the site gave out id links for a day
+/// (an uppercase ULID as stored), and it now redirects them, but a
+/// universal link reaches the app without the redirect. The API takes
+/// either: `GET /signs/{id}` an id or slug, and `GET /players/{handle}` a
+/// handle or (API 1.14.0) an id, but an id only as stored, while the site
+/// also takes one typed in another case.
 public enum PageKey {
   /// The key to ask the API with: an id in another case made uppercase, as
   /// the site does; a slug or handle as it is.

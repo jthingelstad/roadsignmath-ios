@@ -107,16 +107,15 @@ import Testing
     #expect(signs[1].moderationNote == "Held for a second look.")
   }
 
-  /// API 1.14.0: a player by id, from a link to their page
-  /// (`/players/<id>`), answers with their handle, which the page goes by.
+  /// API 1.14.0: a player by id, from an id link to their page
+  /// (`/players/<id>`), answers with their handle and their page by
+  /// handle, which the screen goes by.
   @Test func readsAPlayerByTheirId() async throws {
-    let body = String(decoding: try fixture("player"), as: UTF8.self)
-      .replacingOccurrences(of: "https://roadsignmath.xyz/players/zoe-quinn", with: "https://roadsignmath.xyz/players/01K8ZQ3V000000000000000ZOE")
-    let stub = Stub(status: 200, body: body)
+    let stub = Stub(status: 200, body: String(decoding: try fixture("player"), as: UTF8.self))
     let player = try await stub.client.player("01K8ZQ3V000000000000000ZOE")
     #expect(stub.requests.map(\.path) == ["/api/v1/players/01K8ZQ3V000000000000000ZOE"])
     #expect(player.handle == "zoe-quinn")
-    #expect(player.url.absoluteString == "https://roadsignmath.xyz/players/01K8ZQ3V000000000000000ZOE")
+    #expect(player.url.absoluteString == "https://roadsignmath.xyz/players/zoe-quinn")
   }
 
   @Test func deletesAndSignsOutWithNoBody() async throws {

@@ -19,8 +19,8 @@ struct ScreenViewTests {
     #expect(!ViewPath.isValid("/signs/a_b"))
     #expect(!ViewPath.isValid("/" + String(repeating: "a", count: 81)))
     #expect(ViewPath.sign("Not A Slug") == nil)
-    // The site's pages by id (2026-11-12) are uppercase, which the
-    // server's VIEW_PATH refuses: a sign is counted by its slug.
+    // Ids are uppercase, which the server's VIEW_PATH refuses: a page
+    // opened from an id link counts by its slug or handle.
     #expect(ViewPath.sign("01JS0000000000000000000001") == nil)
     #expect(ViewPath.player("01JS0000000000000000000001") == nil)
   }

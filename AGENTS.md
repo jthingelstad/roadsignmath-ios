@@ -309,10 +309,10 @@ The website and the server behind it are in
   ones not earned), and their page on the website. Each tab's stack hands
   its screens an `Opener` (environment) that pushes a sign or a player;
   Home and the Map put a player on their stack of sign ids as `@handle`,
-  and a `roadsignmath.xyz/players/<id>` link (or the old
-  `/players/<handle>`, `-RSMOpen /players/jamie`) opens one; since
-  2026-11-12 the site addresses signs and players by id, and `PageKey`
-  makes an id typed in another case uppercase for the API. You reads `GET /me` and your own
+  and a `roadsignmath.xyz/players/<handle>` link (`-RSMOpen
+  /players/jamie`) opens one. An id link (`/signs/<id>`, `/players/<id>`,
+  given out on 2026-11-12 and redirected by the site since) opens the
+  same; `PageKey` makes an id typed in another case uppercase for the API. You reads `GET /me` and your own
   `GET /players/{handle}` with your token, which carries your held and
   hidden signs; their photos are `/api/v1/me/photos/…`, which `Photos`
   reads with your token (every other photo is read without one). `Preferences.swift` holds `BuildInfo`, the stamped
@@ -447,9 +447,7 @@ The website and the server behind it are in
   (`BlockedPlayersView`), each with Unblock.
   Screen views: `countsView(_:)` (`Views/ScreenViews.swift`) counts a
   screen in the site's analytics each time it comes into view, as a page
-  load would: a sign page (`/signs/<slug>`), a player's (`/players/<handle>`;
-  still slug and handle, though the site's pages are by id, because the
-  server's view paths are lowercase and refuse an id),
+  load would: a sign page (`/signs/<slug>`), a player's (`/players/<handle>`),
   You (`/you`) and Capture (`/capture`); `RootView` counts Home (`/`) and
   the Map (`/map`) when chosen or come back to. Home and the Map stay
   mounted side by side, so `tabShown` (environment) tells a page kept on

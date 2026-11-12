@@ -74,8 +74,8 @@ public struct APIClient: Sendable {
   }
 
   /// One player and their signs, newest first, by handle or (API 1.14.0)
-  /// by id, as their page on the site is addressed. With your token, your
-  /// own page also carries the signs only you see (held or hidden).
+  /// by id. With your token, your own page also carries the signs only you
+  /// see (held or hidden).
   public func player(_ key: String, token: String? = nil) async throws -> Player {
     try await send("GET", ["players", key], token: token)
   }

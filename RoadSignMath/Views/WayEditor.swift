@@ -146,7 +146,7 @@ struct WayEditor {
         return ("arrow.triangle.2.circlepath", ("That’s a way already on the sign, in another order.", "Moving what’s added or multiplied around doesn’t make a new one. Try another."), .ink3)
       case nil: break
       }
-      return ("sparkles", ("It works! Both sides make \(solved.value).", "Every number on the sign. Beautiful."), .greenInk)
+      return ("sparkles", ("It works! Both sides make \(solved.value).", nil), .greenInk)
     }
   }
 

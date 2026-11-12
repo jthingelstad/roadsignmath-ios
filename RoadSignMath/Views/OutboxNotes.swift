@@ -93,7 +93,7 @@ struct OutboxNotes: View {
     case .posted(let sign):
       link("See it") {
         outbox.acknowledge(item.id)
-        store.homePath.append(sign.id)
+        store.homePath.append(sign.slug)
       }
     case .refused:
       HStack(spacing: 16) {

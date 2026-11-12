@@ -6,9 +6,9 @@ import SwiftUI
 /// count, and nothing about the ones they haven't, as on the website),
 /// then their signs as Home's timeline or a grid of photos.
 struct PlayerView: View {
-  /// Who: a handle, or their id from a link to their page on the site
-  /// (`/players/<id>`). Everything after the read, the screen's count
-  /// included, goes by the handle the read answers with.
+  /// Who: a handle, or their id from an id link to their page
+  /// (`/players/<id>`, given out on 2026-11-12). Everything after the
+  /// read, the screen's count included, goes by the handle it answers with.
   let key: String
 
   @Environment(Store.self) private var store
