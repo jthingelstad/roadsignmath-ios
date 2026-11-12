@@ -4,8 +4,10 @@ import SwiftUI
 
 /// "Find another way": Solve's editor on a posted sign's numbers, under
 /// the sign's photo and the ways found so far. A new true way goes on the
-/// sign, and any badge it earned flips in, as on Posted!. Anyone can write
-/// one; posting it asks you to sign in.
+/// sign, and any badge it earned flips in, as on Posted!. The same math as
+/// another player's way says you found it too (API 1.13.0's solve): your
+/// name goes on their way, with no badge. Anyone can write one; sending it
+/// asks you to sign in.
 struct AnotherWayView: View {
   let sign: Sign
   /// Math to start from: the player's own, from Post it's "Posted
@@ -26,17 +28,30 @@ struct AnotherWayView: View {
   @State private var askSignIn = false
   /// The way went on: the sign as the server answered.
   @State private var added: SignDetail?
+  /// The way you made, or found too; nil from a script.
+  @State private var solvedWay: Way?
+  /// It was another player's way, and you found it too.
+  @State private var wasFoundToo = false
   @State private var flipped = false
   @FocusState private var naming: Bool
 
   private var ways: [Way] { detail?.ways ?? [] }
   private var taken: Set<String> { Set(ways.map(\.text)) }
-  private var fresh: Bool { WayEditor.isNew(draft.status, taken: taken) }
+  /// The ways with your name on them: yours, and the ones you found too.
+  private var mine: Set<String> {
+    guard let handle = account.me?.handle else { return [] }
+    return Set(ways.filter { $0.by?.handle == handle || $0.foundToo.contains { $0.handle == handle } }.map(\.text))
+  }
+  /// Written just as another player's way: sending it says you found it too.
+  private var foundToo: Bool { WayEditor.isFoundToo(draft.status, taken: taken, mine: mine) }
+  /// A new way, or one to say you found too.
+  private var sendable: Bool { WayEditor.isNew(draft.status, taken: taken) || foundToo }
   private var trimmedName: String { name.trimmingCharacters(in: .whitespacesAndNewlines) }
   private var needsName: Bool { account.signedIn && account.me?.needsName == true }
 
   private var editor: WayEditor {
-    WayEditor(draft: $draft, taps: $taps, still: still, hint: "Tap a used number to take it back out.", taken: taken)
+    WayEditor(draft: $draft, taps: $taps, still: still, hint: "Tap a used number to take it back out.", taken: taken,
+              mine: mine)
   }
 
   var body: some View {
@@ -68,8 +83,8 @@ struct AnotherWayView: View {
     .tint(.greenInk)
     .interactiveDismissDisabled(!draft.isEmpty && added == nil)
     .sensoryFeedback(.selection, trigger: taps)
-    .sensoryFeedback(.success, trigger: fresh) { _, now in now }
-    .onChange(of: fresh) { _, now in
+    .sensoryFeedback(.success, trigger: sendable) { _, now in now }
+    .onChange(of: sendable) { _, now in
       if now { AccessibilityNotification.Announcement("It works").post() }
     }
     .onChange(of: draft) { problem = nil }
@@ -99,6 +114,13 @@ struct AnotherWayView: View {
     }
     #if DEBUG
       if let scripted = Script.text("RSMWay") { draft = WayDraft(tiles: tiles, text: scripted) }
+      // `-RSMWaySend YES` with `-RSMWay <math>`: sends it, signed in. Only against `npm run dev`.
+      if Script.flag("RSMWaySend") {
+        Task {
+          try? await Task.sleep(for: .seconds(2))
+          post()
+        }
+      }
       if let ids = Script.value("RSMWayAdded"), case .works(let solved) = draft.status {
         Task { await scriptAdded(read, way: solved.canonical, unlocked: ids.split(separator: ",").map(String.init)) }
       }
@@ -208,7 +230,13 @@ struct AnotherWayView: View {
           HStack(spacing: 10) {
             MathLine(text: way.text, tex: way.tex, size: 16, light: 0x1F3A2E, dark: 0xCDE8DA, fallback: .bodyBold, leading: true)
               .frame(maxWidth: .infinity, alignment: .leading)
-            if let by = way.by { Text(by.name).face(.meta).foregroundStyle(Color.ink2) }
+            if let by = way.by {
+              VStack(alignment: .trailing, spacing: 1) {
+                Text(by.name).face(.meta).foregroundStyle(Color.ink2)
+                if let too = Way.alsoFound(way) { Text(too).face(.meta).foregroundStyle(Color.ink3) }
+              }
+              .multilineTextAlignment(.trailing)
+            }
           }
           .padding(.horizontal, 10)
           .padding(.vertical, 7)
@@ -243,7 +271,7 @@ struct AnotherWayView: View {
     .padding(.top, 6)
   }
 
-  private var ready: Bool { fresh && !sending && (!needsName || !trimmedName.isEmpty) }
+  private var ready: Bool { sendable && !sending && (!needsName || !trimmedName.isEmpty) }
 
   private var postButton: some View {
     Button(action: post) {
@@ -251,9 +279,9 @@ struct AnotherWayView: View {
         if sending {
           ProgressView().tint(.white)
         } else {
-          Image(systemName: fresh ? "paperplane.fill" : "paperplane")
+          Image(systemName: sendable ? "paperplane.fill" : "paperplane")
         }
-        Text(sending ? "Adding your way…" : "Add this way")
+        Text(sending ? (foundToo ? "Sending…" : "Adding your way…") : (foundToo ? "I found it too" : "Add this way"))
       }
       .face(.button)
       .foregroundStyle(.white)
@@ -263,11 +291,11 @@ struct AnotherWayView: View {
     .buttonStyle(CardPress())
     .disabled(!ready)
     .opacity(ready || sending ? 1 : 0.45)
-    .accessibilityHint(fresh ? "" : needsName && trimmedName.isEmpty ? "Give your name first." : "Write a new way that works first.")
+    .accessibilityHint(sendable ? "" : needsName && trimmedName.isEmpty ? "Give your name first." : "Write a new way that works first.")
   }
 
   private func post() {
-    guard fresh, case .works(let solved) = draft.status else { return }
+    guard sendable, case .works(let solved) = draft.status else { return }
     guard account.signedIn else { return askSignIn = true }
     // Just signed in with no name yet: the name field shows; post once it's filled in.
     if needsName, trimmedName.isEmpty { return naming = true }
@@ -277,12 +305,15 @@ struct AnotherWayView: View {
       defer { sending = false }
       do {
         if needsName { try await account.setName(trimmedName) }
-        let answer = try await account.addWay(solved.canonical, to: sign.id)
-        store.wayAdded(answer)
-        withAnimation(.smooth) { added = answer }
-        celebrate(answer.unlocked)
+        let answer = try await account.solve(solved.canonical, on: sign.id)
+        store.wayAdded(answer.detail)
+        solvedWay = answer.way
+        wasFoundToo = answer.result == .alsoFound
+        withAnimation(.smooth) { added = answer.detail }
+        celebrate(answer.detail.unlocked)
       } catch let error as APIError where error.code == "conflict" {
-        // Found by someone else meanwhile: read the ways again, so the editor says so.
+        // The sign changed meanwhile (the same way in another order went on, or the way
+        // went): read the ways again, so the editor says so.
         problem = error.message + "."
         await load(fresh: true)
       } catch {
@@ -294,7 +325,7 @@ struct AnotherWayView: View {
   // MARK: Done
 
   private func done(_ answer: SignDetail) -> some View {
-    let mine = answer.ways.last { $0.by?.handle == account.me?.handle } ?? answer.ways.last
+    let mine = solvedWay ?? answer.ways.last { $0.by?.handle == account.me?.handle } ?? answer.ways.last
     return ScrollView {
       VStack(spacing: 20) {
         Image(systemName: "checkmark.seal.fill")
@@ -305,11 +336,11 @@ struct AnotherWayView: View {
           .padding(.top, 28)
           .accessibilityHidden(true)
         VStack(spacing: 6) {
-          Text("Another way!")
+          Text(wasFoundToo ? "You found it too." : "Another way!")
             .face(.title)
             .foregroundStyle(Color.ink)
             .accessibilityAddTraits(.isHeader)
-          Text(answer.ways.count == 2 ? "\(answer.sign.title) has two ways now." : "\(answer.sign.title) has \(answer.ways.count) ways now.")
+          Text(wasFoundToo ? foundTooWords(mine, on: answer.sign) : answer.ways.count == 2 ? "\(answer.sign.title) has two ways now." : "\(answer.sign.title) has \(answer.ways.count) ways now.")
             .face(.body)
             .foregroundStyle(Color.ink2)
             .multilineTextAlignment(.center)
@@ -333,9 +364,15 @@ struct AnotherWayView: View {
     }
   }
 
+  /// "Same as Jamie’s way on Twin Lakes. Your name is on it now."
+  private func foundTooWords(_ way: Way?, on sign: Sign) -> String {
+    guard let owner = way?.by?.name else { return "Your name is on that way on \(sign.title) now." }
+    return "Same as \(owner)’s way on \(sign.title). Your name is on it now."
+  }
+
   /// The badges the way earned flip in, then count as seen.
   private func celebrate(_ badges: [EarnedBadge]) {
-    AccessibilityNotification.Announcement("Another way!").post()
+    AccessibilityNotification.Announcement(wasFoundToo ? "You found it too." : "Another way!").post()
     guard !badges.isEmpty else { return }
     Task {
       try? await Task.sleep(for: .milliseconds(still ? 300 : 650))

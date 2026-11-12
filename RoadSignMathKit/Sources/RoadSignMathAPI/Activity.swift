@@ -1,8 +1,8 @@
 import Foundation
 
 // What's new on your signs (API 1.10.0, `GET /me/activity`): the ways
-// other players found and the hearts they gave on the signs you posted or
-// are a finder of, in the last 30 days, newest first. You shows it as
+// other players found (or, since 1.13.0, found too) and the hearts they
+// gave on the signs you posted or are a finder of, in the last 30 days, newest first. You shows it as
 // "On your signs", with a dot on your avatar while something's new.
 
 public struct MyActivity: Codable, Sendable, Equatable {
@@ -30,6 +30,8 @@ public struct MyActivity: Codable, Sendable, Equatable {
 public struct ActivityItem: Codable, Sendable, Hashable {
   public enum Kind: String, Codable, Sendable {
     case way, heart
+    /// A player found a way already on the sign, and was credited on it.
+    case alsoFound = "also_found"
     /// A kind a newer server sends that this app doesn't know: left out.
     case other
 
@@ -91,7 +93,7 @@ public struct ActivityItem: Codable, Sendable, Hashable {
   public var at: Date
   public var sign: SignRef
   public var player: Who
-  /// The way, for a way; nil for a heart.
+  /// The way, for a way or one found too; nil for a heart.
   public var way: Way?
 
   public init(kind: Kind, at: Date, sign: SignRef, player: Who, way: Way? = nil) {
@@ -103,11 +105,13 @@ public struct ActivityItem: Codable, Sendable, Hashable {
   }
 }
 
-/// One line of "On your signs": a way someone found, or the hearts given
-/// one sign, gathered ("Pat and 2 others hearted Cancel it all out").
+/// One line of "On your signs": a way someone found, a way someone found
+/// too, or the hearts given one sign, gathered ("Pat and 2 others hearted
+/// Cancel it all out").
 public struct ActivityRow: Sendable, Hashable, Identifiable {
   public enum Kind: Sendable, Hashable {
     case way(ActivityItem.Way)
+    case foundToo(ActivityItem.Way)
     case hearts
   }
 
@@ -134,7 +138,7 @@ public struct ActivityRow: Sendable, Hashable, Identifiable {
   }
 
   /// The rows for `items` (newest first), new ones being after `seen`.
-  /// Each way is a row; hearts on the same sign gather into one, in the
+  /// Each way, and each way found too, is a row; hearts on the same sign gather into one, in the
   /// place of the newest, new ones apart from the ones seen before.
   public static func rows(_ items: [ActivityItem], seen: Date?) -> [ActivityRow] {
     var rows: [ActivityRow] = []
@@ -145,6 +149,10 @@ public struct ActivityRow: Sendable, Hashable, Identifiable {
       case .way:
         guard let way = item.way else { continue }
         rows.append(ActivityRow(id: "way:" + way.id, kind: .way(way), at: item.at, sign: item.sign, players: [item.player], new: new))
+      case .alsoFound:
+        guard let way = item.way else { continue }
+        let id = "too:\(way.id):\(item.player.handle ?? "")@\(item.at.timeIntervalSince1970)"
+        rows.append(ActivityRow(id: id, kind: .foundToo(way), at: item.at, sign: item.sign, players: [item.player], new: new))
       case .heart:
         let key = item.sign.id + (new ? ":new" : ":seen")
         if let index = hearts[key] {

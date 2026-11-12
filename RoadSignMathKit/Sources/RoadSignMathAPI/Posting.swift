@@ -150,6 +150,14 @@ extension APIClient {
     try await answer(to: request("POST", ["signs", signId, "ways"], body: ["text": text], token: token))
   }
 
+  /// Solves a sign (API 1.13.0): a new way goes on it, as `addWay` would,
+  /// and the same math as a way someone else found credits you on theirs
+  /// (`also_found`: no badge). The same way in another order, or your own
+  /// way, is a conflict (409).
+  public func solveSign(_ text: String, on signId: String, token: String) async throws -> Solved {
+    try await answer(to: request("POST", ["signs", signId, "solve"], body: ["text": text], token: token))
+  }
+
   /// Signs within 2 miles of a spot that share at least half of `numbers`,
   /// nearest first, each with its `miles`.
   public func similarSigns(latitude lat: Double, longitude lng: Double, numbers: [String]) async throws -> [Sign] {
@@ -168,3 +176,34 @@ extension APIClient {
 }
 
 private struct SimilarSigns: Decodable { var signs: [Sign] }
+
+/// What solving a sign did: the sign and all its ways, the badges a new
+/// way earned, and the way you made or found too.
+public struct Solved: Decodable, Sendable, Hashable {
+  public enum Result: String, Decodable, Sendable, Hashable {
+    /// Your way went on the sign.
+    case newWay = "new_way"
+    /// It was there already, and you found it too.
+    case alsoFound = "also_found"
+    /// A result a newer server sends: the sign is as it answered.
+    case other
+
+    public init(from decoder: any Decoder) throws {
+      self = Result(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .other
+    }
+  }
+
+  public var detail: SignDetail
+  public var result: Result
+  /// The way you made, or the one you found too.
+  public var way: Way
+
+  public init(from decoder: any Decoder) throws {
+    detail = try SignDetail(from: decoder)
+    let container = try decoder.container(keyedBy: Keys.self)
+    result = try container.decode(Result.self, forKey: .result)
+    way = try container.decode(Way.self, forKey: .way)
+  }
+
+  private enum Keys: String, CodingKey { case result, way }
+}

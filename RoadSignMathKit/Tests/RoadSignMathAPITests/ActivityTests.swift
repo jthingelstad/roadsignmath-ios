@@ -57,6 +57,28 @@ import Testing
     #expect(ActivityRow.rows(activity.items, seen: nil).count == 2)
   }
 
+  @Test func aWayFoundTooIsARowOfItsOwn() async throws {
+    let stub = Stub(status: 200, body: """
+      {"days":30,"items":[
+        {"kind":"also_found","at":"2025-10-31T22:00:00.000Z",
+         "sign":{"id":"01sign","slug":"i-35w-at-82nd-street","title":"I-35W at 82nd Street","photo_thumb_url":null},
+         "player":{"handle":"pat","name":"Pat","avatar_color":"#004C80","avatar_thumb_url":null},
+         "way":{"id":"01way","text":"5 − 1 = 2","tex":"5 - 1 = 2"}},
+        {"kind":"also_found","at":"2025-10-31T20:00:00.000Z",
+         "sign":{"id":"01sign","slug":"i-35w-at-82nd-street","title":"I-35W at 82nd Street","photo_thumb_url":null},
+         "player":{"handle":"sam","name":"Sam","avatar_color":"#004C80","avatar_thumb_url":null},
+         "way":{"id":"01way","text":"5 − 1 = 2","tex":"5 - 1 = 2"}}
+      ]}
+      """)
+    let activity = try await stub.client.myActivity(token: "rsm_x")
+    #expect(activity.items.map(\.kind) == [.alsoFound, .alsoFound])
+    let rows = ActivityRow.rows(activity.items, seen: nil)
+    #expect(rows.count == 2, "each player who found it too is a row")
+    #expect(Set(rows.map(\.id)).count == 2)
+    #expect(rows[0].kind == .foundToo(.init(id: "01way", text: "5 − 1 = 2", tex: "5 - 1 = 2")))
+    #expect(rows[0].who == "Pat")
+  }
+
   @Test func heartsOnOneSignGatherIntoARow() {
     let way = ActivityItem(kind: .way, at: hoursBefore(2), sign: gantry, player: .init(handle: "jamie", name: "Jamie"),
                            way: .init(id: "01way", text: "1+1=2", tex: "1+1=2"))

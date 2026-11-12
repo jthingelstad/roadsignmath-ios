@@ -127,6 +127,51 @@ import Testing
     #expect(json == ["text": "90 − 82 − 8 + 6 = 10 − 7 + 2 + 1"])
   }
 
+  /// The posted sign, answered as `POST /signs/{id}/solve` would: Tyler's
+  /// way, found too by Pat, and `result` and `way` beside it.
+  func solved(_ result: String) throws -> String {
+    var object = try #require(try JSONSerialization.jsonObject(with: Data(fixture("posted").utf8)) as? [String: Any])
+    var ways = try #require(object["ways"] as? [[String: Any]])
+    ways[0]["also_found_by"] = [["handle": "pat", "name": "Pat"]]
+    object["ways"] = ways
+    object["unlocked"] = [Any]()
+    object["result"] = result
+    object["way"] = ways[0]
+    return String(decoding: try JSONSerialization.data(withJSONObject: object), as: UTF8.self)
+  }
+
+  @Test func solvesASignAsItsText() async throws {
+    let stub = Stub(status: 200, body: try solved("also_found"))
+    let answer = try await stub.client.solveSign("(90 − 82) ÷ 8 × 1 × 2 = 6 ÷ (10 − 7)", on: "01sign", token: "rsm_x")
+    #expect(answer.result == .alsoFound)
+    #expect(answer.way.id == answer.detail.ways[0].id)
+    #expect(answer.way.by?.name == "Tyler")
+    #expect(answer.detail.ways[0].foundToo.map(\.name) == ["Pat"])
+    #expect(Way.alsoFound(answer.detail.ways[0]) == "Also found by Pat")
+    #expect(answer.detail.unlocked.isEmpty)
+    let sent = try #require(stub.requests.first)
+    #expect(sent.method == "POST")
+    #expect(sent.path == "/api/v1/signs/01sign/solve")
+    #expect(sent.authorization == "Bearer rsm_x")
+    let body = try #require(sent.data)
+    let json = try #require(try JSONSerialization.jsonObject(with: body) as? [String: String])
+    #expect(json == ["text": "(90 − 82) ÷ 8 × 1 × 2 = 6 ÷ (10 − 7)"])
+  }
+
+  @Test func aNewWayAndAResultThisAppDoesntKnow() async throws {
+    let new = try await Stub(status: 200, body: try solved("new_way")).client.solveSign("x", on: "01sign", token: "rsm_x")
+    #expect(new.result == .newWay)
+    let later = try await Stub(status: 200, body: try solved("shared")).client.solveSign("x", on: "01sign", token: "rsm_x")
+    #expect(later.result == .other, "a newer server's result still reads")
+  }
+
+  @Test func aWayFromAnOlderServerHasNobodyWhoFoundItToo() async throws {
+    let detail = try await Stub(status: 201, body: try fixture("posted")).client.addWay("x", to: "01sign", token: "rsm_x")
+    #expect(detail.ways[0].alsoFoundBy == nil)
+    #expect(detail.ways[0].foundToo.isEmpty)
+    #expect(Way.alsoFound(detail.ways[0]) == nil)
+  }
+
   @Test func aWaySomeoneFoundIsAConflict() async throws {
     let stub = Stub(status: 409, body: #"{"error":{"code":"conflict","message":"Someone already found that way"}}"#)
     let error = await #expect(throws: APIError.self) {
