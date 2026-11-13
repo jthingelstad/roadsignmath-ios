@@ -28,6 +28,13 @@ set by hand; the build number is the commit count, so a commit uploads
 once. Each build gets
 [a pass on a real phone](PHONE-TEST.md).
 
+An upload Apple accepts can still sit in "processing" and never become a
+build (build 49, 12 November 2026: two hours and counting, no errors, where
+others took a minute). `scripts/asc.swift GET
+'/v1/apps/<app id>/buildUploads?sort=-uploadedDate&limit=3'` shows each
+upload's state. A stuck one can't be sent again under its number: the next
+commit on main gives the next build number, and that one is uploaded.
+
 ## 2. The public beta
 
 Jamie made the Beta group and its public invite on 31 October 2026, and
