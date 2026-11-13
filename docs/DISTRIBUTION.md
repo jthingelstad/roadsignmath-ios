@@ -68,6 +68,13 @@ external testers. It takes:
 
 Later, on Jamie's go. What the listing needs, ready to fill in:
 
+- **A build that isn't internal only.** An App Store version takes only a
+  build Apple marks App Store eligible, the same upload the public beta
+  needs: `scripts/testflight.sh --external`. One uploaded internal only is
+  refused ("The specified pre-release build could not be added", 1.1's
+  builds 45 to 50, 12 November 2026), so a version headed for review needs
+  a fresh commit and that upload.
+
 - **Privacy** (App Privacy in App Store Connect), the same as
   `RoadSignMath/PrivacyInfo.xcprivacy`. No tracking. Linked to the
   player, for App Functionality: Contact Info (email address, for
